@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Background Colors */
+    --color-background: #fafafa; /* gray-50 */
+    --color-foreground: #1f2937; /* gray-800 */
+    --color-card: #ffffff; /* white */
+    --color-card-foreground: #1f2937; /* gray-800 */
+    --color-popover: #ffffff; /* white */
+    --color-popover-foreground: #1f2937; /* gray-800 */
+    
+    /* Muted Colors */
+    --color-muted: #f3f4f6; /* gray-100 */
+    --color-muted-foreground: #6b7280; /* gray-500 */
+    
+    /* Border & Input */
+    --color-border: #e5e7eb; /* gray-200 */
+    --color-input: #e5e7eb; /* gray-200 */
+    --color-ring: #2563eb; /* blue-600 */
+    
+    /* Primary Colors */
+    --color-primary: #2563eb; /* blue-600 */
+    --color-primary-foreground: #ffffff; /* white */
+    
+    /* Secondary Colors */
+    --color-secondary: #7c3aed; /* violet-600 */
+    --color-secondary-foreground: #ffffff; /* white */
+    
+    /* Accent Colors */
+    --color-accent: #059669; /* emerald-600 */
+    --color-accent-foreground: #ffffff; /* white */
+    
+    /* Destructive/Error Colors */
+    --color-destructive: #ef4444; /* red-500 */
+    --color-destructive-foreground: #ffffff; /* white */
+    --color-error: #ef4444; /* red-500 */
+    --color-error-foreground: #ffffff; /* white */
+    
+    /* Success Colors */
+    --color-success: #10b981; /* emerald-500 */
+    --color-success-foreground: #ffffff; /* white */
+    
+    /* Warning Colors */
+    --color-warning: #f59e0b; /* amber-500 */
+    --color-warning-foreground: #ffffff; /* white */
+    
+    /* Brand Colors */
+    --color-brand-primary: #2D5A87; /* custom-blue */
+    --color-brand-secondary: #7BB3D1; /* custom-sky-blue */
+    --color-brand-accent: #F4A261; /* custom-orange */
+    --color-brand-trust: #2A9D8F; /* custom-teal */
+    --color-brand-cta: #E76F51; /* custom-coral */
+    
+    /* Spacing Scale */
+    --space-xs: 0.5rem;
+    --space-sm: 0.75rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    --space-3xl: 6rem;
+    
+    /* Border Radius */
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Source Sans 3', sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  button {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  code, pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .animation-breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+  
+  @keyframes breathe {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.02);
+    }
+  }
+  
+  .gradient-brand {
+    background: linear-gradient(135deg, #2D5A87 0%, #4A90B8 50%, #7BB3D1 100%);
+  }
+  
+  .shadow-brand {
+    box-shadow: 0 4px 12px rgba(45, 90, 135, 0.15), 0 2px 4px rgba(45, 90, 135, 0.1);
+  }
+  
+  .shadow-brand-lg {
+    box-shadow: 0 8px 24px rgba(45, 90, 135, 0.2), 0 4px 8px rgba(45, 90, 135, 0.15);
+  }
+}
