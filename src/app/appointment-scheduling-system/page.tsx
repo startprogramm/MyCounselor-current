@@ -3,7 +3,7 @@ import Header from '@/components/common/Header';
 import AppointmentSchedulingInteractive from './components/AppointmentSchedulingInteractive';
 
 export const metadata: Metadata = {
-  title: 'Appointment Scheduling System - CounselConnect',
+  title: 'Appointment Scheduling System - MyCounselor',
   description: 'Schedule appointments with school counselors through our intelligent booking platform with availability management, automated reminders, and smart time slot matching.',
 };
 
@@ -11,7 +11,7 @@ export default function AppointmentSchedulingSystemPage() {
   return (
     <main className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="pt-24 pb-16 px-4 lg:px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">

@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
 import Icon from '@/components/ui/AppIcon';
+import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 interface TrustSignal {
   id: number;
@@ -13,6 +16,8 @@ interface TrustSignalsSectionProps {
 }
 
 const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
+  const [sectionRef, isVisible] = useScrollAnimation<HTMLElement>({ threshold: 0.1 });
+
   const trustSignals: TrustSignal[] = [
     {
       id: 1,
@@ -41,9 +46,15 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
   ];
 
   return (
-    <section className={`py-16 lg:py-20 bg-muted/30 ${className}`}>
+    <section
+      ref={sectionRef}
+      className={`py-16 lg:py-20 bg-muted/30 dark:bg-slate-900/50 ${className}`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
+        {/* Header */}
+        <div
+          className={`text-center mb-12 animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
+        >
           <h2 className="text-2xl sm:text-3xl font-heading font-bold text-foreground mb-3">
             Your Security & Privacy Matter
           </h2>
@@ -51,21 +62,25 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
             We maintain the highest standards of security and compliance to protect student information and ensure trust.
           </p>
         </div>
-        
+
+        {/* Trust Signals Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {trustSignals.map((signal) => (
+          {trustSignals.map((signal, index) => (
             <div
               key={signal.id}
-              className="bg-card rounded-xl p-6 text-center shadow-sm hover:shadow-md transition-all duration-300 border border-border"
+              className={`bg-card dark:bg-slate-800/50 rounded-xl p-6 text-center shadow-sm hover:shadow-md transition-all duration-300 border border-border dark:border-slate-700 group animate-on-scroll-scale stagger-${index + 1} ${isVisible ? 'animate-visible' : ''}`}
             >
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent/10 mb-4">
+              {/* Icon */}
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent/10 dark:bg-accent/20 mb-4 group-hover:scale-110 group-hover:bg-accent/20 transition-all duration-300">
                 <Icon name={signal.icon as any} size={28} variant="solid" className="text-accent" />
               </div>
-              
-              <h3 className="text-lg font-heading font-bold text-foreground mb-2">
+
+              {/* Title */}
+              <h3 className="text-lg font-heading font-bold text-foreground mb-2 group-hover:text-accent transition-colors">
                 {signal.title}
               </h3>
-              
+
+              {/* Description */}
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {signal.description}
               </p>

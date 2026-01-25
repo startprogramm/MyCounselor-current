@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Icon from '@/components/ui/AppIcon';
+import ThemeToggle from '@/components/ui/ThemeToggle';
+import SkipLink from '@/components/ui/SkipLink';
 
 interface NavItem {
   label: string;
@@ -18,99 +20,165 @@ const navItems: NavItem[] = [
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close mobile menu on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/homepage" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-[#2D5A87] to-[#4A90B8] rounded-lg flex items-center justify-center">
-              <Icon name="AcademicCapIcon" size={24} className="text-white" variant="solid" />
-            </div>
-            <span className="text-xl font-bold text-[#2D5A87] font-heading">
-              CounselConnect
-            </span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-sm font-medium text-gray-600 hover:text-[#2D5A87] transition-colors"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Auth Buttons */}
-          <div className="hidden md:flex items-center space-x-3">
+    <>
+      <SkipLink />
+      <header
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
+          ? 'bg-card/95 dark:bg-card/95 backdrop-blur-md shadow-md'
+          : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm'
+          } border-b border-border`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
             <Link
-              href="/auth/login"
-              className="px-4 py-2 text-sm font-medium text-[#2D5A87] hover:text-[#4A90B8] transition-colors"
+              href="/homepage"
+              className="flex items-center space-x-2 focus-ring rounded-lg"
+              aria-label="MyCounselor Home"
             >
-              Log in
+              <div className="w-10 h-10 bg-gradient-to-br from-[#2D5A87] to-[#4A90B8] rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-shadow">
+                <Icon name="AcademicCapIcon" size={24} className="text-white" variant="solid" />
+              </div>
+              <span className="text-xl font-bold text-[#2D5A87] dark:text-[#7BB3D1] font-heading">
+                MyCounselor
+              </span>
             </Link>
-            <Link
-              href="/auth/signup"
-              className="px-4 py-2 text-sm font-medium bg-[#2D5A87] text-white rounded-lg hover:bg-[#4A90B8] transition-colors"
-            >
-              Get Started
-            </Link>
-          </div>
 
-          {/* Mobile menu button */}
-          <button
-            type="button"
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <Icon
-              name={isMobileMenuOpen ? 'XMarkIcon' : 'Bars3Icon'}
-              size={24}
-              variant="outline"
-            />
-          </button>
-        </div>
-
-        {/* Mobile Navigation */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200">
-            <div className="flex flex-col space-y-2">
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-8" aria-label="Main navigation">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-[#2D5A87] hover:bg-gray-50 rounded-lg transition-colors"
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#2D5A87] dark:hover:text-[#7BB3D1] transition-colors focus-ring rounded-md px-2 py-1"
                 >
                   {item.label}
                 </Link>
               ))}
-              <div className="border-t border-gray-200 my-2" />
+            </nav>
+
+            {/* Auth Buttons & Theme Toggle */}
+            <div className="hidden md:flex items-center space-x-3">
+              <ThemeToggle />
               <Link
                 href="/auth/login"
-                className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 rounded-lg"
-                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-[#2D5A87] dark:text-[#7BB3D1] hover:text-[#4A90B8] transition-colors focus-ring rounded-lg"
               >
                 Log in
               </Link>
               <Link
                 href="/auth/signup"
-                className="mx-4 px-4 py-2 text-sm font-medium text-center bg-[#2D5A87] text-white rounded-lg hover:bg-[#4A90B8]"
-                onClick={() => setIsMobileMenuOpen(false)}
+                className="px-4 py-2 text-sm font-medium bg-[#2D5A87] text-white rounded-lg hover:bg-[#4A90B8] transition-all duration-300 shadow-md hover:shadow-lg focus-ring"
               >
                 Get Started
               </Link>
             </div>
+
+            {/* Mobile menu button */}
+            <div className="flex items-center space-x-2 md:hidden">
+              <ThemeToggle />
+              <button
+                type="button"
+                className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 focus-ring transition-colors"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-expanded={isMobileMenuOpen}
+                aria-controls="mobile-menu"
+                aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+              >
+                <Icon
+                  name={isMobileMenuOpen ? 'XMarkIcon' : 'Bars3Icon'}
+                  size={24}
+                  variant="outline"
+                />
+              </button>
+            </div>
           </div>
-        )}
-      </div>
-    </header>
+
+          {/* Mobile Navigation */}
+          <div
+            id="mobile-menu"
+            className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+              }`}
+          >
+            <div className="py-4 border-t border-border">
+              <nav className="flex flex-col space-y-1" aria-label="Mobile navigation">
+                {navItems.map((item, index) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#2D5A87] dark:hover:text-[#7BB3D1] hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-all duration-200 focus-ring ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+                      }`}
+                    style={{ transitionDelay: `${index * 50}ms` }}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="border-t border-border my-2" />
+                <Link
+                  href="/auth/login"
+                  className="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors focus-ring"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/auth/signup"
+                  className="mx-4 px-4 py-3 text-sm font-medium text-center bg-[#2D5A87] text-white rounded-lg hover:bg-[#4A90B8] transition-colors shadow-md focus-ring"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Get Started
+                </Link>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile menu backdrop */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 dark:bg-black/40 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+    </>
   );
 };
 
 export default Header;
+

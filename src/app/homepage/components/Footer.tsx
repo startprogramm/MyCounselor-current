@@ -94,13 +94,13 @@ const Footer = ({ className = '' }: FooterProps) => {
                   />
                 </svg>
               </div>
-              <span className="text-xl font-heading font-bold">CounselConnect</span>
+              <span className="text-xl font-heading font-bold">MyCounselor</span>
             </Link>
-            
+
             <p className="text-white/70 mb-6 leading-relaxed max-w-md">
               Empowering student success through organized, accessible counseling support. Technology that amplifies human connection.
             </p>
-            
+
             <div className="flex space-x-4">
               {socialLinks.map((social) => (
                 <a
@@ -114,7 +114,7 @@ const Footer = ({ className = '' }: FooterProps) => {
               ))}
             </div>
           </div>
-          
+
           {footerSections.map((section) => (
             <div key={section.title}>
               <h3 className="text-lg font-heading font-semibold mb-4">
@@ -135,13 +135,13 @@ const Footer = ({ className = '' }: FooterProps) => {
             </div>
           ))}
         </div>
-        
+
         <div className="pt-8 border-t border-white/10">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-white/60 text-sm">
-              © {currentYear} CounselConnect. All rights reserved.
+              © {currentYear} MyCounselor. All rights reserved.
             </p>
-            
+
             <div className="flex items-center space-x-6 text-sm text-white/60">
               <div className="flex items-center space-x-2">
                 <Icon name="ShieldCheckIcon" size={16} variant="solid" className="text-accent" />
