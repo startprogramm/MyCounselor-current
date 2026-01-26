@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input, { Select, Textarea } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { schools, getSchoolDisplayName } from '@/data/schools';
 
 export default function CounselorSignupPage() {
   const router = useRouter();
@@ -200,13 +201,19 @@ export default function CounselorSignupPage() {
               </>
             ) : (
               <>
-                <Input
-                  label="School name"
+                <Select
+                  label="School"
                   name="school"
-                  placeholder="Lincoln High School"
                   value={formData.school}
                   onChange={handleInputChange}
                   error={errors.school}
+                  options={[
+                    { value: '', label: 'Select your school' },
+                    ...schools.map(school => ({
+                      value: school.id,
+                      label: getSchoolDisplayName(school),
+                    })),
+                  ]}
                 />
 
                 <div className="grid grid-cols-2 gap-4">

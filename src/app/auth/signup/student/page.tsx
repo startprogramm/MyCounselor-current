@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input, { Select } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { schools, getSchoolDisplayName } from '@/data/schools';
 
 export default function StudentSignupPage() {
   const router = useRouter();
@@ -190,13 +191,19 @@ export default function StudentSignupPage() {
               </>
             ) : (
               <>
-                <Input
-                  label="School name"
+                <Select
+                  label="School"
                   name="school"
-                  placeholder="Lincoln High School"
                   value={formData.school}
                   onChange={handleInputChange}
                   error={errors.school}
+                  options={[
+                    { value: '', label: 'Select your school' },
+                    ...schools.map(school => ({
+                      value: school.id,
+                      label: getSchoolDisplayName(school),
+                    })),
+                  ]}
                 />
 
                 <Select
