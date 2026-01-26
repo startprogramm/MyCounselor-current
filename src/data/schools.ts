@@ -8,9 +8,19 @@ export interface School {
   city: string;
   state: string;
   type: 'high_school' | 'middle_school' | 'elementary' | 'k12';
+  code?: string; // School verification code
 }
 
 export const schools: School[] = [
+  {
+    id: 'sch_presidential',
+    name: 'Presidential School in Gulistan',
+    district: 'Presidential Schools',
+    city: 'Gulistan',
+    state: 'Uzbekistan',
+    type: 'k12',
+    code: 'esb2021g',
+  },
   {
     id: 'sch_001',
     name: 'Lincoln High School',
@@ -112,4 +122,17 @@ export const searchSchools = (query: string): School[] => {
       school.city.toLowerCase().includes(lowerQuery) ||
       school.district.toLowerCase().includes(lowerQuery)
   );
+};
+
+// Helper function to validate school code
+export const validateSchoolCode = (schoolId: string, code: string): boolean => {
+  const school = getSchoolById(schoolId);
+  if (!school || !school.code) return false;
+  return school.code.toLowerCase() === code.toLowerCase();
+};
+
+// Helper function to check if school requires a code
+export const schoolRequiresCode = (schoolId: string): boolean => {
+  const school = getSchoolById(schoolId);
+  return school?.code !== undefined;
 };

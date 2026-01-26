@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input, { Select } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { schools, getSchoolDisplayName } from '@/data/schools';
+import { schools, getSchoolDisplayName, validateSchoolCode } from '@/data/schools';
 
 export default function StudentSignupPage() {
   const router = useRouter();
@@ -58,6 +58,11 @@ export default function StudentSignupPage() {
     const newErrors: Record<string, string> = {};
     if (!formData.school) newErrors.school = 'School is required';
     if (!formData.gradeLevel) newErrors.gradeLevel = 'Grade level is required';
+    if (!formData.counselorCode) {
+      newErrors.counselorCode = 'School code is required';
+    } else if (!validateSchoolCode(formData.school, formData.counselorCode)) {
+      newErrors.counselorCode = 'Invalid school code';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -222,12 +227,13 @@ export default function StudentSignupPage() {
                 />
 
                 <Input
-                  label="Counselor code (optional)"
+                  label="School code"
                   name="counselorCode"
-                  placeholder="Enter code from your counselor"
+                  placeholder="Enter your school code"
                   value={formData.counselorCode}
                   onChange={handleInputChange}
-                  hint="If your counselor gave you a code, enter it here"
+                  error={errors.counselorCode}
+                  hint="Enter the code provided by your school"
                 />
 
                 <div className="flex gap-3">
