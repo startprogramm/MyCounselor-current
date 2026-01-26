@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/context/AuthContext';
 
 // Mock data
 const stats = [
@@ -32,6 +33,8 @@ const quickActions = [
 ];
 
 export default function StudentDashboardPage() {
+  const { user } = useAuth();
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-warning/10 text-warning';
@@ -78,11 +81,16 @@ export default function StudentDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
-            Welcome back, Alex!
+            Welcome back, {user?.firstName || 'Student'}!
           </h1>
           <p className="text-muted-foreground mt-1">
             Here&apos;s what&apos;s happening with your counseling journey.
           </p>
+          {user?.schoolName && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {user.schoolName} {user.gradeLevel && `• Grade ${user.gradeLevel}`}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
 import '../styles/index.css';
+import { AuthProvider } from '@/context/AuthContext';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -40,7 +41,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

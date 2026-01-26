@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input, { Select } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { schools, getSchoolDisplayName, validateSchoolCode } from '@/data/schools';
+import { schools, getSchoolDisplayName, validateSchoolCode, getSchoolById } from '@/data/schools';
+import { useAuth } from '@/context/AuthContext';
 
 export default function StudentSignupPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -80,6 +82,22 @@ export default function StudentSignupPage() {
     setIsLoading(true);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Get school name for display
+    const school = getSchoolById(formData.school);
+
+    // Save user data
+    login({
+      id: `student_${Date.now()}`,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      role: 'student',
+      schoolId: formData.school,
+      schoolName: school?.name || '',
+      gradeLevel: formData.gradeLevel,
+    });
+
     router.push('/student/dashboard');
   };
 
