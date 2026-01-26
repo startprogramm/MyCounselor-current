@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input, { Select, Textarea } from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
-import { schools, getSchoolDisplayName } from '@/data/schools';
+import { schools, getSchoolDisplayName, getSchoolById } from '@/data/schools';
+import { useAuth } from '@/context/AuthContext';
 
 export default function CounselorSignupPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -79,6 +81,23 @@ export default function CounselorSignupPage() {
     setIsLoading(true);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    // Get school name for display
+    const school = getSchoolById(formData.school);
+
+    // Save user data
+    login({
+      id: `counselor_${Date.now()}`,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email,
+      role: 'counselor',
+      schoolId: formData.school,
+      schoolName: school?.name || '',
+      title: formData.title,
+      department: formData.department,
+    });
+
     router.push('/counselor/dashboard');
   };
 

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
+import { useAuth } from '@/context/AuthContext';
 
 const counselorNavItems: SidebarItem[] = [
   {
@@ -67,13 +68,15 @@ export default function CounselorLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
         items={counselorNavItems}
         userType="counselor"
-        userName="Dr. Sarah Martinez"
-        userEmail="s.martinez@school.edu"
+        userName={user ? `${user.firstName} ${user.lastName}` : 'Counselor'}
+        userEmail={user?.email || 'counselor@school.edu'}
       />
       <main className="lg:pl-64 min-h-screen">
         <div className="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">{children}</div>

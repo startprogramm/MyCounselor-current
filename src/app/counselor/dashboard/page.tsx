@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/context/AuthContext';
 
 // Mock data
 const stats = [
@@ -36,6 +37,8 @@ const recentActivity = [
 ];
 
 export default function CounselorDashboardPage() {
+  const { user } = useAuth();
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'bg-destructive/10 text-destructive border-destructive/20';
@@ -51,11 +54,16 @@ export default function CounselorDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
-            Welcome back, Dr. Martinez!
+            Welcome back, {user?.firstName || 'Counselor'}!
           </h1>
           <p className="text-muted-foreground mt-1">
             Here&apos;s your counseling overview for today.
           </p>
+          {user?.schoolName && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {user.schoolName} {user.title && `• ${user.title}`}
+            </p>
+          )}
         </div>
         <div className="text-sm text-muted-foreground">
           Friday, January 24, 2026
