@@ -20,8 +20,10 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (user: User) => void;
+  register: (user: User) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  findRegisteredUser: (email: string) => User | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -48,6 +50,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('mycounselor_user', JSON.stringify(userData));
   };
 
+  // Register a user and also save to registered users list
+  const register = (userData: User) => {
+    login(userData);
+    // Save to registered users list for login lookup
+    const registeredUsers = JSON.parse(localStorage.getItem('mycounselor_registered_users') || '[]');
+    // Remove existing user with same email if any
+    const filtered = registeredUsers.filter((u: User) => u.email !== userData.email);
+    filtered.push(userData);
+    localStorage.setItem('mycounselor_registered_users', JSON.stringify(filtered));
+  };
+
+  // Find a registered user by email
+  const findRegisteredUser = (email: string): User | null => {
+    const registeredUsers = JSON.parse(localStorage.getItem('mycounselor_registered_users') || '[]');
+    return registeredUsers.find((u: User) => u.email === email) || null;
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('mycounselor_user');
@@ -62,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, findRegisteredUser }}>
       {children}
     </AuthContext.Provider>
   );

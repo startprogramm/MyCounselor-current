@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function StudentSignupPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -87,7 +87,7 @@ export default function StudentSignupPage() {
     const school = getSchoolById(formData.school);
 
     // Save user data
-    login({
+    register({
       id: `student_${Date.now()}`,
       firstName: formData.firstName,
       lastName: formData.lastName,

@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, findRegisteredUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -48,39 +48,16 @@ export default function LoginPage() {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Check if user already exists in localStorage (from previous registration)
-    const storedUser = localStorage.getItem('mycounselor_user');
-    if (storedUser) {
-      const existingUser = JSON.parse(storedUser);
-      // If email matches, log them in with existing data
-      if (existingUser.email === formData.email) {
-        login(existingUser);
-        router.push(existingUser.role === 'student' ? '/student/dashboard' : '/counselor/dashboard');
-        return;
-      }
-    }
+    // Look up the registered user by email
+    const registeredUser = findRegisteredUser(formData.email);
 
-    // For demo: create a user from login form (in real app, this would validate with backend)
-    const emailName = formData.email.split('@')[0];
-    const nameParts = emailName.split('.');
-    const firstName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'User';
-    const lastName = nameParts[1] ? nameParts[1].charAt(0).toUpperCase() + nameParts[1].slice(1) : '';
-
-    login({
-      id: `${formData.role}_${Date.now()}`,
-      firstName,
-      lastName,
-      email: formData.email,
-      role: formData.role as 'student' | 'counselor',
-      schoolId: 'sch_presidential',
-      schoolName: 'Presidential School in Gulistan',
-    });
-
-    // Redirect based on role
-    if (formData.role === 'student') {
-      router.push('/student/dashboard');
+    if (registeredUser) {
+      login(registeredUser);
+      router.push(registeredUser.role === 'student' ? '/student/dashboard' : '/counselor/dashboard');
     } else {
-      router.push('/counselor/dashboard');
+      // No registered user found with this email
+      setIsLoading(false);
+      setErrors({ email: 'No account found with this email. Please sign up first.' });
     }
   };
 
