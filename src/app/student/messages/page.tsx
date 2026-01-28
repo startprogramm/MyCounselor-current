@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/context/AuthContext';
 
 const conversations = [
   {
@@ -22,37 +23,39 @@ const conversations = [
   },
 ];
 
-const mockMessages = [
-  {
-    id: 1,
-    sender: 'counselor',
-    content: 'Hi Alex! I reviewed your college essay draft. You have a strong opening, but I think we can make the conclusion more impactful.',
-    timestamp: '10:30 AM',
-  },
-  {
-    id: 2,
-    sender: 'student',
-    content: 'Thank you for reviewing it! What changes would you suggest for the conclusion?',
-    timestamp: '10:45 AM',
-  },
-  {
-    id: 3,
-    sender: 'counselor',
-    content: 'I would recommend tying your conclusion back to the opening anecdote. This creates a nice narrative arc. Also, try to end with forward-looking statements about your goals.',
-    timestamp: '11:00 AM',
-  },
-  {
-    id: 4,
-    sender: 'counselor',
-    content: 'Great progress on your essay! Let me know if you have questions about implementing these changes.',
-    timestamp: '11:05 AM',
-  },
-];
-
 export default function StudentMessagesPage() {
+  const { user } = useAuth();
   const [selectedConversation, setSelectedConversation] = useState(conversations[0]);
   const [newMessage, setNewMessage] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
+
+  // Generate mock messages with actual user's name
+  const mockMessages = [
+    {
+      id: 1,
+      sender: 'counselor',
+      content: `Hi ${user?.firstName || 'there'}! I reviewed your college essay draft. You have a strong opening, but I think we can make the conclusion more impactful.`,
+      timestamp: '10:30 AM',
+    },
+    {
+      id: 2,
+      sender: 'student',
+      content: 'Thank you for reviewing it! What changes would you suggest for the conclusion?',
+      timestamp: '10:45 AM',
+    },
+    {
+      id: 3,
+      sender: 'counselor',
+      content: 'I would recommend tying your conclusion back to the opening anecdote. This creates a nice narrative arc. Also, try to end with forward-looking statements about your goals.',
+      timestamp: '11:00 AM',
+    },
+    {
+      id: 4,
+      sender: 'counselor',
+      content: 'Great progress on your essay! Let me know if you have questions about implementing these changes.',
+      timestamp: '11:05 AM',
+    },
+  ];
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();

@@ -12,6 +12,7 @@ import AchievementShowcaseCard from './AchievementShowcaseCard';
 import AnonymousQuestionCard from './AnonymousQuestionCard';
 import PeerSupportCard from './PeerSupportCard';
 import CollegeCareerPlanningCard from './CollegeCareerPlanningCard';
+import { useAuth } from '@/context/AuthContext';
 
 interface StudentData {
   name: string;
@@ -95,6 +96,7 @@ interface PlanningTask {
 
 const StudentPortalInteractive = () => {
   const router = useRouter();
+  const { user } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
@@ -102,7 +104,7 @@ const StudentPortalInteractive = () => {
   }, []);
 
   const studentData: StudentData = {
-    name: "Alex Johnson",
+    name: user ? `${user.firstName} ${user.lastName}` : "Student",
     lastLogin: "January 12, 2026 at 3:45 PM"
   };
 
