@@ -8,85 +8,85 @@
 
 @layer base {
   :root {
-    /* Background Colors */
-    --color-background: #fafafa;
-    /* gray-50 */
-    --color-foreground: #1f2937;
-    /* gray-800 */
+    /* Background Colors - Improved for better contrast */
+    --color-background: #f8fafc;
+    /* slate-50 - slightly cooler tone */
+    --color-foreground: #0f172a;
+    /* slate-900 - darker for better readability */
     --color-card: #ffffff;
     /* white */
-    --color-card-foreground: #1f2937;
-    /* gray-800 */
+    --color-card-foreground: #0f172a;
+    /* slate-900 - darker text */
     --color-popover: #ffffff;
     /* white */
-    --color-popover-foreground: #1f2937;
-    /* gray-800 */
+    --color-popover-foreground: #0f172a;
+    /* slate-900 */
 
-    /* Muted Colors */
-    --color-muted: #f3f4f6;
-    /* gray-100 */
-    --color-muted-foreground: #6b7280;
-    /* gray-500 */
+    /* Muted Colors - Better contrast */
+    --color-muted: #e2e8f0;
+    /* slate-200 - more visible */
+    --color-muted-foreground: #475569;
+    /* slate-600 - darker for readability */
 
-    /* Border & Input */
-    --color-border: #e5e7eb;
-    /* gray-200 */
-    --color-input: #e5e7eb;
-    /* gray-200 */
+    /* Border & Input - More visible borders */
+    --color-border: #cbd5e1;
+    /* slate-300 - more visible */
+    --color-input: #cbd5e1;
+    /* slate-300 */
     --color-ring: #2563eb;
     /* blue-600 */
 
-    /* Primary Colors */
-    --color-primary: #2563eb;
-    /* blue-600 */
+    /* Primary Colors - Slightly darker for better contrast */
+    --color-primary: #1d4ed8;
+    /* blue-700 - better contrast on white */
     --color-primary-foreground: #ffffff;
     /* white */
 
     /* Secondary Colors */
-    --color-secondary: #7c3aed;
-    /* violet-600 */
+    --color-secondary: #6d28d9;
+    /* violet-700 - better contrast */
     --color-secondary-foreground: #ffffff;
     /* white */
 
     /* Accent Colors */
-    --color-accent: #059669;
-    /* emerald-600 */
+    --color-accent: #047857;
+    /* emerald-700 - better contrast */
     --color-accent-foreground: #ffffff;
     /* white */
 
     /* Destructive/Error Colors */
-    --color-destructive: #ef4444;
-    /* red-500 */
+    --color-destructive: #dc2626;
+    /* red-600 - better contrast */
     --color-destructive-foreground: #ffffff;
     /* white */
-    --color-error: #ef4444;
-    /* red-500 */
+    --color-error: #dc2626;
+    /* red-600 */
     --color-error-foreground: #ffffff;
     /* white */
 
     /* Success Colors */
-    --color-success: #10b981;
-    /* emerald-500 */
+    --color-success: #059669;
+    /* emerald-600 - better contrast */
     --color-success-foreground: #ffffff;
     /* white */
 
     /* Warning Colors */
-    --color-warning: #f59e0b;
-    /* amber-500 */
+    --color-warning: #d97706;
+    /* amber-600 - better contrast */
     --color-warning-foreground: #ffffff;
     /* white */
 
-    /* Brand Colors */
-    --color-brand-primary: #2D5A87;
-    /* custom-blue */
-    --color-brand-secondary: #7BB3D1;
-    /* custom-sky-blue */
-    --color-brand-accent: #F4A261;
-    /* custom-orange */
-    --color-brand-trust: #2A9D8F;
-    /* custom-teal */
-    --color-brand-cta: #E76F51;
-    /* custom-coral */
+    /* Brand Colors - Slightly adjusted for visibility */
+    --color-brand-primary: #1e4a6d;
+    /* darker blue for better contrast */
+    --color-brand-secondary: #5a9ab8;
+    /* slightly darker sky-blue */
+    --color-brand-accent: #e8923b;
+    /* slightly darker orange */
+    --color-brand-trust: #1f7a6d;
+    /* slightly darker teal */
+    --color-brand-cta: #d45a3d;
+    /* slightly darker coral */
 
     /* Spacing Scale */
     --space-xs: 0.5rem;
@@ -382,5 +382,48 @@
 
   .carousel-dot.active {
     @apply w-6 bg-primary opacity-100;
+  }
+
+  /* Light Mode Card Shadows for better separation */
+  .card-shadow-light {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  .dark .card-shadow-light {
+    box-shadow: none;
+  }
+
+  /* Better text visibility in light mode */
+  .text-visible {
+    @apply text-slate-700;
+  }
+
+  .dark .text-visible {
+    @apply text-slate-300;
+  }
+
+  /* Enhanced link visibility */
+  .link-visible {
+    @apply text-blue-700 hover:text-blue-800;
+  }
+
+  .dark .link-visible {
+    @apply text-blue-400 hover:text-blue-300;
+  }
+}
+
+/* Light mode specific improvements */
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    /* Ensure good contrast in system light mode */
+    --color-muted-foreground: #475569;
+  }
+}
+
+/* Additional light mode enhancements */
+:root:not(.dark) {
+  /* Cards get subtle shadow in light mode */
+  .bg-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
   }
 }
