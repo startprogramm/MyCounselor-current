@@ -13,11 +13,38 @@ interface NavItem {
   href: string;
 }
 
+interface DropdownItem {
+  label: string;
+  href: string;
+  icon: string;
+  description: string;
+}
+
 const navItems: NavItem[] = [
   { label: 'Student Portal', href: '/student-portal-dashboard' },
   { label: 'Counselor Center', href: '/counselor-command-center' },
   { label: 'Resources', href: '/resource-discovery-center' },
-  { label: 'Schedule', href: '/appointment-scheduling-system' },
+];
+
+const toolsDropdownItems: DropdownItem[] = [
+  {
+    label: 'AI Counselor',
+    href: '/tools/ai-counselor',
+    icon: 'SparklesIcon',
+    description: 'Get AI-powered guidance and advice'
+  },
+  {
+    label: 'Major Finder',
+    href: '/tools/major-finder',
+    icon: 'AcademicCapIcon',
+    description: 'Discover your ideal college major'
+  },
+  {
+    label: 'Schedule',
+    href: '/appointment-scheduling-system',
+    icon: 'CalendarIcon',
+    description: 'Book appointments with counselors'
+  },
 ];
 
 const Header: React.FC = () => {
@@ -26,6 +53,8 @@ const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
+  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -99,6 +128,53 @@ const Header: React.FC = () => {
                   {item.label}
                 </Link>
               ))}
+
+              {/* Tools Dropdown */}
+              <div
+                className="relative"
+                onMouseEnter={() => setIsToolsDropdownOpen(true)}
+                onMouseLeave={() => setIsToolsDropdownOpen(false)}
+              >
+                <button
+                  className="flex items-center space-x-1 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#2D5A87] dark:hover:text-[#7BB3D1] transition-colors focus-ring rounded-md px-2 py-1"
+                  aria-expanded={isToolsDropdownOpen}
+                  aria-haspopup="true"
+                >
+                  <span>Tools</span>
+                  <Icon
+                    name="ChevronDownIcon"
+                    size={16}
+                    variant="outline"
+                    className={`transition-transform duration-200 ${isToolsDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {/* Dropdown Menu */}
+                <div
+                  className={`absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 py-2 transition-all duration-200 ${
+                    isToolsDropdownOpen
+                      ? 'opacity-100 visible translate-y-0'
+                      : 'opacity-0 invisible -translate-y-2'
+                  }`}
+                >
+                  {toolsDropdownItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="flex items-start space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => setIsToolsDropdownOpen(false)}
+                    >
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#2D5A87] to-[#4A90B8] rounded-lg flex items-center justify-center text-white flex-shrink-0">
+                        <Icon name={item.icon} size={20} variant="outline" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">{item.label}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{item.description}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </nav>
 
             {/* Auth Buttons & Theme Toggle */}
@@ -215,6 +291,43 @@ const Header: React.FC = () => {
                     {item.label}
                   </Link>
                 ))}
+
+                {/* Mobile Tools Section */}
+                <div className={`transition-all duration-200 ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'}`}
+                  style={{ transitionDelay: `${navItems.length * 50}ms` }}
+                >
+                  <button
+                    onClick={() => setIsMobileToolsOpen(!isMobileToolsOpen)}
+                    className="w-full px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-[#2D5A87] dark:hover:text-[#7BB3D1] hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-all duration-200 focus-ring flex items-center justify-between"
+                  >
+                    <span>Tools</span>
+                    <Icon
+                      name="ChevronDownIcon"
+                      size={16}
+                      variant="outline"
+                      className={`transition-transform duration-200 ${isMobileToolsOpen ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  <div className={`overflow-hidden transition-all duration-300 ${isMobileToolsOpen ? 'max-h-96' : 'max-h-0'}`}>
+                    <div className="pl-4 space-y-1 py-2">
+                      {toolsDropdownItems.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className="flex items-center space-x-3 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:text-[#2D5A87] dark:hover:text-[#7BB3D1] hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setIsMobileToolsOpen(false);
+                          }}
+                        >
+                          <Icon name={item.icon} size={18} variant="outline" className="text-[#2D5A87] dark:text-[#7BB3D1]" />
+                          <span>{item.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="border-t border-border my-2" />
                 {!isLoading && user ? (
                   <>
