@@ -346,89 +346,160 @@ const StudentPortalInteractive = () => {
           ))}
         </div>
 
-        {/* Image Carousel - Universities/Programs */}
-        <div className="bg-white dark:bg-[#292929] rounded-2xl overflow-hidden shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
-          <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043]">
-            <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
-              {isUpperClass ? 'Explore Universities' : 'Recommended Programs'}
-            </h2>
-            <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
-              {isUpperClass
-                ? 'Discover top universities and scholarship opportunities'
-                : 'Programs to build your skills and experience'}
-            </p>
-          </div>
+        {/* Creative Image Carousel - Universities/Programs */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1A73E8] via-[#4285F4] to-[#1E8E3E] p-1">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#1E8E3E]/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
-          <div className="relative">
-            {/* Carousel Container */}
-            <div className="relative h-[300px] md:h-[400px] overflow-hidden">
+          <div className="relative bg-white/95 dark:bg-[#1F1F1F]/95 backdrop-blur-sm rounded-[22px] overflow-hidden">
+            {/* Section Header */}
+            <div className="relative z-10 px-6 py-5 md:px-8 md:py-6 border-b border-[#DADCE0]/50 dark:border-[#3C4043]/50 bg-gradient-to-r from-white via-white to-[#F1F3F4] dark:from-[#292929] dark:via-[#292929] dark:to-[#1F1F1F]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1A73E8] to-[#4285F4] flex items-center justify-center shadow-lg">
+                    <Icon name={isUpperClass ? "AcademicCapIcon" : "RocketLaunchIcon"} size={24} className="text-white" variant="solid" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-bold text-[#202124] dark:text-[#E8EAED]">
+                      {isUpperClass ? 'Explore Universities' : 'Recommended Programs'}
+                    </h2>
+                    <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                      {isUpperClass
+                        ? 'Your path to higher education starts here'
+                        : 'Build skills that shape your future'}
+                    </p>
+                  </div>
+                </div>
+                <div className="hidden md:flex items-center gap-2">
+                  {slides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentSlide(index)}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        index === currentSlide
+                          ? 'w-8 bg-[#1A73E8]'
+                          : 'w-2 bg-[#DADCE0] dark:bg-[#3C4043] hover:bg-[#1A73E8]/50'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Carousel Content */}
+            <div className="relative min-h-[420px] md:min-h-[380px]">
               {slides.map((slide, index) => (
                 <div
                   key={slide.id}
-                  className={`absolute inset-0 transition-opacity duration-500 ${
-                    index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  className={`absolute inset-0 transition-all duration-700 ease-out ${
+                    index === currentSlide
+                      ? 'opacity-100 translate-x-0'
+                      : index < currentSlide
+                        ? 'opacity-0 -translate-x-full'
+                        : 'opacity-0 translate-x-full'
                   }`}
                 >
-                  <div className="relative h-full">
-                    <img
-                      src={slide.image}
-                      alt={slide.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                      <span className="inline-block px-3 py-1 bg-[#1A73E8] text-white text-xs font-medium rounded-full mb-3">
-                        {slide.tag}
-                      </span>
-                      <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                        {slide.title}
-                      </h3>
-                      <p className="text-white/90 mb-4 max-w-xl">
-                        {slide.subtitle}
-                      </p>
-                      <Link
-                        href={slide.link}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-[#1A73E8] font-medium rounded-lg hover:bg-gray-100 transition-colors"
-                      >
-                        Learn More
-                        <Icon name="ArrowRightIcon" size={16} variant="outline" />
-                      </Link>
+                  <div className="h-full flex flex-col md:flex-row">
+                    {/* Content Side */}
+                    <div className="flex-1 p-6 md:p-10 flex flex-col justify-center order-2 md:order-1">
+                      <div className="max-w-lg">
+                        <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1A73E8]/10 to-[#1E8E3E]/10 text-[#1A73E8] dark:text-[#8AB4F8] text-sm font-semibold rounded-full mb-4 border border-[#1A73E8]/20">
+                          <span className="w-2 h-2 rounded-full bg-[#1E8E3E] animate-pulse" />
+                          {slide.tag}
+                        </span>
+                        <h3 className="text-3xl md:text-4xl font-bold text-[#202124] dark:text-[#E8EAED] mb-4 leading-tight">
+                          {slide.title}
+                        </h3>
+                        <p className="text-[#5F6368] dark:text-[#9AA0A6] text-lg mb-6 leading-relaxed">
+                          {slide.subtitle}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Link
+                            href={slide.link}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#1A73E8] text-white font-semibold rounded-xl hover:bg-[#185ABC] transition-all duration-300 shadow-lg shadow-[#1A73E8]/25 hover:shadow-xl hover:shadow-[#1A73E8]/30 hover:-translate-y-0.5"
+                          >
+                            Explore Now
+                            <Icon name="ArrowRightIcon" size={18} variant="outline" />
+                          </Link>
+                          <button className="inline-flex items-center gap-2 px-6 py-3 text-[#1A73E8] dark:text-[#8AB4F8] font-semibold rounded-xl border-2 border-[#1A73E8]/20 hover:border-[#1A73E8]/40 hover:bg-[#1A73E8]/5 transition-all duration-300">
+                            <Icon name="BookmarkIcon" size={18} variant="outline" />
+                            Save for Later
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Image Side */}
+                    <div className="relative w-full md:w-[45%] h-48 md:h-auto order-1 md:order-2">
+                      {/* Decorative Shape Behind Image */}
+                      <div className="absolute inset-0 md:inset-4">
+                        <div className="absolute -inset-4 bg-gradient-to-br from-[#1A73E8]/20 to-[#1E8E3E]/20 rounded-[2rem] md:rounded-[3rem] transform rotate-3" />
+                        <div className="absolute -inset-2 bg-gradient-to-br from-[#4285F4]/30 to-[#81C995]/30 rounded-[1.5rem] md:rounded-[2.5rem] transform -rotate-2" />
+                      </div>
+
+                      {/* Main Image Container */}
+                      <div className="relative h-full md:m-6 overflow-hidden rounded-2xl md:rounded-3xl shadow-2xl">
+                        <img
+                          src={slide.image}
+                          alt={slide.title}
+                          className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-700"
+                        />
+                        {/* Overlay Gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent md:bg-gradient-to-l md:from-transparent md:via-transparent md:to-white/10" />
+
+                        {/* Floating Stats Badge */}
+                        <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 bg-white/90 dark:bg-[#292929]/90 backdrop-blur-md rounded-xl px-4 py-2 shadow-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#1E8E3E] to-[#34A853] flex items-center justify-center">
+                              <Icon name="StarIcon" size={20} className="text-white" variant="solid" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6]">Highly Rated</p>
+                              <p className="font-bold text-[#202124] dark:text-[#E8EAED]">Top Choice</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
-            </div>
 
-            {/* Carousel Controls */}
-            <button
-              onClick={() => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 dark:bg-[#292929]/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white dark:hover:bg-[#292929] transition-colors"
-              aria-label="Previous slide"
-            >
-              <Icon name="ChevronLeftIcon" size={20} variant="outline" className="text-[#202124] dark:text-[#E8EAED]" />
-            </button>
-            <button
-              onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 dark:bg-[#292929]/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white dark:hover:bg-[#292929] transition-colors"
-              aria-label="Next slide"
-            >
-              <Icon name="ChevronRightIcon" size={20} variant="outline" className="text-[#202124] dark:text-[#E8EAED]" />
-            </button>
-
-            {/* Carousel Indicators */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-              {slides.map((_, index) => (
+              {/* Navigation Arrows */}
+              <div className="absolute bottom-6 right-6 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:right-auto md:left-6 flex md:flex-col gap-2 z-20">
                 <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    index === currentSlide
-                      ? 'w-8 bg-white'
-                      : 'bg-white/50 hover:bg-white/75'
-                  }`}
-                  aria-label={`Go to slide ${index + 1}`}
-                />
-              ))}
+                  onClick={() => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)}
+                  className="w-12 h-12 bg-white dark:bg-[#292929] rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl border border-[#DADCE0] dark:border-[#3C4043] hover:border-[#1A73E8] dark:hover:border-[#8AB4F8] transition-all duration-300 hover:-translate-y-0.5 group"
+                  aria-label="Previous slide"
+                >
+                  <Icon name="ChevronLeftIcon" size={20} variant="outline" className="text-[#5F6368] group-hover:text-[#1A73E8] dark:text-[#9AA0A6] dark:group-hover:text-[#8AB4F8] transition-colors" />
+                </button>
+                <button
+                  onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
+                  className="w-12 h-12 bg-[#1A73E8] rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl hover:bg-[#185ABC] transition-all duration-300 hover:-translate-y-0.5"
+                  aria-label="Next slide"
+                >
+                  <Icon name="ChevronRightIcon" size={20} variant="outline" className="text-white" />
+                </button>
+              </div>
+
+              {/* Mobile Indicators */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 md:hidden">
+                {slides.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentSlide(index)}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      index === currentSlide
+                        ? 'w-8 bg-[#1A73E8]'
+                        : 'w-2 bg-[#DADCE0] dark:bg-[#3C4043]'
+                    }`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
