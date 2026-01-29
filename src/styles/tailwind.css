@@ -9,81 +9,77 @@
 @layer base {
   :root {
     /* ========================================
-       NEW COLOR PALETTE - Light Mode
+       EDUCATIONAL COLOR PALETTE - Google Classroom Inspired
+       Clean, Professional, Easy on the Eyes
        ======================================== */
 
-    /* Background Colors */
-    --color-background: #DDDEDE;
-    /* Main background - clean, professional gray */
-    --color-foreground: #232122;
-    /* Primary text - deep charcoal */
-    --color-card: #ffffff;
-    /* Cards - pure white for contrast */
-    --color-card-foreground: #232122;
-    /* Card text */
-    --color-popover: #ffffff;
-    /* Popovers/dropdowns */
-    --color-popover-foreground: #232122;
+    /* Background Colors - Clean & Light */
+    --color-background: #F1F3F4;
+    /* Light gray background - Google style */
+    --color-foreground: #202124;
+    /* Dark text - excellent readability */
+    --color-card: #FFFFFF;
+    /* Pure white cards - clean separation */
+    --color-card-foreground: #202124;
+    --color-popover: #FFFFFF;
+    --color-popover-foreground: #202124;
 
     /* Muted Colors */
-    --color-muted: #c9caca;
-    /* Muted backgrounds - slightly darker than bg */
-    --color-muted-foreground: #5a5758;
-    /* Muted text - readable gray */
+    --color-muted: #E8EAED;
+    /* Soft gray for muted backgrounds */
+    --color-muted-foreground: #5F6368;
+    /* Google's secondary text gray */
 
     /* Border & Input */
-    --color-border: #b8b9b9;
-    /* Visible borders */
-    --color-input: #b8b9b9;
-    /* Input borders */
-    --color-ring: #7BA4A8;
-    /* Focus ring - teal accent */
+    --color-border: #DADCE0;
+    /* Subtle, clean borders */
+    --color-input: #DADCE0;
+    --color-ring: #1A73E8;
+    /* Google blue for focus */
 
-    /* Primary Colors - Teal/Sage for main actions */
-    --color-primary: #7BA4A8;
-    /* Teal-sage - secondary bg color as primary */
-    --color-primary-foreground: #ffffff;
-    /* White text on primary */
+    /* Primary Colors - Trustworthy Blue */
+    --color-primary: #1A73E8;
+    /* Google blue - trust & professionalism */
+    --color-primary-foreground: #FFFFFF;
 
-    /* Secondary Colors - Darker teal for variety */
-    --color-secondary: #5d8a8e;
-    /* Darker teal */
-    --color-secondary-foreground: #ffffff;
+    /* Secondary Colors - Calming Green */
+    --color-secondary: #1E8E3E;
+    /* Google green - growth & success */
+    --color-secondary-foreground: #FFFFFF;
 
-    /* Accent Colors - Lime green for highlights */
-    --color-accent: #A5C05B;
-    /* Lime green accent */
-    --color-accent-foreground: #232122;
-    /* Dark text on lime */
+    /* Accent Colors - Warm & Inviting */
+    --color-accent: #EA8600;
+    /* Warm orange/amber for highlights */
+    --color-accent-foreground: #FFFFFF;
 
     /* Destructive/Error Colors */
-    --color-destructive: #c44536;
-    /* Warm red */
-    --color-destructive-foreground: #ffffff;
-    --color-error: #c44536;
-    --color-error-foreground: #ffffff;
+    --color-destructive: #D93025;
+    /* Google red */
+    --color-destructive-foreground: #FFFFFF;
+    --color-error: #D93025;
+    --color-error-foreground: #FFFFFF;
 
-    /* Success Colors - Using the lime accent */
-    --color-success: #8aab3d;
-    /* Darker lime for success */
-    --color-success-foreground: #ffffff;
+    /* Success Colors */
+    --color-success: #1E8E3E;
+    /* Google green */
+    --color-success-foreground: #FFFFFF;
 
     /* Warning Colors */
-    --color-warning: #d4a03a;
-    /* Warm amber */
-    --color-warning-foreground: #232122;
+    --color-warning: #F9AB00;
+    /* Google yellow */
+    --color-warning-foreground: #202124;
 
-    /* Brand Colors */
-    --color-brand-primary: #7BA4A8;
-    /* Teal-sage */
-    --color-brand-secondary: #A5C05B;
-    /* Lime accent */
-    --color-brand-accent: #A5C05B;
-    /* Lime accent */
-    --color-brand-trust: #5d8a8e;
-    /* Darker teal */
-    --color-brand-cta: #8aab3d;
-    /* Action lime */
+    /* Brand Colors - Educational Theme */
+    --color-brand-primary: #1A73E8;
+    /* Main brand blue */
+    --color-brand-secondary: #1E8E3E;
+    /* Secondary green */
+    --color-brand-accent: #EA8600;
+    /* Accent orange */
+    --color-brand-trust: #185ABC;
+    /* Darker blue for trust elements */
+    --color-brand-cta: #1A73E8;
+    /* Call to action blue */
 
     /* Spacing Scale */
     --space-xs: 0.5rem;
@@ -102,43 +98,42 @@
   }
 
   /* ========================================
-     Dark Mode Variables
+     Dark Mode - Educational Theme
      ======================================== */
   .dark {
-    --color-background: #1a1919;
-    /* Deep charcoal background */
-    --color-foreground: #e8e8e8;
-    /* Light gray text */
-    --color-card: #2a2929;
-    /* Slightly lighter cards */
-    --color-card-foreground: #e8e8e8;
-    --color-popover: #2a2929;
-    --color-popover-foreground: #e8e8e8;
+    --color-background: #1F1F1F;
+    /* Dark but not pure black */
+    --color-foreground: #E8EAED;
+    /* Light text for readability */
+    --color-card: #292929;
+    /* Slightly elevated cards */
+    --color-card-foreground: #E8EAED;
+    --color-popover: #292929;
+    --color-popover-foreground: #E8EAED;
 
-    --color-muted: #3d3c3c;
-    /* Muted backgrounds */
-    --color-muted-foreground: #a0a0a0;
-    /* Muted text */
+    --color-muted: #3C4043;
+    /* Google's dark muted */
+    --color-muted-foreground: #9AA0A6;
 
-    --color-border: #4a4949;
-    /* Subtle borders */
-    --color-input: #4a4949;
-    --color-ring: #8fc4c8;
-    /* Lighter teal for focus */
+    --color-border: #3C4043;
+    --color-input: #3C4043;
+    --color-ring: #8AB4F8;
+    /* Lighter blue for dark mode */
 
-    --color-primary: #8fc4c8;
-    /* Lighter teal for dark mode */
-    --color-primary-foreground: #1a1919;
+    --color-primary: #8AB4F8;
+    /* Light blue for dark mode */
+    --color-primary-foreground: #202124;
 
-    --color-secondary: #7BA4A8;
-    --color-secondary-foreground: #1a1919;
+    --color-secondary: #81C995;
+    /* Light green for dark mode */
+    --color-secondary-foreground: #202124;
 
-    --color-accent: #b8d46e;
-    /* Brighter lime for dark mode */
-    --color-accent-foreground: #1a1919;
+    --color-accent: #FDD663;
+    /* Light amber for dark mode */
+    --color-accent-foreground: #202124;
 
-    --color-brand-primary: #8fc4c8;
-    --color-brand-secondary: #b8d46e;
+    --color-brand-primary: #8AB4F8;
+    --color-brand-secondary: #81C995;
   }
 }
 
@@ -194,25 +189,29 @@
     }
   }
 
-  /* Gradient Utilities - New Color Palette */
+  /* Gradient Utilities - Educational Theme */
   .gradient-brand {
-    background: linear-gradient(135deg, #7BA4A8 0%, #8fc4c8 50%, #A5C05B 100%);
+    background: linear-gradient(135deg, #1A73E8 0%, #4285F4 50%, #8AB4F8 100%);
   }
 
-  .gradient-teal {
-    background: linear-gradient(135deg, #5d8a8e 0%, #7BA4A8 100%);
+  .gradient-green {
+    background: linear-gradient(135deg, #1E8E3E 0%, #34A853 100%);
   }
 
-  .gradient-lime {
-    background: linear-gradient(135deg, #8aab3d 0%, #A5C05B 100%);
+  .gradient-warm {
+    background: linear-gradient(135deg, #EA8600 0%, #FBBC04 100%);
+  }
+
+  .bg-gradient-brand {
+    background: linear-gradient(135deg, #1A73E8 0%, #1E8E3E 100%);
   }
 
   .shadow-brand {
-    box-shadow: 0 4px 12px rgba(123, 164, 168, 0.2), 0 2px 4px rgba(123, 164, 168, 0.15);
+    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1), 0 2px 6px rgba(60, 64, 67, 0.15);
   }
 
   .shadow-brand-lg {
-    box-shadow: 0 8px 24px rgba(123, 164, 168, 0.25), 0 4px 8px rgba(123, 164, 168, 0.2);
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15), 0 4px 8px rgba(60, 64, 67, 0.2);
   }
 
   /* Scroll Animation Classes */
@@ -320,11 +319,11 @@
 
     0%,
     100% {
-      box-shadow: 0 0 20px rgba(123, 164, 168, 0.3);
+      box-shadow: 0 0 20px rgba(26, 115, 232, 0.3);
     }
 
     50% {
-      box-shadow: 0 0 40px rgba(123, 164, 168, 0.6);
+      box-shadow: 0 0 40px rgba(26, 115, 232, 0.5);
     }
   }
 

@@ -99,20 +99,20 @@ const ZoomControl: React.FC = () => {
               className="fixed inset-0 z-40"
               onClick={() => setIsDropdownOpen(false)}
             />
-            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-[#2a2929] rounded-lg shadow-lg border border-[#b8b9b9] dark:border-[#4a4949] py-1 z-50 min-w-[80px]">
+            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-[#292929] rounded-lg shadow-lg border border-[#DADCE0] dark:border-[#3C4043] py-1 z-50 min-w-[80px]">
               {ZOOM_LEVELS.map((level) => (
                 <button
                   key={level}
                   onClick={() => handleZoomChange(level)}
-                  className={`w-full px-3 py-1.5 text-xs font-medium text-left hover:bg-[#DDDEDE] dark:hover:bg-[#3d3c3c] transition-colors ${
+                  className={`w-full px-3 py-1.5 text-xs font-medium text-left hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors ${
                     level === zoomLevel
-                      ? 'text-[#7BA4A8] bg-[#7BA4A8]/10'
-                      : 'text-[#232122] dark:text-gray-300'
+                      ? 'text-[#1A73E8] bg-[#E8F0FE]'
+                      : 'text-[#202124] dark:text-[#E8EAED]'
                   }`}
                 >
                   {level}%
                   {level === 100 && (
-                    <span className="ml-1 text-[#5a5758] dark:text-gray-500">(Default)</span>
+                    <span className="ml-1 text-[#5F6368] dark:text-[#9AA0A6]">(Default)</span>
                   )}
                 </button>
               ))}
