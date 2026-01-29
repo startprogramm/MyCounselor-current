@@ -8,85 +8,82 @@
 
 @layer base {
   :root {
-    /* Background Colors - Improved for better contrast */
-    --color-background: #f8fafc;
-    /* slate-50 - slightly cooler tone */
-    --color-foreground: #0f172a;
-    /* slate-900 - darker for better readability */
+    /* ========================================
+       NEW COLOR PALETTE - Light Mode
+       ======================================== */
+
+    /* Background Colors */
+    --color-background: #DDDEDE;
+    /* Main background - clean, professional gray */
+    --color-foreground: #232122;
+    /* Primary text - deep charcoal */
     --color-card: #ffffff;
-    /* white */
-    --color-card-foreground: #0f172a;
-    /* slate-900 - darker text */
+    /* Cards - pure white for contrast */
+    --color-card-foreground: #232122;
+    /* Card text */
     --color-popover: #ffffff;
-    /* white */
-    --color-popover-foreground: #0f172a;
-    /* slate-900 */
+    /* Popovers/dropdowns */
+    --color-popover-foreground: #232122;
 
-    /* Muted Colors - Better contrast */
-    --color-muted: #e2e8f0;
-    /* slate-200 - more visible */
-    --color-muted-foreground: #475569;
-    /* slate-600 - darker for readability */
+    /* Muted Colors */
+    --color-muted: #c9caca;
+    /* Muted backgrounds - slightly darker than bg */
+    --color-muted-foreground: #5a5758;
+    /* Muted text - readable gray */
 
-    /* Border & Input - More visible borders */
-    --color-border: #cbd5e1;
-    /* slate-300 - more visible */
-    --color-input: #cbd5e1;
-    /* slate-300 */
-    --color-ring: #2563eb;
-    /* blue-600 */
+    /* Border & Input */
+    --color-border: #b8b9b9;
+    /* Visible borders */
+    --color-input: #b8b9b9;
+    /* Input borders */
+    --color-ring: #7BA4A8;
+    /* Focus ring - teal accent */
 
-    /* Primary Colors - Slightly darker for better contrast */
-    --color-primary: #1d4ed8;
-    /* blue-700 - better contrast on white */
+    /* Primary Colors - Teal/Sage for main actions */
+    --color-primary: #7BA4A8;
+    /* Teal-sage - secondary bg color as primary */
     --color-primary-foreground: #ffffff;
-    /* white */
+    /* White text on primary */
 
-    /* Secondary Colors */
-    --color-secondary: #6d28d9;
-    /* violet-700 - better contrast */
+    /* Secondary Colors - Darker teal for variety */
+    --color-secondary: #5d8a8e;
+    /* Darker teal */
     --color-secondary-foreground: #ffffff;
-    /* white */
 
-    /* Accent Colors */
-    --color-accent: #047857;
-    /* emerald-700 - better contrast */
-    --color-accent-foreground: #ffffff;
-    /* white */
+    /* Accent Colors - Lime green for highlights */
+    --color-accent: #A5C05B;
+    /* Lime green accent */
+    --color-accent-foreground: #232122;
+    /* Dark text on lime */
 
     /* Destructive/Error Colors */
-    --color-destructive: #dc2626;
-    /* red-600 - better contrast */
+    --color-destructive: #c44536;
+    /* Warm red */
     --color-destructive-foreground: #ffffff;
-    /* white */
-    --color-error: #dc2626;
-    /* red-600 */
+    --color-error: #c44536;
     --color-error-foreground: #ffffff;
-    /* white */
 
-    /* Success Colors */
-    --color-success: #059669;
-    /* emerald-600 - better contrast */
+    /* Success Colors - Using the lime accent */
+    --color-success: #8aab3d;
+    /* Darker lime for success */
     --color-success-foreground: #ffffff;
-    /* white */
 
     /* Warning Colors */
-    --color-warning: #d97706;
-    /* amber-600 - better contrast */
-    --color-warning-foreground: #ffffff;
-    /* white */
+    --color-warning: #d4a03a;
+    /* Warm amber */
+    --color-warning-foreground: #232122;
 
-    /* Brand Colors - Slightly adjusted for visibility */
-    --color-brand-primary: #1e4a6d;
-    /* darker blue for better contrast */
-    --color-brand-secondary: #5a9ab8;
-    /* slightly darker sky-blue */
-    --color-brand-accent: #e8923b;
-    /* slightly darker orange */
-    --color-brand-trust: #1f7a6d;
-    /* slightly darker teal */
-    --color-brand-cta: #d45a3d;
-    /* slightly darker coral */
+    /* Brand Colors */
+    --color-brand-primary: #7BA4A8;
+    /* Teal-sage */
+    --color-brand-secondary: #A5C05B;
+    /* Lime accent */
+    --color-brand-accent: #A5C05B;
+    /* Lime accent */
+    --color-brand-trust: #5d8a8e;
+    /* Darker teal */
+    --color-brand-cta: #8aab3d;
+    /* Action lime */
 
     /* Spacing Scale */
     --space-xs: 0.5rem;
@@ -104,47 +101,44 @@
     --radius-xl: 1.5rem;
   }
 
-  /* Dark Mode Variables */
+  /* ========================================
+     Dark Mode Variables
+     ======================================== */
   .dark {
-    --color-background: #0f172a;
-    /* slate-900 */
-    --color-foreground: #f1f5f9;
-    /* slate-100 */
-    --color-card: #1e293b;
-    /* slate-800 */
-    --color-card-foreground: #f1f5f9;
-    /* slate-100 */
-    --color-popover: #1e293b;
-    /* slate-800 */
-    --color-popover-foreground: #f1f5f9;
-    /* slate-100 */
+    --color-background: #1a1919;
+    /* Deep charcoal background */
+    --color-foreground: #e8e8e8;
+    /* Light gray text */
+    --color-card: #2a2929;
+    /* Slightly lighter cards */
+    --color-card-foreground: #e8e8e8;
+    --color-popover: #2a2929;
+    --color-popover-foreground: #e8e8e8;
 
-    --color-muted: #334155;
-    /* slate-700 */
-    --color-muted-foreground: #94a3b8;
-    /* slate-400 */
+    --color-muted: #3d3c3c;
+    /* Muted backgrounds */
+    --color-muted-foreground: #a0a0a0;
+    /* Muted text */
 
-    --color-border: #334155;
-    /* slate-700 */
-    --color-input: #334155;
-    /* slate-700 */
-    --color-ring: #3b82f6;
-    /* blue-500 */
+    --color-border: #4a4949;
+    /* Subtle borders */
+    --color-input: #4a4949;
+    --color-ring: #8fc4c8;
+    /* Lighter teal for focus */
 
-    --color-primary: #3b82f6;
-    /* blue-500 */
-    --color-primary-foreground: #ffffff;
+    --color-primary: #8fc4c8;
+    /* Lighter teal for dark mode */
+    --color-primary-foreground: #1a1919;
 
-    --color-secondary: #8b5cf6;
-    /* violet-500 */
-    --color-secondary-foreground: #ffffff;
+    --color-secondary: #7BA4A8;
+    --color-secondary-foreground: #1a1919;
 
-    --color-accent: #10b981;
-    /* emerald-500 */
-    --color-accent-foreground: #ffffff;
+    --color-accent: #b8d46e;
+    /* Brighter lime for dark mode */
+    --color-accent-foreground: #1a1919;
 
-    --color-brand-primary: #4A90B8;
-    --color-brand-secondary: #7BB3D1;
+    --color-brand-primary: #8fc4c8;
+    --color-brand-secondary: #b8d46e;
   }
 }
 
@@ -200,17 +194,25 @@
     }
   }
 
-  /* Gradient Utilities */
+  /* Gradient Utilities - New Color Palette */
   .gradient-brand {
-    background: linear-gradient(135deg, #2D5A87 0%, #4A90B8 50%, #7BB3D1 100%);
+    background: linear-gradient(135deg, #7BA4A8 0%, #8fc4c8 50%, #A5C05B 100%);
+  }
+
+  .gradient-teal {
+    background: linear-gradient(135deg, #5d8a8e 0%, #7BA4A8 100%);
+  }
+
+  .gradient-lime {
+    background: linear-gradient(135deg, #8aab3d 0%, #A5C05B 100%);
   }
 
   .shadow-brand {
-    box-shadow: 0 4px 12px rgba(45, 90, 135, 0.15), 0 2px 4px rgba(45, 90, 135, 0.1);
+    box-shadow: 0 4px 12px rgba(123, 164, 168, 0.2), 0 2px 4px rgba(123, 164, 168, 0.15);
   }
 
   .shadow-brand-lg {
-    box-shadow: 0 8px 24px rgba(45, 90, 135, 0.2), 0 4px 8px rgba(45, 90, 135, 0.15);
+    box-shadow: 0 8px 24px rgba(123, 164, 168, 0.25), 0 4px 8px rgba(123, 164, 168, 0.2);
   }
 
   /* Scroll Animation Classes */
@@ -318,11 +320,11 @@
 
     0%,
     100% {
-      box-shadow: 0 0 20px rgba(45, 90, 135, 0.3);
+      box-shadow: 0 0 20px rgba(123, 164, 168, 0.3);
     }
 
     50% {
-      box-shadow: 0 0 40px rgba(45, 90, 135, 0.6);
+      box-shadow: 0 0 40px rgba(123, 164, 168, 0.6);
     }
   }
 

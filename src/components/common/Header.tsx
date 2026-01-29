@@ -99,7 +99,7 @@ const Header: React.FC = () => {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled
           ? 'bg-card/95 dark:bg-card/95 backdrop-blur-md shadow-md'
-          : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm'
+          : 'bg-[#DDDEDE]/95 dark:bg-[#1a1919]/95 backdrop-blur-sm'
           } border-b border-border`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -110,10 +110,10 @@ const Header: React.FC = () => {
               className="flex items-center space-x-2 focus-ring rounded-lg"
               aria-label="MyCounselor Home"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-[#2D5A87] to-[#4A90B8] rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-shadow">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#7BA4A8] to-[#5d8a8e] rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-shadow">
                 <Icon name="AcademicCapIcon" size={24} className="text-white" variant="solid" />
               </div>
-              <span className="text-xl font-bold text-[#2D5A87] dark:text-[#7BB3D1] font-heading">
+              <span className="text-xl font-bold text-[#232122] dark:text-[#e8e8e8] font-heading">
                 MyCounselor
               </span>
             </Link>
@@ -124,7 +124,7 @@ const Header: React.FC = () => {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-sm font-medium text-slate-700 dark:text-gray-300 hover:text-[#1e4a6d] dark:hover:text-[#7BB3D1] transition-colors focus-ring rounded-md px-2 py-1"
+                  className="text-sm font-medium text-[#232122] dark:text-gray-300 hover:text-[#7BA4A8] dark:hover:text-[#8fc4c8] transition-colors focus-ring rounded-md px-2 py-1"
                 >
                   {item.label}
                 </Link>
@@ -137,7 +137,7 @@ const Header: React.FC = () => {
                 onMouseLeave={() => setIsToolsDropdownOpen(false)}
               >
                 <button
-                  className="flex items-center space-x-1 text-sm font-medium text-slate-700 dark:text-gray-300 hover:text-[#1e4a6d] dark:hover:text-[#7BB3D1] transition-colors focus-ring rounded-md px-2 py-1"
+                  className="flex items-center space-x-1 text-sm font-medium text-[#232122] dark:text-gray-300 hover:text-[#7BA4A8] dark:hover:text-[#8fc4c8] transition-colors focus-ring rounded-md px-2 py-1"
                   aria-expanded={isToolsDropdownOpen}
                   aria-haspopup="true"
                 >
@@ -152,7 +152,7 @@ const Header: React.FC = () => {
 
                 {/* Dropdown Menu */}
                 <div
-                  className={`absolute top-full left-0 mt-2 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-2 transition-all duration-200 ${
+                  className={`absolute top-full left-0 mt-2 w-72 bg-white dark:bg-[#2a2929] rounded-xl shadow-lg border border-[#b8b9b9] dark:border-[#4a4949] py-2 transition-all duration-200 ${
                     isToolsDropdownOpen
                       ? 'opacity-100 visible translate-y-0'
                       : 'opacity-0 invisible -translate-y-2'
@@ -162,15 +162,15 @@ const Header: React.FC = () => {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="flex items-start space-x-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                      className="flex items-start space-x-3 px-4 py-3 hover:bg-[#DDDEDE] dark:hover:bg-[#3d3c3c] transition-colors"
                       onClick={() => setIsToolsDropdownOpen(false)}
                     >
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#1e4a6d] to-[#3d7a9e] rounded-lg flex items-center justify-center text-white flex-shrink-0 shadow-sm">
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#7BA4A8] to-[#5d8a8e] rounded-lg flex items-center justify-center text-white flex-shrink-0 shadow-sm">
                         <Icon name={item.icon} size={20} variant="outline" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">{item.label}</p>
-                        <p className="text-xs text-slate-500 dark:text-gray-400">{item.description}</p>
+                        <p className="text-sm font-medium text-[#232122] dark:text-white">{item.label}</p>
+                        <p className="text-xs text-[#5a5758] dark:text-gray-400">{item.description}</p>
                       </div>
                     </Link>
                   ))}
@@ -181,37 +181,37 @@ const Header: React.FC = () => {
             {/* Zoom, Theme Toggle & Auth Buttons */}
             <div className="hidden md:flex items-center space-x-3">
               <ZoomControl />
-              <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
+              <div className="w-px h-6 bg-[#b8b9b9] dark:bg-[#4a4949]" />
               <ThemeToggle />
               {!isLoading && user ? (
                 <div className="relative">
                   <button
                     onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                    className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-ring"
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] transition-colors focus-ring"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-br from-[#1e4a6d] to-[#3d7a9e] rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-sm">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[#7BA4A8] to-[#5d8a8e] rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-sm">
                       {user.firstName.charAt(0)}{user.lastName.charAt(0)}
                     </div>
-                    <span className="text-sm font-medium text-slate-700 dark:text-gray-300">
+                    <span className="text-sm font-medium text-[#232122] dark:text-gray-300">
                       {user.firstName}
                     </span>
-                    <Icon name="ChevronDownIcon" size={16} variant="outline" className="text-slate-500" />
+                    <Icon name="ChevronDownIcon" size={16} variant="outline" className="text-[#5a5758]" />
                   </button>
 
                   {isProfileMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 py-2 z-50">
-                      <div className="px-4 py-2 border-b border-gray-200 dark:border-slate-700">
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#2a2929] rounded-lg shadow-lg border border-[#b8b9b9] dark:border-[#4a4949] py-2 z-50">
+                      <div className="px-4 py-2 border-b border-[#b8b9b9] dark:border-[#4a4949]">
+                        <p className="text-sm font-medium text-[#232122] dark:text-white">
                           {user.firstName} {user.lastName}
                         </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                        <p className="text-xs text-[#5a5758] dark:text-gray-400">{user.email}</p>
                         {user.schoolName && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{user.schoolName}</p>
+                          <p className="text-xs text-[#5a5758] dark:text-gray-400 mt-1">{user.schoolName}</p>
                         )}
                       </div>
                       <Link
                         href={user.role === 'student' ? '/student/dashboard' : '/counselor/dashboard'}
-                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-[#232122] dark:text-gray-300 hover:bg-[#DDDEDE] dark:hover:bg-[#3d3c3c]"
                         onClick={() => setIsProfileMenuOpen(false)}
                       >
                         <Icon name="HomeIcon" size={16} variant="outline" />
@@ -219,16 +219,16 @@ const Header: React.FC = () => {
                       </Link>
                       <Link
                         href={user.role === 'student' ? '/student/messages' : '/counselor/students'}
-                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-[#232122] dark:text-gray-300 hover:bg-[#DDDEDE] dark:hover:bg-[#3d3c3c]"
                         onClick={() => setIsProfileMenuOpen(false)}
                       >
                         <Icon name="ChatBubbleLeftRightIcon" size={16} variant="outline" />
                         <span>Messages</span>
                       </Link>
-                      <div className="border-t border-gray-200 dark:border-slate-700 my-1" />
+                      <div className="border-t border-[#b8b9b9] dark:border-[#4a4949] my-1" />
                       <button
                         onClick={handleLogout}
-                        className="flex items-center space-x-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700 w-full"
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-[#c44536] dark:text-red-400 hover:bg-[#DDDEDE] dark:hover:bg-[#3d3c3c] w-full"
                       >
                         <Icon name="ArrowRightOnRectangleIcon" size={16} variant="outline" />
                         <span>Log out</span>
@@ -240,13 +240,13 @@ const Header: React.FC = () => {
                 <>
                   <Link
                     href="/auth/login"
-                    className="px-4 py-2 text-sm font-medium text-[#2D5A87] dark:text-[#7BB3D1] hover:text-[#4A90B8] transition-colors focus-ring rounded-lg"
+                    className="px-4 py-2 text-sm font-medium text-[#232122] dark:text-[#8fc4c8] hover:text-[#7BA4A8] transition-colors focus-ring rounded-lg"
                   >
                     Log in
                   </Link>
                   <Link
                     href="/auth/signup"
-                    className="px-4 py-2 text-sm font-medium bg-[#2D5A87] text-white rounded-lg hover:bg-[#4A90B8] transition-all duration-300 shadow-md hover:shadow-lg focus-ring"
+                    className="px-4 py-2 text-sm font-medium bg-[#7BA4A8] text-white rounded-lg hover:bg-[#5d8a8e] transition-all duration-300 shadow-md hover:shadow-lg focus-ring"
                   >
                     Get Started
                   </Link>
@@ -260,7 +260,7 @@ const Header: React.FC = () => {
               <ThemeToggle />
               <button
                 type="button"
-                className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 focus-ring transition-colors"
+                className="p-2 rounded-lg text-[#232122] dark:text-gray-300 hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] focus-ring transition-colors"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 aria-expanded={isMobileMenuOpen}
                 aria-controls="mobile-menu"
@@ -287,7 +287,7 @@ const Header: React.FC = () => {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`px-4 py-3 text-sm font-medium text-slate-700 dark:text-gray-300 hover:text-[#1e4a6d] dark:hover:text-[#7BB3D1] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all duration-200 focus-ring ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
+                    className={`px-4 py-3 text-sm font-medium text-[#232122] dark:text-gray-300 hover:text-[#7BA4A8] dark:hover:text-[#8fc4c8] hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] rounded-lg transition-all duration-200 focus-ring ${isMobileMenuOpen ? 'translate-x-0 opacity-100' : '-translate-x-4 opacity-0'
                       }`}
                     style={{ transitionDelay: `${index * 50}ms` }}
                     onClick={() => setIsMobileMenuOpen(false)}
@@ -302,7 +302,7 @@ const Header: React.FC = () => {
                 >
                   <button
                     onClick={() => setIsMobileToolsOpen(!isMobileToolsOpen)}
-                    className="w-full px-4 py-3 text-sm font-medium text-slate-700 dark:text-gray-300 hover:text-[#1e4a6d] dark:hover:text-[#7BB3D1] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-all duration-200 focus-ring flex items-center justify-between"
+                    className="w-full px-4 py-3 text-sm font-medium text-[#232122] dark:text-gray-300 hover:text-[#7BA4A8] dark:hover:text-[#8fc4c8] hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] rounded-lg transition-all duration-200 focus-ring flex items-center justify-between"
                   >
                     <span>Tools</span>
                     <Icon
@@ -318,13 +318,13 @@ const Header: React.FC = () => {
                         <Link
                           key={item.href}
                           href={item.href}
-                          className="flex items-center space-x-3 px-4 py-2 text-sm text-slate-700 dark:text-gray-300 hover:text-[#1e4a6d] dark:hover:text-[#7BB3D1] hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                          className="flex items-center space-x-3 px-4 py-2 text-sm text-[#232122] dark:text-gray-300 hover:text-[#7BA4A8] dark:hover:text-[#8fc4c8] hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] rounded-lg transition-colors"
                           onClick={() => {
                             setIsMobileMenuOpen(false);
                             setIsMobileToolsOpen(false);
                           }}
                         >
-                          <Icon name={item.icon} size={18} variant="outline" className="text-[#1e4a6d] dark:text-[#7BB3D1]" />
+                          <Icon name={item.icon} size={18} variant="outline" className="text-[#7BA4A8] dark:text-[#8fc4c8]" />
                           <span>{item.label}</span>
                         </Link>
                       ))}
@@ -336,19 +336,19 @@ const Header: React.FC = () => {
                 {!isLoading && user ? (
                   <>
                     <div className="px-4 py-3 flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-[#1e4a6d] to-[#3d7a9e] rounded-full flex items-center justify-center text-white font-semibold shadow-sm">
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#7BA4A8] to-[#5d8a8e] rounded-full flex items-center justify-center text-white font-semibold shadow-sm">
                         {user.firstName.charAt(0)}{user.lastName.charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                        <p className="text-sm font-medium text-[#232122] dark:text-white">
                           {user.firstName} {user.lastName}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-gray-400">{user.email}</p>
+                        <p className="text-xs text-[#5a5758] dark:text-gray-400">{user.email}</p>
                       </div>
                     </div>
                     <Link
                       href={user.role === 'student' ? '/student/dashboard' : '/counselor/dashboard'}
-                      className="px-4 py-3 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors focus-ring"
+                      className="px-4 py-3 text-sm font-medium text-[#232122] dark:text-gray-300 hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] rounded-lg transition-colors focus-ring"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Dashboard
@@ -358,7 +358,7 @@ const Header: React.FC = () => {
                         handleLogout();
                         setIsMobileMenuOpen(false);
                       }}
-                      className="mx-4 px-4 py-3 text-sm font-medium text-center text-red-700 dark:text-red-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors focus-ring w-auto text-left"
+                      className="mx-4 px-4 py-3 text-sm font-medium text-center text-[#c44536] dark:text-red-400 hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] rounded-lg transition-colors focus-ring w-auto text-left"
                     >
                       Log out
                     </button>
@@ -367,14 +367,14 @@ const Header: React.FC = () => {
                   <>
                     <Link
                       href="/auth/login"
-                      className="px-4 py-3 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors focus-ring"
+                      className="px-4 py-3 text-sm font-medium text-[#232122] dark:text-gray-300 hover:bg-[#c9caca] dark:hover:bg-[#3d3c3c] rounded-lg transition-colors focus-ring"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Log in
                     </Link>
                     <Link
                       href="/auth/signup"
-                      className="mx-4 px-4 py-3 text-sm font-medium text-center bg-[#1e4a6d] text-white rounded-lg hover:bg-[#2d6a8a] transition-colors shadow-md focus-ring"
+                      className="mx-4 px-4 py-3 text-sm font-medium text-center bg-[#7BA4A8] text-white rounded-lg hover:bg-[#5d8a8e] transition-colors shadow-md focus-ring"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Get Started
