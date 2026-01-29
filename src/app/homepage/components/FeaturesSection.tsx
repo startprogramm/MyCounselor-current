@@ -50,10 +50,10 @@ const FeaturesSection = ({ className = '' }: FeaturesSectionProps) => {
     },
     {
       id: 5,
-      title: "Crisis Support",
-      description: "Immediate access to emergency resources and intervention protocols ensures help is always available.",
+      title: "Academic Support",
+      description: "Access educational resources, study guides, and academic planning tools to support student success.",
       icon: "ShieldCheckIcon",
-      benefits: ["24/7 availability", "Quick response", "Professional support"]
+      benefits: ["Study resources", "Academic planning", "Educational tools"]
     },
     {
       id: 6,

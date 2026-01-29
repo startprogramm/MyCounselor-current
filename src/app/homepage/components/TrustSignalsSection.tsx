@@ -34,7 +34,7 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
     {
       id: 3,
       title: "Certified Platform",
-      description: "Endorsed by leading educational organizations and mental health associations.",
+      description: "Endorsed by leading educational organizations and academic institutions.",
       icon: "AcademicCapIcon"
     },
     {

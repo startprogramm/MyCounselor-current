@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -246,6 +246,13 @@ const StudentPortalInteractive = () => {
   const [isHydrated, setIsHydrated] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Drag state for carousel
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
+
   // Determine if upper class (11th grade) or lower class
   const isUpperClass = user?.gradeLevel && parseInt(user.gradeLevel) >= 11;
   const slides = isUpperClass ? upperClassSlides : lowerClassSlides;
@@ -254,13 +261,80 @@ const StudentPortalInteractive = () => {
     setIsHydrated(true);
   }, []);
 
-  // Auto-advance carousel
-  useEffect(() => {
-    const timer = setInterval(() => {
+  // Auto-advance carousel (pause when dragging)
+  const startAutoPlay = () => {
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+    autoPlayRef.current = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length);
     }, 5000);
-    return () => clearInterval(timer);
+  };
+
+  useEffect(() => {
+    startAutoPlay();
+    return () => {
+      if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+    };
   }, [slides.length]);
+
+  // Mouse drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setStartX(e.clientX);
+    setDragOffset(0);
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    const diff = e.clientX - startX;
+    setDragOffset(diff);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+
+    // Determine if we should change slide (threshold of 50px)
+    if (dragOffset > 50) {
+      setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+    } else if (dragOffset < -50) {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }
+
+    setDragOffset(0);
+    startAutoPlay();
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging) {
+      handleMouseUp();
+    }
+  };
+
+  // Touch handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsDragging(true);
+    setStartX(e.touches[0].clientX);
+    setDragOffset(0);
+    if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    const diff = e.touches[0].clientX - startX;
+    setDragOffset(diff);
+  };
+
+  const handleTouchEnd = () => {
+    handleMouseUp();
+  };
+
+  // Prevent link clicks when dragging
+  const handleLinkClick = (e: React.MouseEvent) => {
+    if (Math.abs(dragOffset) > 10) {
+      e.preventDefault();
+    }
+  };
 
   const getCategoryStyle = (category: Announcement['category']) => {
     switch (category) {
@@ -371,35 +445,45 @@ const StudentPortalInteractive = () => {
                     </p>
                   </div>
                 </div>
-                <div className="hidden md:flex items-center gap-2">
-                  {slides.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentSlide(index)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        index === currentSlide
-                          ? 'w-8 bg-[#1A73E8]'
-                          : 'w-2 bg-[#DADCE0] dark:bg-[#3C4043] hover:bg-[#1A73E8]/50'
-                      }`}
-                      aria-label={`Go to slide ${index + 1}`}
-                    />
-                  ))}
+                <div className="hidden md:flex items-center gap-2 text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                  <span>{currentSlide + 1} / {slides.length}</span>
                 </div>
               </div>
             </div>
 
             {/* Carousel Content */}
-            <div className="relative min-h-[420px] md:min-h-[380px]">
+            <div
+              ref={carouselRef}
+              className={`relative min-h-[420px] md:min-h-[380px] overflow-hidden select-none ${
+                isDragging ? 'cursor-grabbing' : 'cursor-grab'
+              }`}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               {slides.map((slide, index) => (
                 <div
                   key={slide.id}
-                  className={`absolute inset-0 transition-all duration-700 ease-out ${
+                  className={`absolute inset-0 ${
+                    isDragging ? '' : 'transition-all duration-700 ease-out'
+                  } ${
                     index === currentSlide
-                      ? 'opacity-100 translate-x-0'
+                      ? 'opacity-100'
                       : index < currentSlide
-                        ? 'opacity-0 -translate-x-full'
-                        : 'opacity-0 translate-x-full'
+                        ? 'opacity-0'
+                        : 'opacity-0'
                   }`}
+                  style={{
+                    transform: index === currentSlide
+                      ? `translateX(${dragOffset}px)`
+                      : index < currentSlide
+                        ? `translateX(calc(-100% + ${dragOffset}px))`
+                        : `translateX(calc(100% + ${dragOffset}px))`,
+                  }}
                 >
                   <div className="h-full flex flex-col md:flex-row">
                     {/* Content Side */}
@@ -418,12 +502,16 @@ const StudentPortalInteractive = () => {
                         <div className="flex flex-wrap items-center gap-3">
                           <Link
                             href={slide.link}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#1A73E8] text-white font-semibold rounded-xl hover:bg-[#185ABC] transition-all duration-300 shadow-lg shadow-[#1A73E8]/25 hover:shadow-xl hover:shadow-[#1A73E8]/30 hover:-translate-y-0.5"
+                            onClick={handleLinkClick}
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-[#1A73E8] text-white font-semibold rounded-xl hover:bg-[#185ABC] transition-all duration-300 shadow-lg shadow-[#1A73E8]/25 hover:shadow-xl hover:shadow-[#1A73E8]/30 hover:-translate-y-0.5 select-none"
                           >
                             Explore Now
                             <Icon name="ArrowRightIcon" size={18} variant="outline" />
                           </Link>
-                          <button className="inline-flex items-center gap-2 px-6 py-3 text-[#1A73E8] dark:text-[#8AB4F8] font-semibold rounded-xl border-2 border-[#1A73E8]/20 hover:border-[#1A73E8]/40 hover:bg-[#1A73E8]/5 transition-all duration-300">
+                          <button
+                            onClick={handleLinkClick}
+                            className="inline-flex items-center gap-2 px-6 py-3 text-[#1A73E8] dark:text-[#8AB4F8] font-semibold rounded-xl border-2 border-[#1A73E8]/20 hover:border-[#1A73E8]/40 hover:bg-[#1A73E8]/5 transition-all duration-300 select-none"
+                          >
                             <Icon name="BookmarkIcon" size={18} variant="outline" />
                             Save for Later
                           </button>
@@ -467,38 +555,35 @@ const StudentPortalInteractive = () => {
                 </div>
               ))}
 
-              {/* Navigation Arrows */}
-              <div className="absolute bottom-6 right-6 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:right-auto md:left-6 flex md:flex-col gap-2 z-20">
-                <button
-                  onClick={() => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)}
-                  className="w-12 h-12 bg-white dark:bg-[#292929] rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl border border-[#DADCE0] dark:border-[#3C4043] hover:border-[#1A73E8] dark:hover:border-[#8AB4F8] transition-all duration-300 hover:-translate-y-0.5 group"
-                  aria-label="Previous slide"
-                >
-                  <Icon name="ChevronLeftIcon" size={20} variant="outline" className="text-[#5F6368] group-hover:text-[#1A73E8] dark:text-[#9AA0A6] dark:group-hover:text-[#8AB4F8] transition-colors" />
-                </button>
-                <button
-                  onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
-                  className="w-12 h-12 bg-[#1A73E8] rounded-xl flex items-center justify-center shadow-lg hover:shadow-xl hover:bg-[#185ABC] transition-all duration-300 hover:-translate-y-0.5"
-                  aria-label="Next slide"
-                >
-                  <Icon name="ChevronRightIcon" size={20} variant="outline" className="text-white" />
-                </button>
+              {/* Drag Hint */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[#5F6368] dark:text-[#9AA0A6] text-sm bg-white/80 dark:bg-[#292929]/80 backdrop-blur-sm px-4 py-2 rounded-full select-none pointer-events-none md:hidden">
+                <Icon name="ArrowsRightLeftIcon" size={16} variant="outline" />
+                <span>Swipe to explore</span>
               </div>
 
-              {/* Mobile Indicators */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 md:hidden">
-                {slides.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentSlide(index)}
-                    className={`h-2 rounded-full transition-all duration-300 ${
-                      index === currentSlide
-                        ? 'w-8 bg-[#1A73E8]'
-                        : 'w-2 bg-[#DADCE0] dark:bg-[#3C4043]'
-                    }`}
-                    aria-label={`Go to slide ${index + 1}`}
-                  />
-                ))}
+              {/* Indicators - visible on larger screens at bottom */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden md:flex items-center gap-4 bg-white/80 dark:bg-[#292929]/80 backdrop-blur-sm px-4 py-2 rounded-full">
+                <span className="text-xs text-[#5F6368] dark:text-[#9AA0A6] select-none">
+                  <Icon name="HandRaisedIcon" size={14} variant="outline" className="inline mr-1" />
+                  Drag to explore
+                </span>
+                <div className="flex gap-2">
+                  {slides.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentSlide(index);
+                      }}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        index === currentSlide
+                          ? 'w-8 bg-[#1A73E8]'
+                          : 'w-2 bg-[#DADCE0] dark:bg-[#3C4043] hover:bg-[#1A73E8]/50'
+                      }`}
+                      aria-label={`Go to slide ${index + 1}`}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </div>

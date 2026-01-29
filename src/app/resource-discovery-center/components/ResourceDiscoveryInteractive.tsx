@@ -55,24 +55,24 @@ const ResourceDiscoveryInteractive = () => {
     rating: 4.8,
     reviews: 234,
     downloads: 1567,
-    gradeLevel: ['Grade 11', 'Grade 12'],
+    gradeLevel: ['Grade 11', 'Grade 11'],
     urgency: 'Medium',
     tags: ['college', 'applications', 'timeline', 'planning']
   },
   {
     id: '2',
-    title: 'Managing Test Anxiety: Practical Strategies',
-    description: 'Evidence-based techniques and coping mechanisms to reduce test anxiety and improve academic performance under pressure.',
-    category: 'Mental Health',
+    title: 'Effective Test Preparation Strategies',
+    description: 'Proven study techniques and preparation methods to improve test performance and build confidence for exams.',
+    category: 'Academic Planning',
     format: 'Video',
     image: "https://img.rocket.new/generatedImages/rocket_gen_img_19c5e7dc7-1768252373725.png",
-    alt: 'Calm student meditating with eyes closed in peaceful library setting with soft natural lighting',
+    alt: 'Student studying with organized notes and textbooks in library setting',
     rating: 4.9,
     reviews: 456,
     downloads: 2341,
-    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
+    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11'],
     urgency: 'High',
-    tags: ['anxiety', 'mental health', 'testing', 'coping']
+    tags: ['test prep', 'study strategies', 'exams', 'academic']
   },
   {
     id: '3',
@@ -85,24 +85,24 @@ const ResourceDiscoveryInteractive = () => {
     rating: 4.7,
     reviews: 189,
     downloads: 987,
-    gradeLevel: ['Grade 10', 'Grade 11', 'Grade 12'],
+    gradeLevel: ['Grade 10', 'Grade 11', 'Grade 11'],
     urgency: 'Low',
     tags: ['career', 'exploration', 'assessment', 'planning']
   },
   {
     id: '4',
-    title: 'Crisis Support Resources & Hotlines',
-    description: 'Immediate access to mental health crisis resources, emergency hotlines, and step-by-step guidance for students in distress.',
-    category: 'Crisis Support',
+    title: 'Academic Goal Setting Workbook',
+    description: 'Step-by-step workbook to help students set, track, and achieve their academic goals throughout the school year.',
+    category: 'Academic Planning',
     format: 'Article',
     image: "https://img.rocket.new/generatedImages/rocket_gen_img_1a7939383-1767265721815.png",
-    alt: 'Supportive counselor holding hands with distressed student in comfortable counseling office',
+    alt: 'Student writing goals in planner with organized desk and educational materials',
     rating: 5.0,
     reviews: 678,
     downloads: 3456,
-    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
-    urgency: 'Crisis',
-    tags: ['crisis', 'emergency', 'mental health', 'support']
+    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11'],
+    urgency: 'Medium',
+    tags: ['goals', 'planning', 'academic', 'organization']
   },
   {
     id: '5',
@@ -130,24 +130,24 @@ const ResourceDiscoveryInteractive = () => {
     rating: 4.8,
     reviews: 523,
     downloads: 2876,
-    gradeLevel: ['Grade 11', 'Grade 12'],
+    gradeLevel: ['Grade 11', 'Grade 11'],
     urgency: 'High',
     tags: ['financial aid', 'scholarships', 'FAFSA', 'college funding']
   },
   {
     id: '7',
-    title: 'Building Healthy Relationships',
-    description: 'Guidance on developing positive peer relationships, setting boundaries, recognizing unhealthy patterns, and communication skills.',
-    category: 'Mental Health',
+    title: 'Teamwork & Collaboration Skills',
+    description: 'Interactive guide on developing effective teamwork, communication, and collaboration skills for group projects and school activities.',
+    category: 'Academic Planning',
     format: 'Interactive',
     image: "https://img.rocket.new/generatedImages/rocket_gen_img_1386a8344-1766873944617.png",
-    alt: 'Diverse group of smiling teenagers sitting together in circle having supportive conversation',
+    alt: 'Diverse group of students working together on a school project at library table',
     rating: 4.7,
     reviews: 267,
     downloads: 1432,
-    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
+    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11'],
     urgency: 'Low',
-    tags: ['relationships', 'communication', 'boundaries', 'social skills']
+    tags: ['teamwork', 'collaboration', 'communication', 'group projects']
   },
   {
     id: '8',
@@ -160,7 +160,7 @@ const ResourceDiscoveryInteractive = () => {
     rating: 4.9,
     reviews: 445,
     downloads: 2134,
-    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
+    gradeLevel: ['Grade 9', 'Grade 10', 'Grade 11', 'Grade 11'],
     urgency: 'Low',
     tags: ['parents', 'family', 'communication', 'support']
   }];
@@ -169,17 +169,15 @@ const ResourceDiscoveryInteractive = () => {
   const categories = [
   { id: 'all', name: 'All Resources', icon: 'FolderIcon', count: mockResources.length },
   { id: 'College & Career', name: 'College & Career', icon: 'AcademicCapIcon', count: 3 },
-  { id: 'Mental Health', name: 'Mental Health', icon: 'HeartIcon', count: 2 },
-  { id: 'Academic Planning', name: 'Academic Planning', icon: 'BookOpenIcon', count: 1 },
-  { id: 'Crisis Support', name: 'Crisis Support', icon: 'ExclamationTriangleIcon', count: 1 },
+  { id: 'Academic Planning', name: 'Academic Planning', icon: 'BookOpenIcon', count: 4 },
   { id: 'Parent Resources', name: 'Parent Resources', icon: 'UserGroupIcon', count: 1 }];
 
 
   const filters = {
-    categories: ['all', 'College & Career', 'Mental Health', 'Academic Planning', 'Crisis Support', 'Parent Resources'],
+    categories: ['all', 'College & Career', 'Academic Planning', 'Parent Resources'],
     formats: ['all', 'Video', 'PDF', 'Interactive', 'Article'],
-    gradeLevels: ['all', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'],
-    urgencyLevels: ['all', 'Crisis', 'High', 'Medium', 'Low']
+    gradeLevels: ['all', 'Grade 9', 'Grade 10', 'Grade 11'],
+    urgencyLevels: ['all', 'High', 'Medium', 'Low']
   };
 
   const recommendedResources = [

@@ -60,14 +60,14 @@ const QuickAccessCards = ({ className = '' }: QuickAccessCardsProps) => {
     },
     {
       id: 4,
-      title: "Emergency Support",
-      description: "Immediate access to crisis resources, mental health support, and urgent intervention protocols.",
-      icon: "ExclamationTriangleIcon",
+      title: "Communication Hub",
+      description: "Secure messaging between students and counselors for academic guidance and educational support.",
+      icon: "ChatBubbleLeftEllipsisIcon",
       href: "/secure-communication-hub",
-      bgColor: "bg-gradient-to-br from-red-50 to-red-100",
-      darkBgColor: "dark:from-red-900/30 dark:to-red-800/30",
-      iconColor: "text-red-600 dark:text-red-400",
-      userType: "24/7 Available"
+      bgColor: "bg-gradient-to-br from-amber-50 to-amber-100",
+      darkBgColor: "dark:from-amber-900/30 dark:to-amber-800/30",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      userType: "For Everyone"
     }
   ];
 

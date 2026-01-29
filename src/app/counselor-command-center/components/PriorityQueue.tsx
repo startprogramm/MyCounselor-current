@@ -27,7 +27,7 @@ const PriorityQueue = ({ items, onItemClick }: PriorityQueueProps) => {
 
   const categoryIcons: Record<string, string> = {
     'Academic': 'AcademicCapIcon',
-    'Mental Health': 'HeartIcon',
+    'Study Support': 'HeartIcon',
     'Career': 'BriefcaseIcon',
     'College': 'BuildingLibraryIcon',
     'Personal': 'UserIcon'

@@ -237,10 +237,9 @@ export default function StudentSignupPage() {
                   error={errors.gradeLevel}
                   options={[
                     { value: '', label: 'Select your grade' },
-                    { value: '9', label: '9th Grade (Freshman)' },
-                    { value: '10', label: '10th Grade (Sophomore)' },
-                    { value: '11', label: '11th Grade (Junior)' },
-                    { value: '12', label: '12th Grade (Senior)' },
+                    { value: '9', label: '9th Grade' },
+                    { value: '10', label: '10th Grade' },
+                    { value: '11', label: '11th Grade' },
                   ]}
                 />
 

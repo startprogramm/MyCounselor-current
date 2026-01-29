@@ -28,7 +28,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
     {
       id: 1,
       name: "Sarah Johnson",
-      role: "High School Senior",
+      role: "11th Grade Student",
       content: "MyCounselor made college applications so much less stressful. I could schedule appointments easily and access resources whenever I needed them. My counselor was always just a message away!",
       image: "https://img.rocket.new/generatedImages/rocket_gen_img_1f9595025-1767185860161.png",
       alt: "Young woman with long brown hair smiling at camera wearing casual blue sweater",

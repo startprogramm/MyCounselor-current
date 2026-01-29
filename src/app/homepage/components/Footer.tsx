@@ -36,7 +36,7 @@ const Footer = ({ className = '' }: FooterProps) => {
       links: [
         { label: "Help Center", href: "/resource-discovery-center" },
         { label: "Contact Us", href: "/secure-communication-hub" },
-        { label: "Emergency Support", href: "/secure-communication-hub" },
+        { label: "Academic Support", href: "/secure-communication-hub" },
         { label: "FAQs", href: "/resource-discovery-center" }
       ]
     },

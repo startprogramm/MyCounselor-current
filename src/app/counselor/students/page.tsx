@@ -20,7 +20,7 @@ const mockStudents = [
     id: 2,
     name: 'Emily Rodriguez',
     email: 'emily.r@school.edu',
-    grade: '12th',
+    grade: '11th',
     status: 'active',
     lastActivity: '1 day ago',
     goalsProgress: 90,
@@ -50,7 +50,7 @@ const mockStudents = [
     id: 5,
     name: 'Michael Chen',
     email: 'michael.c@school.edu',
-    grade: '12th',
+    grade: '11th',
     status: 'active',
     lastActivity: '1 hour ago',
     goalsProgress: 85,
@@ -164,7 +164,6 @@ export default function CounselorStudentsPage() {
             <option value="9th">9th Grade</option>
             <option value="10th">10th Grade</option>
             <option value="11th">11th Grade</option>
-            <option value="12th">12th Grade</option>
           </select>
         </div>
       </div>

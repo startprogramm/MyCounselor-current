@@ -25,10 +25,10 @@ const priorityItems = [
     studentName: 'Emily Johnson',
     studentImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
     studentImageAlt: 'Emily Johnson profile photo',
-    issue: 'Experiencing anxiety about upcoming college applications. Requested urgent meeting.',
+    issue: 'Needs urgent guidance on college application deadlines. Requested urgent meeting.',
     priority: 'urgent' as const,
     timestamp: '10 minutes ago',
-    category: 'Mental Health'
+    category: 'Academic'
   },
   {
     id: 2,
@@ -110,7 +110,7 @@ const quickActionsData = [
   { id: 2, label: 'Messages', icon: 'ChatBubbleLeftRightIcon', color: 'emerald', count: 5 },
   { id: 3, label: 'Resources', icon: 'FolderIcon', color: 'violet', count: 0 },
   { id: 4, label: 'Reports', icon: 'DocumentChartBarIcon', color: 'amber', count: 0 },
-  { id: 5, label: 'Emergency', icon: 'ExclamationTriangleIcon', color: 'rose', count: 0 },
+  { id: 5, label: 'Announcements', icon: 'MegaphoneIcon', color: 'rose', count: 0 },
 ];
 
 const recentActivityData = [
