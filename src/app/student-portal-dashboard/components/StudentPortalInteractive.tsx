@@ -2,518 +2,579 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import WelcomeCard from './WelcomeCard';
-import QuickActionsCard from './QuickActionsCard';
-import UpcomingAppointmentsCard from './UpcomingAppointmentsCard';
-import GoalProgressCard from './GoalProgressCard';
-import ResourceRecommendationsCard from './ResourceRecommendationsCard';
-import NotificationCenterCard from './NotificationCenterCard';
-import AchievementShowcaseCard from './AchievementShowcaseCard';
-import AnonymousQuestionCard from './AnonymousQuestionCard';
-import PeerSupportCard from './PeerSupportCard';
-import CollegeCareerPlanningCard from './CollegeCareerPlanningCard';
+import Link from 'next/link';
+import Image from 'next/image';
+import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 
-interface StudentData {
-  name: string;
-  lastLogin: string;
-}
-
+// Types
 interface QuickAction {
   id: string;
   label: string;
   icon: string;
-  color: string;
+  href: string;
   description: string;
 }
 
-interface Appointment {
+interface CarouselSlide {
   id: string;
-  counselorName: string;
-  counselorImage: string;
-  counselorImageAlt: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  link: string;
+  tag: string;
+}
+
+interface Announcement {
+  id: string;
+  title: string;
   date: string;
-  time: string;
-  type: string;
-  status: 'confirmed' | 'pending' | 'cancelled';
-}
-
-interface Goal {
-  id: string;
-  title: string;
-  category: string;
-  progress: number;
-  dueDate: string;
-  priority: 'high' | 'medium' | 'low';
-}
-
-interface Resource {
-  id: string;
-  title: string;
-  category: string;
-  thumbnail: string;
-  thumbnailAlt: string;
+  category: 'deadline' | 'event' | 'news' | 'important';
   description: string;
-  readTime: string;
-  rating: number;
 }
 
-interface Notification {
+interface Counselor {
   id: string;
-  type: 'appointment' | 'resource' | 'achievement' | 'message' | 'reminder';
-  title: string;
-  message: string;
-  timestamp: string;
-  isRead: boolean;
+  name: string;
+  role: string;
+  specialty: string;
+  image: string;
+  email: string;
 }
 
-interface Achievement {
+interface SuccessStory {
   id: string;
-  title: string;
-  description: string;
-  icon: string;
-  earnedDate: string;
-  category: string;
+  name: string;
+  achievement: string;
+  quote: string;
+  image: string;
+  year: string;
 }
 
-interface Discussion {
-  id: string;
-  title: string;
-  category: string;
-  replies: number;
-  lastActivity: string;
-  isActive: boolean;
-}
-
-interface PlanningTask {
-  id: string;
-  title: string;
-  category: 'college' | 'career';
-  deadline: string;
-  completed: boolean;
-  priority: 'high' | 'medium' | 'low';
-}
-
-const StudentPortalInteractive = () => {
-  const router = useRouter();
-  const { user } = useAuth();
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
-  const studentData: StudentData = {
-    name: user ? `${user.firstName} ${user.lastName}` : "Student",
-    lastLogin: "January 12, 2026 at 3:45 PM"
-  };
-
-  const quickActions: QuickAction[] = [
+// Data
+const quickActions: QuickAction[] = [
   {
     id: "schedule",
-    label: "Schedule Appointment",
+    label: "Schedule Meeting",
     icon: "CalendarIcon",
-    color: "bg-primary text-primary-foreground",
-    description: "Book time with counselor"
+    href: "/appointment-scheduling-system",
+    description: "Book time with a counselor"
   },
   {
     id: "resources",
     label: "Browse Resources",
     icon: "BookOpenIcon",
-    color: "bg-accent text-accent-foreground",
+    href: "/resource-discovery-center",
     description: "Explore guidance materials"
   },
   {
     id: "messages",
-    label: "Check Messages",
+    label: "Messages",
     icon: "ChatBubbleLeftRightIcon",
-    color: "bg-secondary text-secondary-foreground",
-    description: "View communications"
+    href: "/secure-communication-hub",
+    description: "Contact your counselor"
   },
   {
-    id: "goals",
-    label: "Update Goals",
-    icon: "FlagIcon",
-    color: "bg-warning text-warning-foreground",
-    description: "Track your progress"
-  }];
+    id: "tools",
+    label: "Career Tools",
+    icon: "WrenchScrewdriverIcon",
+    href: "/tools/major-finder",
+    description: "Explore majors & careers"
+  }
+];
 
-
-  const appointments: Appointment[] = [
+// Upper class slides (11th grade) - Universities
+const upperClassSlides: CarouselSlide[] = [
   {
     id: "1",
-    counselorName: "Dr. Sarah Martinez",
-    counselorImage: "https://img.rocket.new/generatedImages/rocket_gen_img_18403c4e4-1763295192007.png",
-    counselorImageAlt: "Professional headshot of Hispanic woman with long dark hair in navy blazer smiling warmly",
-    date: "January 15, 2026",
-    time: "2:00 PM",
-    type: "College Application Review",
-    status: "confirmed"
+    title: "Harvard University",
+    subtitle: "Discover world-class education and research opportunities",
+    image: "https://images.unsplash.com/photo-1562774053-701939374585?w=800&q=80",
+    link: "/resources/universities/harvard",
+    tag: "Ivy League"
   },
   {
     id: "2",
-    counselorName: "Mr. James Chen",
-    counselorImage: "https://img.rocket.new/generatedImages/rocket_gen_img_137a6cab3-1763294924982.png",
-    counselorImageAlt: "Professional headshot of Asian man with short black hair in gray suit with friendly smile",
-    date: "January 18, 2026",
-    time: "10:30 AM",
-    type: "Career Exploration Session",
-    status: "pending"
-  }];
-
-
-  const goals: Goal[] = [
-  {
-    id: "1",
-    title: "Complete College Applications",
-    category: "Academic",
-    progress: 75,
-    dueDate: "February 1, 2026",
-    priority: "high"
-  },
-  {
-    id: "2",
-    title: "Improve Math Grade to B+",
-    category: "Academic",
-    progress: 60,
-    dueDate: "January 31, 2026",
-    priority: "high"
+    title: "Stanford University",
+    subtitle: "Innovation and entrepreneurship in Silicon Valley",
+    image: "https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=800&q=80",
+    link: "/resources/universities/stanford",
+    tag: "Top 5 US"
   },
   {
     id: "3",
-    title: "Attend 3 Career Workshops",
-    category: "Career",
-    progress: 33,
-    dueDate: "March 15, 2026",
-    priority: "medium"
-  }];
-
-
-  const resources: Resource[] = [
-  {
-    id: "1",
-    title: "College Essay Writing Guide",
-    category: "College Prep",
-    thumbnail: "https://images.unsplash.com/photo-1621610085591-3d4fba329159",
-    thumbnailAlt: "Close-up of hands writing in notebook with pen on wooden desk with coffee cup",
-    description: "Learn how to craft compelling personal statements that stand out to admissions officers",
-    readTime: "15 min read",
-    rating: 4.8
-  },
-  {
-    id: "2",
-    title: "SAT Preparation Strategies",
-    category: "Test Prep",
-    thumbnail: "https://img.rocket.new/generatedImages/rocket_gen_img_1775f5c10-1764852362022.png",
-    thumbnailAlt: "Student studying with textbooks and laptop on desk with natural lighting",
-    description: "Proven techniques to improve your SAT scores and test-taking confidence",
-    readTime: "20 min read",
-    rating: 4.9
-  },
-  {
-    id: "3",
-    title: "Managing Academic Stress",
-    category: "Wellness",
-    thumbnail: "https://images.unsplash.com/photo-1585125870798-2be228292dee",
-    thumbnailAlt: "Peaceful meditation scene with person sitting cross-legged in nature with sunlight",
-    description: "Practical mindfulness and time management techniques for student well-being",
-    readTime: "10 min read",
-    rating: 4.7
-  }];
-
-
-  const [notifications, setNotifications] = useState<Notification[]>([
-  {
-    id: "1",
-    type: "appointment",
-    title: "Appointment Confirmed",
-    message: "Your meeting with Dr. Martinez on January 15 at 2:00 PM has been confirmed",
-    timestamp: "2 hours ago",
-    isRead: false
-  },
-  {
-    id: "2",
-    type: "achievement",
-    title: "New Achievement Unlocked!",
-    message: "You've earned the 'Goal Getter' badge for completing 5 goals this month",
-    timestamp: "5 hours ago",
-    isRead: false
-  },
-  {
-    id: "3",
-    type: "resource",
-    title: "New Resource Available",
-    message: "Check out the latest guide on scholarship applications",
-    timestamp: "1 day ago",
-    isRead: false
+    title: "MIT",
+    subtitle: "Leading the world in science and technology",
+    image: "https://images.unsplash.com/photo-1564981797816-1043664bf78d?w=800&q=80",
+    link: "/resources/universities/mit",
+    tag: "STEM Excellence"
   },
   {
     id: "4",
-    type: "message",
-    title: "Message from Dr. Martinez",
-    message: "Please bring your college application drafts to our next meeting",
-    timestamp: "1 day ago",
-    isRead: true
-  },
-  {
-    id: "5",
-    type: "reminder",
-    title: "Deadline Approaching",
-    message: "Your college application goal is due in 19 days",
-    timestamp: "2 days ago",
-    isRead: true
-  }]
-  );
+    title: "Scholarship Opportunities",
+    subtitle: "Find funding for your dream university",
+    image: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&q=80",
+    link: "/resources/scholarships",
+    tag: "Financial Aid"
+  }
+];
 
-  const achievements: Achievement[] = [
+// Lower class slides (9th, 10th grade) - Programs
+const lowerClassSlides: CarouselSlide[] = [
   {
     id: "1",
-    title: "Goal Getter",
-    description: "Completed 5 goals in one month",
-    icon: "TrophyIcon",
-    earnedDate: "January 12, 2026",
-    category: "Progress"
+    title: "Summer STEM Programs",
+    subtitle: "Hands-on science and technology camps",
+    image: "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=800&q=80",
+    link: "/resources/programs/stem-summer",
+    tag: "Summer 2026"
   },
   {
     id: "2",
-    title: "Resource Explorer",
-    description: "Accessed 10 different resources",
-    icon: "BookOpenIcon",
-    earnedDate: "January 10, 2026",
-    category: "Learning"
+    title: "Leadership Academy",
+    subtitle: "Develop your leadership skills early",
+    image: "https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=800&q=80",
+    link: "/resources/programs/leadership",
+    tag: "Leadership"
   },
   {
     id: "3",
-    title: "Community Contributor",
-    description: "Helped 3 peers in discussions",
-    icon: "UserGroupIcon",
-    earnedDate: "January 8, 2026",
-    category: "Community"
-  }];
-
-
-  const discussions: Discussion[] = [
-  {
-    id: "1",
-    title: "Tips for Managing College Application Stress",
-    category: "College Prep",
-    replies: 24,
-    lastActivity: "2 hours ago",
-    isActive: true
-  },
-  {
-    id: "2",
-    title: "Best Study Techniques for Finals",
-    category: "Academic",
-    replies: 18,
-    lastActivity: "5 hours ago",
-    isActive: true
-  },
-  {
-    id: "3",
-    title: "Career Exploration: STEM Fields",
-    category: "Career",
-    replies: 12,
-    lastActivity: "1 day ago",
-    isActive: false
-  }];
-
-
-  const planningTasks: PlanningTask[] = [
-  {
-    id: "1",
-    title: "Submit Common App Essay",
-    category: "college",
-    deadline: "January 20, 2026",
-    completed: false,
-    priority: "high"
-  },
-  {
-    id: "2",
-    title: "Request Letters of Recommendation",
-    category: "college",
-    deadline: "January 25, 2026",
-    completed: true,
-    priority: "high"
-  },
-  {
-    id: "3",
-    title: "Complete Career Interest Assessment",
-    category: "career",
-    deadline: "February 5, 2026",
-    completed: false,
-    priority: "medium"
+    title: "Academic Enrichment",
+    subtitle: "Advanced courses and skill building",
+    image: "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?w=800&q=80",
+    link: "/resources/programs/enrichment",
+    tag: "Academic"
   },
   {
     id: "4",
-    title: "Research Scholarship Opportunities",
-    category: "college",
-    deadline: "February 10, 2026",
-    completed: false,
-    priority: "medium"
-  }];
+    title: "Community Service",
+    subtitle: "Build your portfolio while giving back",
+    image: "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=800&q=80",
+    link: "/resources/programs/volunteer",
+    tag: "Volunteer"
+  }
+];
 
+const announcements: Announcement[] = [
+  {
+    id: "1",
+    title: "College Application Deadline Reminder",
+    date: "Feb 1, 2026",
+    category: "deadline",
+    description: "Regular decision applications due for most universities"
+  },
+  {
+    id: "2",
+    title: "Spring College Fair",
+    date: "Feb 15, 2026",
+    category: "event",
+    description: "Meet representatives from 50+ universities in the gymnasium"
+  },
+  {
+    id: "3",
+    title: "SAT Registration Open",
+    date: "Jan 20, 2026",
+    category: "important",
+    description: "Register now for the March SAT exam"
+  },
+  {
+    id: "4",
+    title: "New Scholarship Database",
+    date: "Jan 18, 2026",
+    category: "news",
+    description: "Access our updated scholarship search tool"
+  }
+];
 
-  const handleActionClick = (actionId: string) => {
-    if (!isHydrated) return;
+const counselors: Counselor[] = [
+  {
+    id: "1",
+    name: "Dr. Sarah Martinez",
+    role: "Head Counselor",
+    specialty: "College Admissions & Applications",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
+    email: "s.martinez@school.edu"
+  },
+  {
+    id: "2",
+    name: "Mr. James Chen",
+    role: "Career Counselor",
+    specialty: "Career Exploration & Planning",
+    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80",
+    email: "j.chen@school.edu"
+  },
+  {
+    id: "3",
+    name: "Ms. Emily Johnson",
+    role: "Academic Counselor",
+    specialty: "Academic Support & Study Skills",
+    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&q=80",
+    email: "e.johnson@school.edu"
+  }
+];
 
-    switch (actionId) {
-      case 'schedule':router.push('/appointment-scheduling-system');
-        break;
-      case 'resources':router.push('/resource-discovery-center');
-        break;
-      case 'messages':router.push('/secure-communication-hub');
-        break;
-      case 'goals':
-        break;
+const successStories: SuccessStory[] = [
+  {
+    id: "1",
+    name: "Alex Thompson",
+    achievement: "Accepted to MIT",
+    quote: "The counseling team helped me craft the perfect application. I couldn't have done it without their guidance!",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
+    year: "Class of 2025"
+  },
+  {
+    id: "2",
+    name: "Maria Garcia",
+    achievement: "Full Scholarship to Stanford",
+    quote: "They helped me find scholarships I never knew existed. Now I'm attending my dream school debt-free.",
+    image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80",
+    year: "Class of 2025"
+  },
+  {
+    id: "3",
+    name: "David Kim",
+    achievement: "Internship at Google",
+    quote: "The career counseling sessions opened my eyes to opportunities in tech. I landed my dream internship!",
+    image: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
+    year: "Class of 2024"
+  }
+];
+
+const StudentPortalInteractive = () => {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Determine if upper class (11th grade) or lower class
+  const isUpperClass = user?.gradeLevel && parseInt(user.gradeLevel) >= 11;
+  const slides = isUpperClass ? upperClassSlides : lowerClassSlides;
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  // Auto-advance carousel
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  const getCategoryStyle = (category: Announcement['category']) => {
+    switch (category) {
+      case 'deadline':
+        return 'bg-[#D93025]/10 text-[#D93025]';
+      case 'event':
+        return 'bg-[#1A73E8]/10 text-[#1A73E8]';
+      case 'important':
+        return 'bg-[#F9AB00]/10 text-[#F9AB00]';
+      case 'news':
+        return 'bg-[#1E8E3E]/10 text-[#1E8E3E]';
       default:
-        break;
+        return 'bg-gray-100 text-gray-600';
     }
-  };
-
-  const handleViewAllAppointments = () => {
-    if (!isHydrated) return;
-    router.push('/appointment-scheduling-system');
-  };
-
-  const handleViewAllGoals = () => {
-    if (!isHydrated) return;
-  };
-
-  const handleResourceClick = (resourceId: string) => {
-    if (!isHydrated) return;
-    router.push('/resource-discovery-center');
-  };
-
-  const handleViewAllResources = () => {
-    if (!isHydrated) return;
-    router.push('/resource-discovery-center');
-  };
-
-  const handleNotificationClick = (notificationId: string) => {
-    if (!isHydrated) return;
-
-    setNotifications((prev) =>
-    prev.map((notif) =>
-    notif.id === notificationId ? { ...notif, isRead: true } : notif
-    )
-    );
-  };
-
-  const handleMarkAllRead = () => {
-    if (!isHydrated) return;
-
-    setNotifications((prev) =>
-    prev.map((notif) => ({ ...notif, isRead: true }))
-    );
-  };
-
-  const handleViewAllAchievements = () => {
-    if (!isHydrated) return;
-  };
-
-  const handleSubmitQuestion = () => {
-    if (!isHydrated) return;
-  };
-
-  const handleDiscussionClick = (discussionId: string) => {
-    if (!isHydrated) return;
-  };
-
-  const handleViewAllDiscussions = () => {
-    if (!isHydrated) return;
-  };
-
-  const handleTaskClick = (taskId: string) => {
-    if (!isHydrated) return;
-  };
-
-  const handleViewAllTasks = () => {
-    if (!isHydrated) return;
   };
 
   if (!isHydrated) {
     return (
-      <div className="min-h-screen bg-background pt-20 pb-12 px-4">
+      <div className="min-h-screen bg-[#F1F3F4] dark:bg-[#1F1F1F] pt-20 pb-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
-            <div className="h-48 bg-muted rounded-xl" />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="h-64 bg-muted rounded-xl" />
-              <div className="h-64 bg-muted rounded-xl" />
-              <div className="h-64 bg-muted rounded-xl" />
+            <div className="h-32 bg-white dark:bg-[#292929] rounded-xl" />
+            <div className="h-80 bg-white dark:bg-[#292929] rounded-xl" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="h-64 bg-white dark:bg-[#292929] rounded-xl" />
+              <div className="h-64 bg-white dark:bg-[#292929] rounded-xl" />
             </div>
           </div>
         </div>
-      </div>);
-
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background pt-20 pb-12 px-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <WelcomeCard
-          studentName={studentData.name}
-          lastLogin={studentData.lastLogin} />
+    <div className="min-h-screen bg-[#F1F3F4] dark:bg-[#1F1F1F] pt-20 pb-12 px-4">
+      <div className="max-w-7xl mx-auto space-y-8">
 
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <QuickActionsCard
-              actions={quickActions}
-              onActionClick={handleActionClick} />
-
-
-            <UpcomingAppointmentsCard
-              appointments={appointments}
-              onViewAll={handleViewAllAppointments} />
-
-
-            <GoalProgressCard
-              goals={goals}
-              onViewAll={handleViewAllGoals} />
-
-
-            <CollegeCareerPlanningCard
-              tasks={planningTasks}
-              onTaskClick={handleTaskClick}
-              onViewAll={handleViewAllTasks} />
-
-
-            <PeerSupportCard
-              discussions={discussions}
-              onDiscussionClick={handleDiscussionClick}
-              onViewAll={handleViewAllDiscussions} />
-
-          </div>
-
-          <div className="space-y-6">
-            <NotificationCenterCard
-              notifications={notifications}
-              onNotificationClick={handleNotificationClick}
-              onMarkAllRead={handleMarkAllRead} />
-
-
-            <ResourceRecommendationsCard
-              resources={resources}
-              onResourceClick={handleResourceClick}
-              onViewAll={handleViewAllResources} />
-
-
-            <AchievementShowcaseCard
-              achievements={achievements}
-              totalPoints={1250}
-              onViewAll={handleViewAllAchievements} />
-
-
-            <AnonymousQuestionCard
-              onSubmitQuestion={handleSubmitQuestion} />
-
+        {/* Welcome Section */}
+        <div className="bg-white dark:bg-[#292929] rounded-2xl p-6 md:p-8 shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-[#202124] dark:text-[#E8EAED]">
+                Welcome to Student Portal
+              </h1>
+              <p className="text-[#5F6368] dark:text-[#9AA0A6] mt-1">
+                Your gateway to academic success and career planning
+              </p>
+            </div>
+            {!user && (
+              <Link
+                href="/auth/login"
+                className="inline-flex items-center justify-center px-6 py-3 bg-[#1A73E8] text-white font-medium rounded-lg hover:bg-[#185ABC] transition-colors shadow-sm"
+              >
+                Sign In to Get Started
+              </Link>
+            )}
           </div>
         </div>
-      </div>
-    </div>);
 
+        {/* Quick Actions */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {quickActions.map((action) => (
+            <Link
+              key={action.id}
+              href={action.href}
+              className="bg-white dark:bg-[#292929] rounded-xl p-5 border border-[#DADCE0] dark:border-[#3C4043] hover:border-[#1A73E8] dark:hover:border-[#8AB4F8] hover:shadow-md transition-all group"
+            >
+              <div className="w-12 h-12 bg-[#E8F0FE] dark:bg-[#1A73E8]/20 rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#1A73E8] transition-colors">
+                <Icon
+                  name={action.icon}
+                  size={24}
+                  variant="outline"
+                  className="text-[#1A73E8] dark:text-[#8AB4F8] group-hover:text-white transition-colors"
+                />
+              </div>
+              <h3 className="font-semibold text-[#202124] dark:text-[#E8EAED] mb-1">
+                {action.label}
+              </h3>
+              <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                {action.description}
+              </p>
+            </Link>
+          ))}
+        </div>
+
+        {/* Image Carousel - Universities/Programs */}
+        <div className="bg-white dark:bg-[#292929] rounded-2xl overflow-hidden shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
+          <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043]">
+            <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
+              {isUpperClass ? 'Explore Universities' : 'Recommended Programs'}
+            </h2>
+            <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+              {isUpperClass
+                ? 'Discover top universities and scholarship opportunities'
+                : 'Programs to build your skills and experience'}
+            </p>
+          </div>
+
+          <div className="relative">
+            {/* Carousel Container */}
+            <div className="relative h-[300px] md:h-[400px] overflow-hidden">
+              {slides.map((slide, index) => (
+                <div
+                  key={slide.id}
+                  className={`absolute inset-0 transition-opacity duration-500 ${
+                    index === currentSlide ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
+                >
+                  <div className="relative h-full">
+                    <img
+                      src={slide.image}
+                      alt={slide.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                      <span className="inline-block px-3 py-1 bg-[#1A73E8] text-white text-xs font-medium rounded-full mb-3">
+                        {slide.tag}
+                      </span>
+                      <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
+                        {slide.title}
+                      </h3>
+                      <p className="text-white/90 mb-4 max-w-xl">
+                        {slide.subtitle}
+                      </p>
+                      <Link
+                        href={slide.link}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-[#1A73E8] font-medium rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        Learn More
+                        <Icon name="ArrowRightIcon" size={16} variant="outline" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Carousel Controls */}
+            <button
+              onClick={() => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 dark:bg-[#292929]/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white dark:hover:bg-[#292929] transition-colors"
+              aria-label="Previous slide"
+            >
+              <Icon name="ChevronLeftIcon" size={20} variant="outline" className="text-[#202124] dark:text-[#E8EAED]" />
+            </button>
+            <button
+              onClick={() => setCurrentSlide((prev) => (prev + 1) % slides.length)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 dark:bg-[#292929]/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white dark:hover:bg-[#292929] transition-colors"
+              aria-label="Next slide"
+            >
+              <Icon name="ChevronRightIcon" size={20} variant="outline" className="text-[#202124] dark:text-[#E8EAED]" />
+            </button>
+
+            {/* Carousel Indicators */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+              {slides.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentSlide(index)}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    index === currentSlide
+                      ? 'w-8 bg-white'
+                      : 'bg-white/50 hover:bg-white/75'
+                  }`}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* School Announcements */}
+          <div className="bg-white dark:bg-[#292929] rounded-2xl shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
+            <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043] flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
+                  Announcements
+                </h2>
+                <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                  Important dates and updates
+                </p>
+              </div>
+              <Icon name="MegaphoneIcon" size={24} className="text-[#1A73E8]" variant="outline" />
+            </div>
+            <div className="p-4 md:p-6 space-y-4">
+              {announcements.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex gap-4 p-3 rounded-lg hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors cursor-pointer"
+                >
+                  <div className={`px-2 py-1 rounded text-xs font-medium capitalize h-fit ${getCategoryStyle(item.category)}`}>
+                    {item.category}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-medium text-[#202124] dark:text-[#E8EAED]">
+                      {item.title}
+                    </h4>
+                    <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6] mt-1">
+                      {item.description}
+                    </p>
+                    <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6] mt-2">
+                      {item.date}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Meet Your Counselors */}
+          <div className="bg-white dark:bg-[#292929] rounded-2xl shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
+            <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043] flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
+                  Meet Your Counselors
+                </h2>
+                <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                  Here to help you succeed
+                </p>
+              </div>
+              <Icon name="UserGroupIcon" size={24} className="text-[#1E8E3E]" variant="outline" />
+            </div>
+            <div className="p-4 md:p-6 space-y-4">
+              {counselors.map((counselor) => (
+                <div
+                  key={counselor.id}
+                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors"
+                >
+                  <img
+                    src={counselor.image}
+                    alt={counselor.name}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-[#202124] dark:text-[#E8EAED]">
+                      {counselor.name}
+                    </h4>
+                    <p className="text-sm text-[#1A73E8] dark:text-[#8AB4F8]">
+                      {counselor.role}
+                    </p>
+                    <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6]">
+                      {counselor.specialty}
+                    </p>
+                  </div>
+                  <Link
+                    href={`mailto:${counselor.email}`}
+                    className="p-2 rounded-full hover:bg-[#E8F0FE] dark:hover:bg-[#1A73E8]/20 transition-colors"
+                    title={`Email ${counselor.name}`}
+                  >
+                    <Icon name="EnvelopeIcon" size={20} className="text-[#1A73E8] dark:text-[#8AB4F8]" variant="outline" />
+                  </Link>
+                </div>
+              ))}
+              <Link
+                href="/appointment-scheduling-system"
+                className="block w-full text-center py-3 border border-[#1A73E8] text-[#1A73E8] dark:text-[#8AB4F8] dark:border-[#8AB4F8] rounded-lg hover:bg-[#E8F0FE] dark:hover:bg-[#1A73E8]/10 transition-colors font-medium"
+              >
+                Schedule a Meeting
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Success Stories */}
+        <div className="bg-white dark:bg-[#292929] rounded-2xl shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
+          <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043]">
+            <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
+              Success Stories
+            </h2>
+            <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+              See what our students have achieved
+            </p>
+          </div>
+          <div className="p-4 md:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {successStories.map((story) => (
+                <div
+                  key={story.id}
+                  className="bg-[#F1F3F4] dark:bg-[#3C4043] rounded-xl p-5"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <img
+                      src={story.image}
+                      alt={story.name}
+                      className="w-12 h-12 rounded-full object-cover"
+                    />
+                    <div>
+                      <h4 className="font-medium text-[#202124] dark:text-[#E8EAED]">
+                        {story.name}
+                      </h4>
+                      <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6]">
+                        {story.year}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="inline-block px-3 py-1 bg-[#1E8E3E]/10 text-[#1E8E3E] dark:text-[#81C995] text-sm font-medium rounded-full mb-3">
+                    {story.achievement}
+                  </div>
+                  <p className="text-[#5F6368] dark:text-[#9AA0A6] text-sm italic">
+                    "{story.quote}"
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
 };
 
 export default StudentPortalInteractive;
