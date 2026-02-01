@@ -7,13 +7,19 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  role: 'student' | 'counselor';
+  role: 'student' | 'counselor' | 'teacher' | 'parent';
   schoolId: string;
   schoolName?: string;
   gradeLevel?: string;
   title?: string;
   department?: string;
   profileImage?: string;
+  // Teacher-specific fields
+  subject?: string;
+  // Parent-specific fields
+  childrenIds?: string[];
+  childrenNames?: string[];
+  relationship?: string;
 }
 
 interface AuthContextType {

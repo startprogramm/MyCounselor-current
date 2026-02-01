@@ -13,7 +13,7 @@ export interface SidebarItem {
 
 interface SidebarProps {
   items: SidebarItem[];
-  userType: 'student' | 'counselor';
+  userType: 'student' | 'counselor' | 'teacher' | 'parent';
   userName: string;
   userEmail?: string;
   userAvatar?: string;
@@ -121,10 +121,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
                       userType === 'student'
                         ? 'bg-primary/10 text-primary'
+                        : userType === 'teacher'
+                        ? 'bg-amber-500/10 text-amber-600'
+                        : userType === 'parent'
+                        ? 'bg-rose-500/10 text-rose-600'
                         : 'bg-secondary/10 text-secondary'
                     }`}
                   >
-                    {userType === 'student' ? 'Student' : 'Counselor'}
+                    {userType === 'student' ? 'Student' : userType === 'teacher' ? 'Teacher' : userType === 'parent' ? 'Parent' : 'Counselor'}
                   </span>
                 </div>
               )}
