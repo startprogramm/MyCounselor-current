@@ -240,6 +240,7 @@ export default function StudentSignupPage() {
                     { value: '9', label: '9th Grade' },
                     { value: '10', label: '10th Grade' },
                     { value: '11', label: '11th Grade' },
+                    { value: '12', label: '12th Grade' },
                   ]}
                 />
 

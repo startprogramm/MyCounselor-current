@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 export interface SidebarItem {
   label: string;
@@ -27,8 +28,15 @@ const Sidebar: React.FC<SidebarProps> = ({
   userAvatar,
 }) => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    router.push('/auth/login');
+  };
 
   return (
     <>
@@ -207,8 +215,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-sm font-medium">Collapse</span>
               )}
             </button>
-            <Link
-              href="/auth/login"
+            <button
+              type="button"
+              onClick={handleLogout}
               className="flex items-center gap-3 w-full px-3 py-2 mt-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -220,7 +229,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 />
               </svg>
               {!isCollapsed && <span className="text-sm font-medium">Log out</span>}
-            </Link>
+            </button>
           </div>
         </div>
       </aside>

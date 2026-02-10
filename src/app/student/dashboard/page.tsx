@@ -1,29 +1,57 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 
-// Mock data
-const stats = [
-  { title: 'Upcoming Meetings', value: 2, subtitle: 'This week', trend: { value: 50, isPositive: true } },
-  { title: 'Goals Progress', value: '75%', subtitle: '3 of 4 on track' },
-  { title: 'Unread Messages', value: 3, subtitle: 'From counselor' },
-  { title: 'Resources Viewed', value: 12, subtitle: 'This month', trend: { value: 20, isPositive: true } },
-];
+interface CounselingRequest {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  counselor: string;
+  category: string;
+}
 
-const recentRequests = [
-  { id: 1, title: 'College Essay Review', status: 'pending', date: 'Jan 22, 2026', counselor: 'Dr. Martinez' },
-  { id: 2, title: 'SAT Prep Guidance', status: 'approved', date: 'Jan 20, 2026', counselor: 'Dr. Martinez' },
-  { id: 3, title: 'Schedule Change Request', status: 'completed', date: 'Jan 18, 2026', counselor: 'Mr. Chen' },
-];
+interface Meeting {
+  id: number;
+  title: string;
+  counselor: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+}
 
-const upcomingMeetings = [
-  { id: 1, title: 'College Application Review', counselor: 'Dr. Sarah Martinez', date: 'Jan 25, 2026', time: '2:00 PM', type: 'video' },
-  { id: 2, title: 'Career Exploration', counselor: 'Mr. James Chen', date: 'Jan 28, 2026', time: '10:30 AM', type: 'in-person' },
-];
+interface Conversation {
+  id: number;
+  counselor: string;
+  unread: number;
+  messages: { id: number }[];
+}
+
+interface Goal {
+  id: number;
+  title: string;
+  progress: number;
+  deadline: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+const GOALS_STORAGE_KEY = 'mycounselor_student_goals';
+
+function getDefaultGoals(): Goal[] {
+  const now = new Date();
+  return [
+    { id: 1, title: 'Complete College Apps', progress: 75, deadline: new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'high' },
+    { id: 2, title: 'Improve Math Grade', progress: 60, deadline: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 21).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'high' },
+    { id: 3, title: 'Career Workshops', progress: 33, deadline: new Date(now.getFullYear(), now.getMonth() + 2, 15).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'medium' },
+    { id: 4, title: 'Volunteer Hours', progress: 80, deadline: new Date(now.getFullYear(), now.getMonth() + 3, 30).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'low' },
+  ];
+}
 
 const quickActions = [
   { label: 'Book Meeting', href: '/student/meetings', icon: 'calendar', color: 'bg-primary' },
@@ -34,13 +62,78 @@ const quickActions = [
 
 export default function StudentDashboardPage() {
   const { user } = useAuth();
+  const [requests, setRequests] = useState<CounselingRequest[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [editingGoal, setEditingGoal] = useState<number | null>(null);
+
+  // Load all data from localStorage
+  useEffect(() => {
+    // Requests
+    const storedRequests = localStorage.getItem('mycounselor_student_requests');
+    if (storedRequests) setRequests(JSON.parse(storedRequests));
+
+    // Meetings
+    const storedMeetings = localStorage.getItem('mycounselor_student_meetings');
+    if (storedMeetings) setMeetings(JSON.parse(storedMeetings));
+
+    // Messages
+    const storedMessages = localStorage.getItem('mycounselor_student_messages');
+    if (storedMessages) setConversations(JSON.parse(storedMessages));
+
+    // Goals
+    const storedGoals = localStorage.getItem(GOALS_STORAGE_KEY);
+    if (storedGoals) {
+      setGoals(JSON.parse(storedGoals));
+    } else {
+      const defaults = getDefaultGoals();
+      setGoals(defaults);
+      localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(defaults));
+    }
+  }, []);
+
+  // Computed stats from real data
+  const upcomingMeetings = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');
+  const unreadMessages = conversations.reduce((sum, c) => sum + (c.unread || 0), 0);
+  const goalsOnTrack = goals.filter(g => g.progress >= 50).length;
+  const pendingRequests = requests.filter(r => r.status === 'pending').length;
+  const recentRequests = requests.slice(0, 3);
+  const upcomingMeetingsList = upcomingMeetings.slice(0, 2);
+
+  const stats = [
+    { title: 'Upcoming Meetings', value: upcomingMeetings.length, subtitle: 'Scheduled' },
+    { title: 'Goals Progress', value: `${goals.length > 0 ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length) : 0}%`, subtitle: `${goalsOnTrack} of ${goals.length} on track` },
+    { title: 'Unread Messages', value: unreadMessages, subtitle: 'From counselors' },
+    { title: 'Pending Requests', value: pendingRequests, subtitle: `${requests.length} total requests` },
+  ];
+
+  const updateGoalProgress = (goalId: number, newProgress: number) => {
+    const updated = goals.map(g =>
+      g.id === goalId ? { ...g, progress: Math.min(100, Math.max(0, newProgress)) } : g
+    );
+    setGoals(updated);
+    localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(updated));
+    setEditingGoal(null);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-warning/10 text-warning';
+      case 'in_progress': return 'bg-primary/10 text-primary';
       case 'approved': return 'bg-success/10 text-success';
       case 'completed': return 'bg-muted text-muted-foreground';
       default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pending';
+      case 'in_progress': return 'In Progress';
+      case 'approved': return 'Approved';
+      case 'completed': return 'Completed';
+      default: return status;
     }
   };
 
@@ -96,7 +189,7 @@ export default function StudentDashboardPage() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          Last login: Today at 9:15 AM
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
         </div>
       </div>
 
@@ -124,7 +217,6 @@ export default function StudentDashboardPage() {
             title={stat.title}
             value={stat.value}
             subtitle={stat.subtitle}
-            trend={stat.trend}
           />
         ))}
       </div>
@@ -142,24 +234,33 @@ export default function StudentDashboardPage() {
           }
           className="lg:col-span-2"
         >
-          <div className="space-y-3">
-            {recentRequests.map((request) => (
-              <div
-                key={request.id}
-                className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{request.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {request.counselor} &bull; {request.date}
-                  </p>
+          {recentRequests.length > 0 ? (
+            <div className="space-y-3">
+              {recentRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">{request.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {request.counselor} &bull; {request.createdAt}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(request.status)}`}>
+                    {getStatusLabel(request.status)}
+                  </span>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(request.status)}`}>
-                  {request.status}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <p>No requests yet.</p>
+              <Link href="/student/requests" className="text-primary text-sm hover:underline mt-1 inline-block">
+                Create your first request
+              </Link>
+            </div>
+          )}
         </ContentCard>
 
         {/* Upcoming Meetings */}
@@ -171,38 +272,51 @@ export default function StudentDashboardPage() {
             </Link>
           }
         >
-          <div className="space-y-4">
-            {upcomingMeetings.map((meeting) => (
-              <div key={meeting.id} className="p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-start justify-between mb-2">
-                  <p className="font-medium text-foreground text-sm">{meeting.title}</p>
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    meeting.type === 'video' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
-                  }`}>
-                    {meeting.type}
-                  </span>
+          {upcomingMeetingsList.length > 0 ? (
+            <div className="space-y-4">
+              {upcomingMeetingsList.map((meeting) => (
+                <div key={meeting.id} className="p-4 bg-muted/30 rounded-lg">
+                  <div className="flex items-start justify-between mb-2">
+                    <p className="font-medium text-foreground text-sm">{meeting.title}</p>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      meeting.type === 'video' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
+                    }`}>
+                      {meeting.type}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">{meeting.counselor}</p>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {meeting.date}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {meeting.time}
+                    </span>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground mb-2">{meeting.counselor}</p>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    {meeting.date}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {meeting.time}
-                  </span>
-                </div>
-              </div>
-            ))}
-            <Button variant="outline" fullWidth size="sm">
-              Book New Meeting
-            </Button>
-          </div>
+              ))}
+              <Link href="/student/meetings">
+                <Button variant="outline" fullWidth size="sm">
+                  Book New Meeting
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <p>No upcoming meetings.</p>
+              <Link href="/student/meetings">
+                <Button variant="outline" size="sm" className="mt-3">
+                  Book a Meeting
+                </Button>
+              </Link>
+            </div>
+          )}
         </ContentCard>
       </div>
 
@@ -211,19 +325,14 @@ export default function StudentDashboardPage() {
         title="Goals Progress"
         description="Track your academic and personal goals"
         action={
-          <Button variant="ghost" size="sm">
+          <Link href="/student/requests" className="text-sm text-primary hover:text-primary/80">
             Manage Goals
-          </Button>
+          </Link>
         }
       >
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { title: 'Complete College Apps', progress: 75, deadline: 'Feb 1, 2026', priority: 'high' },
-            { title: 'Improve Math Grade', progress: 60, deadline: 'Jan 31, 2026', priority: 'high' },
-            { title: 'Career Workshops', progress: 33, deadline: 'Mar 15, 2026', priority: 'medium' },
-            { title: 'Volunteer Hours', progress: 80, deadline: 'Apr 30, 2026', priority: 'low' },
-          ].map((goal, index) => (
-            <Card key={index} className="p-4" hover>
+          {goals.map((goal) => (
+            <Card key={goal.id} className="p-4" hover>
               <div className="flex items-center justify-between mb-2">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                   goal.priority === 'high' ? 'bg-destructive/10 text-destructive' :
@@ -236,12 +345,47 @@ export default function StudentDashboardPage() {
               </div>
               <p className="font-medium text-foreground text-sm mb-1">{goal.title}</p>
               <p className="text-xs text-muted-foreground mb-3">Due: {goal.deadline}</p>
-              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-2">
                 <div
-                  className="h-full bg-primary rounded-full transition-all"
+                  className={`h-full rounded-full transition-all ${
+                    goal.progress >= 75 ? 'bg-success' :
+                    goal.progress >= 50 ? 'bg-primary' :
+                    goal.progress >= 25 ? 'bg-warning' :
+                    'bg-destructive'
+                  }`}
                   style={{ width: `${goal.progress}%` }}
                 />
               </div>
+              {editingGoal === goal.id ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={goal.progress}
+                    onChange={(e) => {
+                      const newGoals = goals.map(g =>
+                        g.id === goal.id ? { ...g, progress: parseInt(e.target.value) } : g
+                      );
+                      setGoals(newGoals);
+                    }}
+                    className="flex-1 h-1.5 accent-primary"
+                  />
+                  <button
+                    onClick={() => updateGoalProgress(goal.id, goal.progress)}
+                    className="text-xs text-primary font-medium hover:text-primary/80"
+                  >
+                    Save
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingGoal(goal.id)}
+                  className="text-xs text-primary hover:text-primary/80 font-medium"
+                >
+                  Update Progress
+                </button>
+              )}
             </Card>
           ))}
         </div>
