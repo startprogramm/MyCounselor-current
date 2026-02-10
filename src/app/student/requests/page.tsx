@@ -18,45 +18,6 @@ interface CounselingRequest {
 
 const STORAGE_KEY = 'mycounselor_student_requests';
 
-const defaultRequests: CounselingRequest[] = [
-  {
-    id: 1,
-    title: 'College Essay Review',
-    description: 'I need help reviewing my personal statement for UC applications.',
-    status: 'pending',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    counselor: 'Dr. Sarah Martinez',
-    category: 'college',
-  },
-  {
-    id: 2,
-    title: 'SAT Prep Guidance',
-    description: 'Looking for SAT preparation resources and study schedule advice.',
-    status: 'in_progress',
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    counselor: 'Dr. Sarah Martinez',
-    category: 'academic',
-  },
-  {
-    id: 3,
-    title: 'Schedule Change Request',
-    description: 'I would like to switch from AP Physics to AP Chemistry.',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    counselor: 'Mr. James Chen',
-    category: 'academic',
-  },
-  {
-    id: 4,
-    title: 'Letter of Recommendation',
-    description: 'Requesting a letter of recommendation for Stanford application.',
-    status: 'approved',
-    createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    counselor: 'Dr. Sarah Martinez',
-    category: 'college',
-  },
-];
-
 export default function StudentRequestsPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
@@ -72,10 +33,11 @@ export default function StudentRequestsPage() {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      setRequests(JSON.parse(stored));
-    } else {
-      setRequests(defaultRequests);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultRequests));
+      try {
+        setRequests(JSON.parse(stored));
+      } catch {
+        setRequests([]);
+      }
     }
   }, []);
 

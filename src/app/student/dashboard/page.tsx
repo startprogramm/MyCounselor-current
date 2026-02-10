@@ -43,16 +43,6 @@ interface Goal {
 
 const GOALS_STORAGE_KEY = 'mycounselor_student_goals';
 
-function getDefaultGoals(): Goal[] {
-  const now = new Date();
-  return [
-    { id: 1, title: 'Complete College Apps', progress: 75, deadline: new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'high' },
-    { id: 2, title: 'Improve Math Grade', progress: 60, deadline: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 21).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'high' },
-    { id: 3, title: 'Career Workshops', progress: 33, deadline: new Date(now.getFullYear(), now.getMonth() + 2, 15).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'medium' },
-    { id: 4, title: 'Volunteer Hours', progress: 80, deadline: new Date(now.getFullYear(), now.getMonth() + 3, 30).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), priority: 'low' },
-  ];
-}
-
 const quickActions = [
   { label: 'Book Meeting', href: '/student/meetings', icon: 'calendar', color: 'bg-primary' },
   { label: 'New Request', href: '/student/requests', icon: 'document', color: 'bg-secondary' },
@@ -85,11 +75,11 @@ export default function StudentDashboardPage() {
     // Goals
     const storedGoals = localStorage.getItem(GOALS_STORAGE_KEY);
     if (storedGoals) {
-      setGoals(JSON.parse(storedGoals));
-    } else {
-      const defaults = getDefaultGoals();
-      setGoals(defaults);
-      localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(defaults));
+      try {
+        setGoals(JSON.parse(storedGoals));
+      } catch {
+        setGoals([]);
+      }
     }
   }, []);
 
@@ -325,70 +315,78 @@ export default function StudentDashboardPage() {
         title="Goals Progress"
         description="Track your academic and personal goals"
         action={
-          <Link href="/student/requests" className="text-sm text-primary hover:text-primary/80">
-            Manage Goals
-          </Link>
+          goals.length > 0 ? undefined : undefined
         }
       >
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {goals.map((goal) => (
-            <Card key={goal.id} className="p-4" hover>
-              <div className="flex items-center justify-between mb-2">
-                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                  goal.priority === 'high' ? 'bg-destructive/10 text-destructive' :
-                  goal.priority === 'medium' ? 'bg-warning/10 text-warning' :
-                  'bg-muted text-muted-foreground'
-                }`}>
-                  {goal.priority}
-                </span>
-                <span className="text-sm font-semibold text-primary">{goal.progress}%</span>
-              </div>
-              <p className="font-medium text-foreground text-sm mb-1">{goal.title}</p>
-              <p className="text-xs text-muted-foreground mb-3">Due: {goal.deadline}</p>
-              <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-2">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    goal.progress >= 75 ? 'bg-success' :
-                    goal.progress >= 50 ? 'bg-primary' :
-                    goal.progress >= 25 ? 'bg-warning' :
-                    'bg-destructive'
-                  }`}
-                  style={{ width: `${goal.progress}%` }}
-                />
-              </div>
-              {editingGoal === goal.id ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={goal.progress}
-                    onChange={(e) => {
-                      const newGoals = goals.map(g =>
-                        g.id === goal.id ? { ...g, progress: parseInt(e.target.value) } : g
-                      );
-                      setGoals(newGoals);
-                    }}
-                    className="flex-1 h-1.5 accent-primary"
-                  />
-                  <button
-                    onClick={() => updateGoalProgress(goal.id, goal.progress)}
-                    className="text-xs text-primary font-medium hover:text-primary/80"
-                  >
-                    Save
-                  </button>
+        {goals.length > 0 ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {goals.map((goal) => (
+              <Card key={goal.id} className="p-4" hover>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    goal.priority === 'high' ? 'bg-destructive/10 text-destructive' :
+                    goal.priority === 'medium' ? 'bg-warning/10 text-warning' :
+                    'bg-muted text-muted-foreground'
+                  }`}>
+                    {goal.priority}
+                  </span>
+                  <span className="text-sm font-semibold text-primary">{goal.progress}%</span>
                 </div>
-              ) : (
-                <button
-                  onClick={() => setEditingGoal(goal.id)}
-                  className="text-xs text-primary hover:text-primary/80 font-medium"
-                >
-                  Update Progress
-                </button>
-              )}
-            </Card>
-          ))}
-        </div>
+                <p className="font-medium text-foreground text-sm mb-1">{goal.title}</p>
+                <p className="text-xs text-muted-foreground mb-3">Due: {goal.deadline}</p>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-2">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      goal.progress >= 75 ? 'bg-success' :
+                      goal.progress >= 50 ? 'bg-primary' :
+                      goal.progress >= 25 ? 'bg-warning' :
+                      'bg-destructive'
+                    }`}
+                    style={{ width: `${goal.progress}%` }}
+                  />
+                </div>
+                {editingGoal === goal.id ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={goal.progress}
+                      onChange={(e) => {
+                        const newGoals = goals.map(g =>
+                          g.id === goal.id ? { ...g, progress: parseInt(e.target.value) } : g
+                        );
+                        setGoals(newGoals);
+                      }}
+                      className="flex-1 h-1.5 accent-primary"
+                    />
+                    <button
+                      onClick={() => updateGoalProgress(goal.id, goal.progress)}
+                      className="text-xs text-primary font-medium hover:text-primary/80"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setEditingGoal(goal.id)}
+                    className="text-xs text-primary hover:text-primary/80 font-medium"
+                  >
+                    Update Progress
+                  </button>
+                )}
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="font-medium">No goals set yet</p>
+            <p className="text-sm mt-1">Talk to your counselor to set academic and personal goals</p>
+          </div>
+        )}
       </ContentCard>
     </div>
   );

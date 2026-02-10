@@ -23,75 +23,25 @@ interface Conversation {
 
 const STORAGE_KEY = 'mycounselor_student_messages';
 
-function getDefaultConversations(firstName: string): Conversation[] {
+function getDefaultConversations(): Conversation[] {
   return [
     {
       id: 1,
       counselor: 'Dr. Sarah Martinez',
       avatar: 'SM',
-      lastMessage: 'Great progress on your essay! Let me know if you have questions.',
-      timestamp: 'Today',
-      unread: 2,
-      messages: [
-        {
-          id: 1,
-          sender: 'counselor',
-          content: `Hi ${firstName}! I reviewed your college essay draft. You have a strong opening, but I think we can make the conclusion more impactful.`,
-          timestamp: '10:30 AM',
-        },
-        {
-          id: 2,
-          sender: 'student',
-          content: 'Thank you for reviewing it! What changes would you suggest for the conclusion?',
-          timestamp: '10:45 AM',
-        },
-        {
-          id: 3,
-          sender: 'counselor',
-          content: 'I would recommend tying your conclusion back to the opening anecdote. This creates a nice narrative arc. Also, try to end with forward-looking statements about your goals.',
-          timestamp: '11:00 AM',
-        },
-        {
-          id: 4,
-          sender: 'counselor',
-          content: 'Great progress on your essay! Let me know if you have questions about implementing these changes.',
-          timestamp: '11:05 AM',
-        },
-      ],
+      lastMessage: 'Start a conversation',
+      timestamp: '',
+      unread: 0,
+      messages: [],
     },
     {
       id: 2,
       counselor: 'Mr. James Chen',
       avatar: 'JC',
-      lastMessage: 'Your schedule change has been approved.',
-      timestamp: 'Yesterday',
+      lastMessage: 'Start a conversation',
+      timestamp: '',
       unread: 0,
-      messages: [
-        {
-          id: 1,
-          sender: 'student',
-          content: 'Hi Mr. Chen, I submitted a request to switch from AP Physics to AP Chemistry. Is that still possible?',
-          timestamp: '2:15 PM',
-        },
-        {
-          id: 2,
-          sender: 'counselor',
-          content: `Hi ${firstName}! Yes, I checked and there's still an open spot in AP Chemistry Period 3. I'll process the change for you.`,
-          timestamp: '3:30 PM',
-        },
-        {
-          id: 3,
-          sender: 'student',
-          content: 'That would be great, thank you!',
-          timestamp: '3:45 PM',
-        },
-        {
-          id: 4,
-          sender: 'counselor',
-          content: 'Your schedule change has been approved. The new schedule will take effect next Monday. Let me know if you need anything else!',
-          timestamp: '4:00 PM',
-        },
-      ],
+      messages: [],
     },
   ];
 }
@@ -133,13 +83,19 @@ export default function StudentMessagesPage() {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      setConversations(JSON.parse(stored));
+      try {
+        setConversations(JSON.parse(stored));
+      } catch {
+        const defaults = getDefaultConversations();
+        setConversations(defaults);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+      }
     } else {
-      const defaults = getDefaultConversations(user?.firstName || 'there');
+      const defaults = getDefaultConversations();
       setConversations(defaults);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
     }
-  }, [user?.firstName]);
+  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -310,6 +266,17 @@ export default function StudentMessagesPage() {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {selectedConversation.messages.length === 0 && (
+                  <div className="flex-1 flex items-center justify-center h-full">
+                    <div className="text-center text-muted-foreground">
+                      <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      <p className="font-medium">No messages yet</p>
+                      <p className="text-sm mt-1">Send a message to start the conversation</p>
+                    </div>
+                  </div>
+                )}
                 {selectedConversation.messages.map((msg) => (
                   <div
                     key={msg.id}

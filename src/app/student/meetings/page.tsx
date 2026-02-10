@@ -42,58 +42,6 @@ function getNextWeekdays(): { date: string; label: string; slots: string[] }[] {
   return days;
 }
 
-function getDefaultMeetings(): Meeting[] {
-  const now = new Date();
-  const nextWeek = new Date(now);
-  nextWeek.setDate(nextWeek.getDate() + 3);
-  const nextNextWeek = new Date(now);
-  nextNextWeek.setDate(nextNextWeek.getDate() + 6);
-  const lastWeek = new Date(now);
-  lastWeek.setDate(lastWeek.getDate() - 7);
-  const twoWeeksAgo = new Date(now);
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-
-  return [
-    {
-      id: 1,
-      title: 'College Application Review',
-      counselor: 'Dr. Sarah Martinez',
-      date: nextWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      time: '2:00 PM - 2:30 PM',
-      type: 'video',
-      status: 'confirmed',
-    },
-    {
-      id: 2,
-      title: 'Career Exploration Session',
-      counselor: 'Mr. James Chen',
-      date: nextNextWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      time: '10:30 AM - 11:00 AM',
-      type: 'in-person',
-      status: 'pending',
-    },
-    {
-      id: 3,
-      title: 'SAT Prep Planning',
-      counselor: 'Dr. Sarah Martinez',
-      date: lastWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      time: '3:00 PM - 3:30 PM',
-      type: 'video',
-      status: 'completed',
-      notes: 'Discussed SAT study schedule. Target practice tests every 2 weeks. Focus on math section improvement.',
-    },
-    {
-      id: 4,
-      title: 'Goal Setting Session',
-      counselor: 'Dr. Sarah Martinez',
-      date: twoWeeksAgo.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      time: '2:00 PM - 2:30 PM',
-      type: 'in-person',
-      status: 'completed',
-      notes: 'Set academic and college goals for the semester. Prioritize college applications and math grade improvement.',
-    },
-  ];
-}
 
 const counselors = [
   { value: 'martinez', label: 'Dr. Sarah Martinez - College & Career', name: 'Dr. Sarah Martinez' },
@@ -127,11 +75,11 @@ export default function StudentMeetingsPage() {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      setMeetings(JSON.parse(stored));
-    } else {
-      const defaults = getDefaultMeetings();
-      setMeetings(defaults);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+      try {
+        setMeetings(JSON.parse(stored));
+      } catch {
+        setMeetings([]);
+      }
     }
   }, []);
 
