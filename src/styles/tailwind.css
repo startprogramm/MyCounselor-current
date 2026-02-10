@@ -1,0 +1,430 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ========================================
+       EDUCATIONAL COLOR PALETTE - Google Classroom Inspired
+       Clean, Professional, Easy on the Eyes
+       ======================================== */
+
+    /* Background Colors - Clean & Light */
+    --color-background: #F1F3F4;
+    /* Light gray background - Google style */
+    --color-foreground: #202124;
+    /* Dark text - excellent readability */
+    --color-card: #FFFFFF;
+    /* Pure white cards - clean separation */
+    --color-card-foreground: #202124;
+    --color-popover: #FFFFFF;
+    --color-popover-foreground: #202124;
+
+    /* Muted Colors */
+    --color-muted: #E8EAED;
+    /* Soft gray for muted backgrounds */
+    --color-muted-foreground: #5F6368;
+    /* Google's secondary text gray */
+
+    /* Border & Input */
+    --color-border: #DADCE0;
+    /* Subtle, clean borders */
+    --color-input: #DADCE0;
+    --color-ring: #1A73E8;
+    /* Google blue for focus */
+
+    /* Primary Colors - Trustworthy Blue */
+    --color-primary: #1A73E8;
+    /* Google blue - trust & professionalism */
+    --color-primary-foreground: #FFFFFF;
+
+    /* Secondary Colors - Calming Green */
+    --color-secondary: #1E8E3E;
+    /* Google green - growth & success */
+    --color-secondary-foreground: #FFFFFF;
+
+    /* Accent Colors - Warm & Inviting */
+    --color-accent: #EA8600;
+    /* Warm orange/amber for highlights */
+    --color-accent-foreground: #FFFFFF;
+
+    /* Destructive/Error Colors */
+    --color-destructive: #D93025;
+    /* Google red */
+    --color-destructive-foreground: #FFFFFF;
+    --color-error: #D93025;
+    --color-error-foreground: #FFFFFF;
+
+    /* Success Colors */
+    --color-success: #1E8E3E;
+    /* Google green */
+    --color-success-foreground: #FFFFFF;
+
+    /* Warning Colors */
+    --color-warning: #F9AB00;
+    /* Google yellow */
+    --color-warning-foreground: #202124;
+
+    /* Brand Colors - Educational Theme */
+    --color-brand-primary: #1A73E8;
+    /* Main brand blue */
+    --color-brand-secondary: #1E8E3E;
+    /* Secondary green */
+    --color-brand-accent: #EA8600;
+    /* Accent orange */
+    --color-brand-trust: #185ABC;
+    /* Darker blue for trust elements */
+    --color-brand-cta: #1A73E8;
+    /* Call to action blue */
+
+    /* Spacing Scale */
+    --space-xs: 0.5rem;
+    --space-sm: 0.75rem;
+    --space-md: 1rem;
+    --space-lg: 1.5rem;
+    --space-xl: 2rem;
+    --space-2xl: 3rem;
+    --space-3xl: 6rem;
+
+    /* Border Radius */
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.5rem;
+  }
+
+  /* ========================================
+     Dark Mode - Educational Theme
+     ======================================== */
+  .dark {
+    --color-background: #1F1F1F;
+    /* Dark but not pure black */
+    --color-foreground: #E8EAED;
+    /* Light text for readability */
+    --color-card: #292929;
+    /* Slightly elevated cards */
+    --color-card-foreground: #E8EAED;
+    --color-popover: #292929;
+    --color-popover-foreground: #E8EAED;
+
+    --color-muted: #3C4043;
+    /* Google's dark muted */
+    --color-muted-foreground: #9AA0A6;
+
+    --color-border: #3C4043;
+    --color-input: #3C4043;
+    --color-ring: #8AB4F8;
+    /* Lighter blue for dark mode */
+
+    --color-primary: #8AB4F8;
+    /* Light blue for dark mode */
+    --color-primary-foreground: #202124;
+
+    --color-secondary: #81C995;
+    /* Light green for dark mode */
+    --color-secondary-foreground: #202124;
+
+    --color-accent: #FDD663;
+    /* Light amber for dark mode */
+    --color-accent-foreground: #202124;
+
+    --color-brand-primary: #8AB4F8;
+    --color-brand-secondary: #81C995;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Source Sans 3', sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Inter', sans-serif;
+  }
+
+  button {
+    font-family: 'Inter', sans-serif;
+  }
+
+  code,
+  pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Breathe Animation */
+  .animation-breathe {
+    animation: breathe 4s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+
+    0%,
+    100% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.02);
+    }
+  }
+
+  /* Gradient Utilities - Educational Theme */
+  .gradient-brand {
+    background: linear-gradient(135deg, #1A73E8 0%, #4285F4 50%, #8AB4F8 100%);
+  }
+
+  .gradient-green {
+    background: linear-gradient(135deg, #1E8E3E 0%, #34A853 100%);
+  }
+
+  .gradient-warm {
+    background: linear-gradient(135deg, #EA8600 0%, #FBBC04 100%);
+  }
+
+  .bg-gradient-brand {
+    background: linear-gradient(135deg, #1A73E8 0%, #1E8E3E 100%);
+  }
+
+  .shadow-brand {
+    box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1), 0 2px 6px rgba(60, 64, 67, 0.15);
+  }
+
+  .shadow-brand-lg {
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.15), 0 4px 8px rgba(60, 64, 67, 0.2);
+  }
+
+  /* Scroll Animation Classes */
+  .animate-on-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+
+  .animate-on-scroll.animate-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .animate-on-scroll-left {
+    opacity: 0;
+    transform: translateX(-30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+
+  .animate-on-scroll-left.animate-visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .animate-on-scroll-right {
+    opacity: 0;
+    transform: translateX(30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+
+  .animate-on-scroll-right.animate-visible {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .animate-on-scroll-scale {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+
+  .animate-on-scroll-scale.animate-visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Staggered Animation Delays */
+  .stagger-1 {
+    transition-delay: 0.1s;
+  }
+
+  .stagger-2 {
+    transition-delay: 0.2s;
+  }
+
+  .stagger-3 {
+    transition-delay: 0.3s;
+  }
+
+  .stagger-4 {
+    transition-delay: 0.4s;
+  }
+
+  .stagger-5 {
+    transition-delay: 0.5s;
+  }
+
+  .stagger-6 {
+    transition-delay: 0.6s;
+  }
+
+  /* Float Animation */
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+
+    25% {
+      transform: translateY(-10px) rotate(1deg);
+    }
+
+    50% {
+      transform: translateY(-5px) rotate(-1deg);
+    }
+
+    75% {
+      transform: translateY(-15px) rotate(0.5deg);
+    }
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-float-delayed {
+    animation: float 8s ease-in-out infinite;
+    animation-delay: 2s;
+  }
+
+  /* Pulse Glow Animation */
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 20px rgba(26, 115, 232, 0.3);
+    }
+
+    50% {
+      box-shadow: 0 0 40px rgba(26, 115, 232, 0.5);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Shimmer Effect for Loading */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg,
+        var(--color-muted) 0%,
+        var(--color-card) 50%,
+        var(--color-muted) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Glassmorphism Utility */
+  .glass {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .glass {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Focus Ring Styles for Accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  /* Skip Link */
+  .skip-link {
+    @apply absolute left-0 top-0 -translate-y-full bg-primary text-primary-foreground px-4 py-2 z-[100] transition-transform focus:translate-y-0;
+  }
+
+  /* Carousel Indicators */
+  .carousel-dot {
+    @apply w-2 h-2 rounded-full transition-all duration-300;
+    background-color: var(--color-muted-foreground);
+    opacity: 0.3;
+  }
+
+  .carousel-dot.active {
+    @apply w-6 bg-primary opacity-100;
+  }
+
+  /* Light Mode Card Shadows for better separation */
+  .card-shadow-light {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  .dark .card-shadow-light {
+    box-shadow: none;
+  }
+
+  /* Better text visibility in light mode */
+  .text-visible {
+    @apply text-slate-700;
+  }
+
+  .dark .text-visible {
+    @apply text-slate-300;
+  }
+
+  /* Enhanced link visibility */
+  .link-visible {
+    @apply text-blue-700 hover:text-blue-800;
+  }
+
+  .dark .link-visible {
+    @apply text-blue-400 hover:text-blue-300;
+  }
+}
+
+/* Light mode specific improvements */
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    /* Ensure good contrast in system light mode */
+    --color-muted-foreground: #475569;
+  }
+}
+
+/* Additional light mode enhancements */
+:root:not(.dark) {
+  /* Cards get subtle shadow in light mode */
+  .bg-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+}
