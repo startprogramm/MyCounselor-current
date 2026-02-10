@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Button from '@/components/ui/Button';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, User } from '@/context/AuthContext';
 
 interface Message {
   id: number;
@@ -23,27 +23,25 @@ interface Conversation {
 
 const STORAGE_KEY = 'mycounselor_student_messages';
 
-function getDefaultConversations(): Conversation[] {
-  return [
-    {
-      id: 1,
-      counselor: 'Dr. Sarah Martinez',
-      avatar: 'SM',
+function buildConversationsFromCounselors(counselors: User[], existingConversations: Conversation[]): Conversation[] {
+  return counselors.map((c, index) => {
+    const name = `${c.firstName} ${c.lastName}`;
+    const initials = `${c.firstName[0]}${c.lastName[0]}`.toUpperCase();
+    // Try to find existing conversation with this counselor by name
+    const existing = existingConversations.find(conv => conv.counselor === name);
+    if (existing) {
+      return { ...existing, id: index + 1, avatar: initials };
+    }
+    return {
+      id: index + 1,
+      counselor: name,
+      avatar: initials,
       lastMessage: 'Start a conversation',
       timestamp: '',
       unread: 0,
       messages: [],
-    },
-    {
-      id: 2,
-      counselor: 'Mr. James Chen',
-      avatar: 'JC',
-      lastMessage: 'Start a conversation',
-      timestamp: '',
-      unread: 0,
-      messages: [],
-    },
-  ];
+    };
+  });
 }
 
 // Auto-reply templates based on keywords
@@ -70,7 +68,7 @@ function generateAutoReply(message: string, counselorName: string): string | nul
 }
 
 export default function StudentMessagesPage() {
-  const { user } = useAuth();
+  const { user, getSchoolCounselors } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConvId, setSelectedConvId] = useState<number>(1);
   const [newMessage, setNewMessage] = useState('');
@@ -79,23 +77,27 @@ export default function StudentMessagesPage() {
 
   const selectedConversation = conversations.find(c => c.id === selectedConvId) || conversations[0];
 
-  // Load conversations from localStorage
+  // Load conversations — merge school counselors with any existing chat history
   useEffect(() => {
+    if (!user?.schoolId) return;
+    const counselors = getSchoolCounselors(user.schoolId);
     const stored = localStorage.getItem(STORAGE_KEY);
+    let existingConvs: Conversation[] = [];
     if (stored) {
       try {
-        setConversations(JSON.parse(stored));
+        existingConvs = JSON.parse(stored);
       } catch {
-        const defaults = getDefaultConversations();
-        setConversations(defaults);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+        existingConvs = [];
       }
-    } else {
-      const defaults = getDefaultConversations();
-      setConversations(defaults);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
     }
-  }, []);
+    if (counselors.length > 0) {
+      const merged = buildConversationsFromCounselors(counselors, existingConvs);
+      setConversations(merged);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    } else {
+      setConversations([]);
+    }
+  }, [user?.schoolId, getSchoolCounselors]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -185,8 +187,6 @@ export default function StudentMessagesPage() {
     saveConversations(updated);
   };
 
-  if (conversations.length === 0) return null;
-
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
       {/* Header */}
@@ -199,7 +199,19 @@ export default function StudentMessagesPage() {
         </p>
       </div>
 
-      {/* Messages Container */}
+      {conversations.length === 0 ? (
+        <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
+          <div className="text-center py-12 px-4">
+            <svg className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            <p className="font-medium text-foreground text-lg">No counselors available yet</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
+              No counselors have registered at your school yet. Once a counselor joins, you&apos;ll be able to message them here.
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="flex-1 bg-card rounded-xl border border-border overflow-hidden flex">
         {/* Conversations List */}
         <div className={`w-full md:w-80 border-r border-border flex-shrink-0 ${
@@ -322,6 +334,7 @@ export default function StudentMessagesPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

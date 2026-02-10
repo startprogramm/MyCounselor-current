@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { Select } from '@/components/ui/Input';
+import { useAuth, User } from '@/context/AuthContext';
 
 interface Meeting {
   id: number;
@@ -42,12 +43,6 @@ function getNextWeekdays(): { date: string; label: string; slots: string[] }[] {
   return days;
 }
 
-
-const counselors = [
-  { value: 'martinez', label: 'Dr. Sarah Martinez - College & Career', name: 'Dr. Sarah Martinez' },
-  { value: 'chen', label: 'Mr. James Chen - Academic Support', name: 'Mr. James Chen' },
-];
-
 const meetingTopics = [
   { value: '', label: 'Select a topic' },
   { value: 'College Application Review', label: 'College Application Review' },
@@ -60,7 +55,9 @@ const meetingTopics = [
 ];
 
 export default function StudentMeetingsPage() {
+  const { user, getSchoolCounselors } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [schoolCounselors, setSchoolCounselors] = useState<User[]>([]);
   const [showBooking, setShowBooking] = useState(false);
   const [selectedCounselor, setSelectedCounselor] = useState('');
   const [selectedTopic, setSelectedTopic] = useState('');
@@ -83,6 +80,20 @@ export default function StudentMeetingsPage() {
     }
   }, []);
 
+  // Load school counselors
+  useEffect(() => {
+    if (user?.schoolId) {
+      setSchoolCounselors(getSchoolCounselors(user.schoolId));
+    }
+  }, [user?.schoolId, getSchoolCounselors]);
+
+  // Build counselor options for the select dropdown
+  const counselorOptions = schoolCounselors.map(c => ({
+    value: c.id,
+    label: `${c.firstName} ${c.lastName}${c.department ? ` - ${c.department}` : ''}${c.title ? ` (${c.title})` : ''}`,
+    name: `${c.firstName} ${c.lastName}`,
+  }));
+
   const saveMeetings = (updated: Meeting[]) => {
     setMeetings(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -91,7 +102,7 @@ export default function StudentMeetingsPage() {
   const handleConfirmBooking = () => {
     if (!selectedCounselor || !selectedDate || !selectedSlot || !selectedTopic) return;
 
-    const counselor = counselors.find(c => c.value === selectedCounselor);
+    const counselor = counselorOptions.find(c => c.value === selectedCounselor);
     const endTime = (() => {
       const [time, period] = selectedSlot.split(' ');
       const [hours, minutes] = time.split(':').map(Number);
@@ -184,6 +195,20 @@ export default function StudentMeetingsPage() {
       {/* Booking Form */}
       {showBooking && (
         <ContentCard title="Book a New Meeting">
+          {schoolCounselors.length === 0 ? (
+            <div className="text-center py-8">
+              <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <p className="font-medium text-foreground">No counselors available</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                No counselors have registered at your school yet. Please check back later.
+              </p>
+              <Button variant="outline" className="mt-4" onClick={() => setShowBooking(false)}>
+                Close
+              </Button>
+            </div>
+          ) : (
           <div className="space-y-6">
             <Select
               label="Select Counselor"
@@ -191,7 +216,7 @@ export default function StudentMeetingsPage() {
               onChange={(e) => { setSelectedCounselor(e.target.value); setSelectedDate(''); setSelectedSlot(''); }}
               options={[
                 { value: '', label: 'Choose a counselor' },
-                ...counselors.map(c => ({ value: c.value, label: c.label })),
+                ...counselorOptions.map(c => ({ value: c.value, label: c.label })),
               ]}
             />
 
@@ -277,7 +302,7 @@ export default function StudentMeetingsPage() {
               <div className="bg-muted/30 rounded-lg p-4 space-y-2">
                 <h4 className="font-medium text-foreground">Booking Summary</h4>
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p><span className="font-medium text-foreground">Counselor:</span> {counselors.find(c => c.value === selectedCounselor)?.name}</p>
+                  <p><span className="font-medium text-foreground">Counselor:</span> {counselorOptions.find(c => c.value === selectedCounselor)?.name}</p>
                   <p><span className="font-medium text-foreground">Topic:</span> {selectedTopic}</p>
                   <p><span className="font-medium text-foreground">Date:</span> {selectedDate}</p>
                   <p><span className="font-medium text-foreground">Time:</span> {selectedSlot}</p>
@@ -304,6 +329,7 @@ export default function StudentMeetingsPage() {
               </Button>
             </div>
           </div>
+          )}
         </ContentCard>
       )}
 
