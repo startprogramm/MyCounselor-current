@@ -30,6 +30,7 @@ interface AuthContextType {
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   findRegisteredUser: (email: string) => User | null;
+  getSchoolCounselors: (schoolId: string) => User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return registeredUsers.find((u: User) => u.email === email) || null;
   };
 
+  // Find all counselors at a given school
+  const getSchoolCounselors = (schoolId: string): User[] => {
+    const registeredUsers: User[] = JSON.parse(localStorage.getItem('mycounselor_registered_users') || '[]');
+    return registeredUsers.filter((u) => u.role === 'counselor' && u.schoolId === schoolId);
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('mycounselor_user');
@@ -87,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, findRegisteredUser }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, findRegisteredUser, getSchoolCounselors }}>
       {children}
     </AuthContext.Provider>
   );

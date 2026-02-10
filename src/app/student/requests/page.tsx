@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, User } from '@/context/AuthContext';
 
 interface CounselingRequest {
   id: number;
@@ -19,8 +19,9 @@ interface CounselingRequest {
 const STORAGE_KEY = 'mycounselor_student_requests';
 
 export default function StudentRequestsPage() {
-  const { user } = useAuth();
+  const { user, getSchoolCounselors } = useAuth();
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
+  const [schoolCounselors, setSchoolCounselors] = useState<User[]>([]);
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [filter, setFilter] = useState('all');
   const [newTitle, setNewTitle] = useState('');
@@ -41,6 +42,13 @@ export default function StudentRequestsPage() {
     }
   }, []);
 
+  // Load school counselors
+  useEffect(() => {
+    if (user?.schoolId) {
+      setSchoolCounselors(getSchoolCounselors(user.schoolId));
+    }
+  }, [user?.schoolId, getSchoolCounselors]);
+
   // Save to localStorage whenever requests change
   const saveRequests = (updated: CounselingRequest[]) => {
     setRequests(updated);
@@ -60,14 +68,16 @@ export default function StudentRequestsPage() {
       return;
     }
 
-    const counselors = ['Dr. Sarah Martinez', 'Mr. James Chen'];
+    const counselorNames = schoolCounselors.map(c => `${c.firstName} ${c.lastName}`);
     const newRequest: CounselingRequest = {
       id: Date.now(),
       title: newTitle.trim(),
       description: newDescription.trim(),
       status: 'pending',
       createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      counselor: counselors[Math.floor(Math.random() * counselors.length)],
+      counselor: counselorNames.length > 0
+        ? counselorNames[Math.floor(Math.random() * counselorNames.length)]
+        : 'Unassigned',
       category: newCategory,
     };
 
@@ -194,6 +204,20 @@ export default function StudentRequestsPage() {
       {/* New Request Form */}
       {showNewRequest && (
         <ContentCard title="Create New Request">
+          {schoolCounselors.length === 0 ? (
+            <div className="text-center py-8">
+              <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <p className="font-medium text-foreground">No counselors available</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                No counselors have registered at your school yet. Please check back later.
+              </p>
+              <Button variant="outline" className="mt-4" onClick={() => setShowNewRequest(false)}>
+                Close
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="Request Title"
@@ -236,6 +260,7 @@ export default function StudentRequestsPage() {
               <Button type="submit">Submit Request</Button>
             </div>
           </form>
+          )}
         </ContentCard>
       )}
 
