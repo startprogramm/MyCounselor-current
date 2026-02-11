@@ -1,140 +1,143 @@
 'use client';
 
-import React, { useState } from 'react';
-import { ContentCard } from '@/components/ui/Card';
+import React, { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/context/AuthContext';
 
-const mockTasks = [
-  {
-    id: 1,
-    title: 'Review College Essay',
-    student: 'Alex Johnson',
-    type: 'document-review',
-    priority: 'high',
-    deadline: 'Today',
-    status: 'pending',
-    createdAt: 'Jan 22, 2026',
-  },
-  {
-    id: 2,
-    title: 'Write Letter of Recommendation',
-    student: 'Emily Rodriguez',
-    type: 'recommendation',
-    priority: 'high',
-    deadline: 'Tomorrow',
-    status: 'in-progress',
-    createdAt: 'Jan 20, 2026',
-  },
-  {
-    id: 3,
-    title: 'Approve Schedule Change',
-    student: 'James Wilson',
-    type: 'approval',
-    priority: 'medium',
-    deadline: 'Jan 26',
-    status: 'pending',
-    createdAt: 'Jan 21, 2026',
-  },
-  {
-    id: 4,
-    title: 'Review SAT Prep Plan',
-    student: 'Sarah Kim',
-    type: 'document-review',
-    priority: 'medium',
-    deadline: 'Jan 27',
-    status: 'pending',
-    createdAt: 'Jan 19, 2026',
-  },
-  {
-    id: 5,
-    title: 'Complete Student Assessment',
-    student: 'Michael Chen',
-    type: 'assessment',
-    priority: 'low',
-    deadline: 'Jan 30',
-    status: 'pending',
-    createdAt: 'Jan 18, 2026',
-  },
-  {
-    id: 6,
-    title: 'Follow-up Meeting Notes',
-    student: 'Lisa Park',
-    type: 'follow-up',
-    priority: 'low',
-    deadline: 'Jan 31',
-    status: 'completed',
-    createdAt: 'Jan 15, 2026',
-  },
-];
+interface CounselingRequest {
+  id: number;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'approved' | 'completed';
+  createdAt: string;
+  counselor: string;
+  category: string;
+  studentName?: string;
+  studentId?: string;
+}
+
+const STORAGE_KEY = 'mycounselor_student_requests';
 
 export default function CounselorTasksPage() {
+  const { user } = useAuth();
+  const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [filter, setFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
 
-  const filteredTasks = mockTasks.filter((task) => {
-    const matchesStatus = filter === 'all' || task.status === filter;
-    const matchesPriority = priorityFilter === 'all' || task.priority === priorityFilter;
-    return matchesStatus && matchesPriority;
-  });
+  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-destructive/10 text-destructive border-destructive/20';
-      case 'medium': return 'bg-warning/10 text-warning border-warning/20';
-      case 'low': return 'bg-muted text-muted-foreground border-border';
-      default: return 'bg-muted text-muted-foreground border-border';
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const all: CounselingRequest[] = JSON.parse(stored);
+        setRequests(all.filter(r => r.counselor === counselorName));
+      } catch {
+        setRequests([]);
+      }
+    }
+  }, [counselorName]);
+
+  const updateRequestStatus = (id: number, newStatus: CounselingRequest['status']) => {
+    // Update in full list (so students see changes)
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const all: CounselingRequest[] = JSON.parse(stored);
+      const updated = all.map(r => r.id === id ? { ...r, status: newStatus } : r);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setRequests(updated.filter(r => r.counselor === counselorName));
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-warning/10 text-warning';
-      case 'in-progress': return 'bg-primary/10 text-primary';
-      case 'completed': return 'bg-success/10 text-success';
-      default: return 'bg-muted text-muted-foreground';
+      case 'pending': return 'bg-warning/10 text-warning border-warning/20';
+      case 'in_progress': return 'bg-primary/10 text-primary border-primary/20';
+      case 'approved': return 'bg-success/10 text-success border-success/20';
+      case 'completed': return 'bg-muted text-muted-foreground border-border';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'document-review':
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pending';
+      case 'in_progress': return 'In Progress';
+      case 'approved': return 'Approved';
+      case 'completed': return 'Completed';
+      default: return status;
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'college':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
           </svg>
         );
-      case 'recommendation':
+      case 'academic':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
         );
-      case 'approval':
+      case 'career':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         );
-      case 'assessment':
+      case 'personal':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         );
       default:
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         );
     }
   };
 
+  const getActionButton = (request: CounselingRequest) => {
+    switch (request.status) {
+      case 'pending':
+        return (
+          <Button size="sm" onClick={() => updateRequestStatus(request.id, 'in_progress')}>
+            Start
+          </Button>
+        );
+      case 'in_progress':
+        return (
+          <Button size="sm" onClick={() => updateRequestStatus(request.id, 'approved')}>
+            Approve
+          </Button>
+        );
+      case 'approved':
+        return (
+          <Button size="sm" variant="outline" onClick={() => updateRequestStatus(request.id, 'completed')}>
+            Complete
+          </Button>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const filteredRequests = filter === 'all'
+    ? requests
+    : requests.filter(r => r.status === filter);
+
   const taskCounts = {
-    all: mockTasks.length,
-    pending: mockTasks.filter(t => t.status === 'pending').length,
-    'in-progress': mockTasks.filter(t => t.status === 'in-progress').length,
-    completed: mockTasks.filter(t => t.status === 'completed').length,
+    all: requests.length,
+    pending: requests.filter(r => r.status === 'pending').length,
+    in_progress: requests.filter(r => r.status === 'in_progress').length,
+    approved: requests.filter(r => r.status === 'approved').length,
+    completed: requests.filter(r => r.status === 'completed').length,
   };
 
   return (
@@ -153,7 +156,7 @@ export default function CounselorTasksPage() {
 
       {/* Status Tabs */}
       <div className="flex flex-wrap gap-2">
-        {['all', 'pending', 'in-progress', 'completed'].map((status) => (
+        {(['all', 'pending', 'in_progress', 'approved', 'completed'] as const).map((status) => (
           <button
             key={status}
             onClick={() => setFilter(status)}
@@ -163,93 +166,68 @@ export default function CounselorTasksPage() {
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
-            {status === 'all' ? 'All Tasks' : status.replace('-', ' ')}
+            {status === 'all' ? 'All Tasks' : getStatusLabel(status)}
             <span className={`px-2 py-0.5 rounded-full text-xs ${
               filter === status ? 'bg-primary-foreground/20' : 'bg-background'
             }`}>
-              {taskCounts[status as keyof typeof taskCounts]}
+              {taskCounts[status]}
             </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Priority Filter */}
-      <div className="flex gap-2">
-        <span className="text-sm text-muted-foreground self-center">Priority:</span>
-        {['all', 'high', 'medium', 'low'].map((priority) => (
-          <button
-            key={priority}
-            onClick={() => setPriorityFilter(priority)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              priorityFilter === priority
-                ? priority === 'high' ? 'bg-destructive text-destructive-foreground' :
-                  priority === 'medium' ? 'bg-warning text-warning-foreground' :
-                  priority === 'low' ? 'bg-muted text-foreground' :
-                  'bg-primary text-primary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            {priority === 'all' ? 'All' : priority}
           </button>
         ))}
       </div>
 
       {/* Tasks List */}
       <div className="space-y-4">
-        {filteredTasks.map((task) => (
+        {filteredRequests.map((request) => (
           <div
-            key={task.id}
+            key={request.id}
             className={`bg-card rounded-xl border p-5 transition-all hover:shadow-md ${
-              task.status === 'completed' ? 'border-border opacity-60' : 'border-border hover:border-primary/20'
+              request.status === 'completed' ? 'border-border opacity-60' : 'border-border hover:border-primary/20'
             }`}
           >
             <div className="flex items-start gap-4">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                task.status === 'completed' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
+                request.status === 'completed' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
               }`}>
-                {task.status === 'completed' ? (
+                {request.status === 'completed' ? (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  getTypeIcon(task.type)
+                  getCategoryIcon(request.category)
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className={`font-semibold ${task.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                      {task.title}
+                    <h3 className={`font-semibold ${request.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                      {request.title}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      {task.student}
+                      {request.studentName || 'Unknown Student'}
                     </p>
+                    <p className="text-sm text-muted-foreground mt-1">{request.description}</p>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
-                      {task.priority}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                      {task.status.replace('-', ' ')}
-                    </span>
-                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(request.status)}`}>
+                    {getStatusLabel(request.status)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
+                      {request.category}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      Due: {task.deadline}
+                      {request.createdAt}
                     </span>
-                    <span>Created: {task.createdAt}</span>
                   </div>
-                  {task.status !== 'completed' && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">View Details</Button>
-                      <Button size="sm">Complete</Button>
-                    </div>
-                  )}
+                  {getActionButton(request)}
                 </div>
               </div>
             </div>
@@ -257,8 +235,8 @@ export default function CounselorTasksPage() {
         ))}
       </div>
 
-      {filteredTasks.length === 0 && (
-        <div className="text-center py-12">
+      {filteredRequests.length === 0 && (
+        <div className="text-center py-12 bg-card rounded-xl border border-border">
           <svg
             className="w-12 h-12 mx-auto text-muted-foreground mb-4"
             fill="none"
@@ -267,7 +245,8 @@ export default function CounselorTasksPage() {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
           </svg>
-          <p className="text-muted-foreground">No tasks found matching your filters</p>
+          <p className="text-muted-foreground">No student requests yet</p>
+          <p className="text-sm text-muted-foreground mt-1">Student requests assigned to you will appear here</p>
         </div>
       )}
     </div>

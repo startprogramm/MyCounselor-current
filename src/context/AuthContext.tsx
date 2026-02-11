@@ -31,6 +31,7 @@ interface AuthContextType {
   updateUser: (updates: Partial<User>) => void;
   findRegisteredUser: (email: string) => User | null;
   getSchoolCounselors: (schoolId: string) => User[];
+  getSchoolStudents: (schoolId: string) => User[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,6 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return registeredUsers.filter((u) => u.role === 'counselor' && u.schoolId === schoolId);
   };
 
+  // Find all students at a given school
+  const getSchoolStudents = (schoolId: string): User[] => {
+    const registeredUsers: User[] = JSON.parse(localStorage.getItem('mycounselor_registered_users') || '[]');
+    return registeredUsers.filter((u) => u.role === 'student' && u.schoolId === schoolId);
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('mycounselor_user');
@@ -90,11 +97,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       localStorage.setItem('mycounselor_user', JSON.stringify(updatedUser));
+      // Also update in registered users list
+      const registeredUsers: User[] = JSON.parse(localStorage.getItem('mycounselor_registered_users') || '[]');
+      const updatedList = registeredUsers.map((u) => u.id === user.id ? updatedUser : u);
+      localStorage.setItem('mycounselor_registered_users', JSON.stringify(updatedList));
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, findRegisteredUser, getSchoolCounselors }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, findRegisteredUser, getSchoolCounselors, getSchoolStudents }}>
       {children}
     </AuthContext.Provider>
   );
