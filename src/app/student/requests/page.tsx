@@ -14,6 +14,8 @@ interface CounselingRequest {
   createdAt: string;
   counselor: string;
   category: string;
+  studentName?: string;
+  studentId?: string;
 }
 
 const STORAGE_KEY = 'mycounselor_student_requests';
@@ -79,6 +81,8 @@ export default function StudentRequestsPage() {
         ? counselorNames[Math.floor(Math.random() * counselorNames.length)]
         : 'Unassigned',
       category: newCategory,
+      studentName: user ? `${user.firstName} ${user.lastName}` : undefined,
+      studentId: user?.id,
     };
 
     const updated = [newRequest, ...requests];

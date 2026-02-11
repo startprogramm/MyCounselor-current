@@ -1,30 +1,64 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/context/AuthContext';
 
-const mockMeetings = {
-  today: [
-    { id: 1, student: 'Alex Johnson', time: '9:00 AM', duration: '30 min', type: 'College Review', status: 'completed' },
-    { id: 2, student: 'Emily Rodriguez', time: '10:30 AM', duration: '30 min', type: 'Career Guidance', status: 'completed' },
-    { id: 3, student: 'James Wilson', time: '2:00 PM', duration: '30 min', type: 'Academic Support', status: 'upcoming' },
-    { id: 4, student: 'Sarah Kim', time: '3:30 PM', duration: '30 min', type: 'Goal Setting', status: 'upcoming' },
-    { id: 5, student: 'Michael Chen', time: '4:30 PM', duration: '30 min', type: 'College Prep', status: 'upcoming' },
-  ],
-  upcoming: [
-    { id: 6, student: 'Lisa Park', date: 'Jan 27', time: '9:00 AM', duration: '30 min', type: 'Initial Consultation' },
-    { id: 7, student: 'Alex Johnson', date: 'Jan 27', time: '2:00 PM', duration: '30 min', type: 'Essay Follow-up' },
-    { id: 8, student: 'Tom Brown', date: 'Jan 28', time: '10:00 AM', duration: '30 min', type: 'Schedule Planning' },
-    { id: 9, student: 'Emily Rodriguez', date: 'Jan 28', time: '3:00 PM', duration: '30 min', type: 'Recommendation Review' },
-  ],
-};
+interface Meeting {
+  id: number;
+  title: string;
+  counselor: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+}
 
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const timeSlots = ['9:00', '10:00', '11:00', '12:00', '1:00', '2:00', '3:00', '4:00'];
+const STORAGE_KEY = 'mycounselor_student_meetings';
 
 export default function CounselorMeetingsPage() {
-  const [view, setView] = useState<'list' | 'calendar'>('list');
+  const { user } = useAuth();
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [view, setView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
+
+  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const all: Meeting[] = JSON.parse(stored);
+        setMeetings(all.filter(m => m.counselor === counselorName));
+      } catch {
+        setMeetings([]);
+      }
+    }
+  }, [counselorName]);
+
+  const updateMeetingStatus = (id: number, newStatus: string) => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const all: Meeting[] = JSON.parse(stored);
+      const updated = all.map(m => m.id === id ? { ...m, status: newStatus } : m);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      setMeetings(updated.filter(m => m.counselor === counselorName));
+    }
+  };
+
+  const upcomingMeetings = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');
+  const pastMeetings = meetings.filter(m => m.status === 'completed');
+  const cancelledMeetings = meetings.filter(m => m.status === 'cancelled');
+
+  const displayedMeetings = view === 'upcoming' ? upcomingMeetings
+    : view === 'past' ? pastMeetings
+    : cancelledMeetings;
+
+  const counts = {
+    upcoming: upcomingMeetings.length,
+    past: pastMeetings.length,
+    cancelled: cancelledMeetings.length,
+  };
 
   return (
     <div className="space-y-6">
@@ -38,177 +72,107 @@ export default function CounselorMeetingsPage() {
             View and manage your meeting schedule
           </p>
         </div>
-        <div className="flex gap-2">
-          <div className="flex bg-muted rounded-lg p-1">
-            <button
-              onClick={() => setView('list')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                view === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-              }`}
-            >
-              List
-            </button>
-            <button
-              onClick={() => setView('calendar')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                view === 'calendar' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-              }`}
-            >
-              Calendar
-            </button>
-          </div>
-        </div>
       </div>
-
-      {view === 'list' ? (
-        <>
-          {/* Today's Meetings */}
-          <ContentCard title="Today's Meetings" description="Friday, January 24, 2026">
-            <div className="space-y-3">
-              {mockMeetings.today.map((meeting) => (
-                <div
-                  key={meeting.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border ${
-                    meeting.status === 'completed'
-                      ? 'bg-muted/30 border-border opacity-60'
-                      : 'bg-primary/5 border-primary/20'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="text-center min-w-[60px]">
-                      <p className="font-semibold text-foreground">{meeting.time}</p>
-                      <p className="text-xs text-muted-foreground">{meeting.duration}</p>
-                    </div>
-                    <div className="w-px h-10 bg-border" />
-                    <div>
-                      <p className="font-medium text-foreground">{meeting.student}</p>
-                      <p className="text-sm text-muted-foreground">{meeting.type}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {meeting.status === 'completed' ? (
-                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
-                        Completed
-                      </span>
-                    ) : (
-                      <>
-                        <Button variant="outline" size="sm">Reschedule</Button>
-                        <Button size="sm">Start Meeting</Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ContentCard>
-
-          {/* Upcoming Meetings */}
-          <ContentCard title="Upcoming Meetings">
-            <div className="space-y-3">
-              {mockMeetings.upcoming.map((meeting) => (
-                <div
-                  key={meeting.id}
-                  className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="text-center min-w-[80px]">
-                      <p className="font-semibold text-foreground">{meeting.date}</p>
-                      <p className="text-sm text-muted-foreground">{meeting.time}</p>
-                    </div>
-                    <div className="w-px h-10 bg-border" />
-                    <div>
-                      <p className="font-medium text-foreground">{meeting.student}</p>
-                      <p className="text-sm text-muted-foreground">{meeting.type}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">Cancel</Button>
-                    <Button variant="outline" size="sm">Reschedule</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ContentCard>
-        </>
-      ) : (
-        /* Calendar View */
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-semibold text-foreground">Week of January 27 - 31, 2026</h3>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Button>
-              <Button variant="ghost" size="sm">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <div className="min-w-[600px]">
-              {/* Header */}
-              <div className="grid grid-cols-6 gap-2 mb-2">
-                <div className="p-2" />
-                {weekDays.map((day, i) => (
-                  <div key={day} className="p-2 text-center">
-                    <p className="text-sm font-medium text-muted-foreground">{day}</p>
-                    <p className="text-lg font-semibold text-foreground">{27 + i}</p>
-                  </div>
-                ))}
-              </div>
-              {/* Time slots */}
-              <div className="space-y-1">
-                {timeSlots.map((time) => (
-                  <div key={time} className="grid grid-cols-6 gap-2">
-                    <div className="p-2 text-sm text-muted-foreground text-right">{time}</div>
-                    {weekDays.map((day, i) => {
-                      const hasEvent = Math.random() > 0.7;
-                      return (
-                        <div
-                          key={`${day}-${time}`}
-                          className={`p-2 rounded-lg border border-border min-h-[50px] ${
-                            hasEvent ? 'bg-primary/10 border-primary/20' : 'hover:bg-muted/50'
-                          }`}
-                        >
-                          {hasEvent && (
-                            <p className="text-xs font-medium text-primary truncate">
-                              Student Meeting
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <Card className="p-4 text-center">
-          <p className="text-3xl font-bold text-foreground">5</p>
-          <p className="text-sm text-muted-foreground">Today</p>
+          <p className="text-3xl font-bold text-primary">{counts.upcoming}</p>
+          <p className="text-sm text-muted-foreground">Upcoming</p>
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-3xl font-bold text-foreground">18</p>
-          <p className="text-sm text-muted-foreground">This Week</p>
+          <p className="text-3xl font-bold text-success">{counts.past}</p>
+          <p className="text-sm text-muted-foreground">Completed</p>
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-3xl font-bold text-success">42</p>
-          <p className="text-sm text-muted-foreground">This Month</p>
-        </Card>
-        <Card className="p-4 text-center">
-          <p className="text-3xl font-bold text-primary">30 min</p>
-          <p className="text-sm text-muted-foreground">Avg Duration</p>
+          <p className="text-3xl font-bold text-muted-foreground">{counts.cancelled}</p>
+          <p className="text-sm text-muted-foreground">Cancelled</p>
         </Card>
       </div>
+
+      {/* View Tabs */}
+      <div className="flex gap-2">
+        {(['upcoming', 'past', 'cancelled'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setView(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              view === tab
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            <span className={`px-2 py-0.5 rounded-full text-xs ${
+              view === tab ? 'bg-primary-foreground/20' : 'bg-background'
+            }`}>
+              {counts[tab]}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Meetings List */}
+      {displayedMeetings.length > 0 ? (
+        <div className="space-y-3">
+          {displayedMeetings.map((meeting) => (
+            <div
+              key={meeting.id}
+              className={`flex items-center justify-between p-4 bg-card rounded-xl border transition-all ${
+                meeting.status === 'completed' || meeting.status === 'cancelled'
+                  ? 'border-border opacity-60'
+                  : 'border-primary/20 hover:shadow-md'
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className="text-center min-w-[80px]">
+                  <p className="font-semibold text-foreground">{meeting.date}</p>
+                  <p className="text-sm text-muted-foreground">{meeting.time}</p>
+                </div>
+                <div className="w-px h-10 bg-border" />
+                <div>
+                  <p className="font-medium text-foreground">{meeting.title}</p>
+                  <p className="text-sm text-muted-foreground">{meeting.type}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {meeting.status === 'completed' ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-success/10 text-success">
+                    Completed
+                  </span>
+                ) : meeting.status === 'cancelled' ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                    Cancelled
+                  </span>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => updateMeetingStatus(meeting.id, 'cancelled')}>
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={() => updateMeetingStatus(meeting.id, 'completed')}>
+                      Complete
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-card rounded-xl border border-border">
+          <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <p className="text-muted-foreground">
+            {view === 'upcoming' ? 'No upcoming meetings' :
+             view === 'past' ? 'No completed meetings yet' :
+             'No cancelled meetings'}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Meetings booked by students will appear here
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, User } from '@/context/AuthContext';
 
 interface CounselingRequest {
   id: number;
@@ -51,12 +52,13 @@ const quickActions = [
 ];
 
 export default function StudentDashboardPage() {
-  const { user } = useAuth();
+  const { user, getSchoolCounselors } = useAuth();
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [editingGoal, setEditingGoal] = useState<number | null>(null);
+  const [counselors, setCounselors] = useState<User[]>([]);
 
   // Load all data from localStorage
   useEffect(() => {
@@ -81,7 +83,12 @@ export default function StudentDashboardPage() {
         setGoals([]);
       }
     }
-  }, []);
+
+    // Counselors
+    if (user?.schoolId) {
+      setCounselors(getSchoolCounselors(user.schoolId));
+    }
+  }, [user?.schoolId, getSchoolCounselors]);
 
   // Computed stats from real data
   const upcomingMeetings = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');
@@ -92,10 +99,10 @@ export default function StudentDashboardPage() {
   const upcomingMeetingsList = upcomingMeetings.slice(0, 2);
 
   const stats = [
-    { title: 'Upcoming Meetings', value: upcomingMeetings.length, subtitle: 'Scheduled' },
-    { title: 'Goals Progress', value: `${goals.length > 0 ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length) : 0}%`, subtitle: `${goalsOnTrack} of ${goals.length} on track` },
-    { title: 'Unread Messages', value: unreadMessages, subtitle: 'From counselors' },
-    { title: 'Pending Requests', value: pendingRequests, subtitle: `${requests.length} total requests` },
+    { title: 'Upcoming Meetings', value: upcomingMeetings.length, subtitle: 'Scheduled', accent: 'primary' as const },
+    { title: 'Goals Progress', value: `${goals.length > 0 ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length) : 0}%`, subtitle: `${goalsOnTrack} of ${goals.length} on track`, accent: 'success' as const },
+    { title: 'Unread Messages', value: unreadMessages, subtitle: 'From counselors', accent: 'warning' as const },
+    { title: 'Pending Requests', value: pendingRequests, subtitle: `${requests.length} total requests`, accent: 'accent' as const },
   ];
 
   const updateGoalProgress = (goalId: number, newProgress: number) => {
@@ -199,6 +206,37 @@ export default function StudentDashboardPage() {
         ))}
       </div>
 
+      {/* Your School Counselor(s) */}
+      {counselors.length > 0 && (
+        <ContentCard title="Your School Counselor(s)">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {counselors.map((c) => (
+              <div key={c.id} className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg">
+                <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-bold text-lg flex-shrink-0">
+                  {c.firstName[0]}{c.lastName[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-foreground">{c.firstName} {c.lastName}</p>
+                  {c.title && <p className="text-sm text-muted-foreground">{c.title}</p>}
+                  {c.department && (
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-secondary/10 text-secondary mt-1">
+                      {c.department}
+                    </span>
+                  )}
+                </div>
+                <Link href="/student/messages">
+                  <Button variant="ghost" size="sm">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                  </Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </ContentCard>
+      )}
+
       {/* Stats */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
@@ -207,6 +245,7 @@ export default function StudentDashboardPage() {
             title={stat.title}
             value={stat.value}
             subtitle={stat.subtitle}
+            accentColor={stat.accent}
           />
         ))}
       </div>
@@ -237,9 +276,13 @@ export default function StudentDashboardPage() {
                       {request.counselor} &bull; {request.createdAt}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(request.status)}`}>
+                  <Badge variant={
+                    request.status === 'pending' ? 'warning' :
+                    request.status === 'in_progress' ? 'primary' :
+                    request.status === 'approved' ? 'success' : 'default'
+                  }>
                     {getStatusLabel(request.status)}
-                  </span>
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -268,11 +311,9 @@ export default function StudentDashboardPage() {
                 <div key={meeting.id} className="p-4 bg-muted/30 rounded-lg">
                   <div className="flex items-start justify-between mb-2">
                     <p className="font-medium text-foreground text-sm">{meeting.title}</p>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      meeting.type === 'video' ? 'bg-primary/10 text-primary' : 'bg-accent/10 text-accent'
-                    }`}>
+                    <Badge variant={meeting.type === 'video' ? 'primary' : 'accent'} size="sm">
                       {meeting.type}
-                    </span>
+                    </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">{meeting.counselor}</p>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -323,13 +364,12 @@ export default function StudentDashboardPage() {
             {goals.map((goal) => (
               <Card key={goal.id} className="p-4" hover>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                    goal.priority === 'high' ? 'bg-destructive/10 text-destructive' :
-                    goal.priority === 'medium' ? 'bg-warning/10 text-warning' :
-                    'bg-muted text-muted-foreground'
-                  }`}>
+                  <Badge variant={
+                    goal.priority === 'high' ? 'destructive' :
+                    goal.priority === 'medium' ? 'warning' : 'default'
+                  } size="sm">
                     {goal.priority}
-                  </span>
+                  </Badge>
                   <span className="text-sm font-semibold text-primary">{goal.progress}%</span>
                 </div>
                 <p className="font-medium text-foreground text-sm mb-1">{goal.title}</p>

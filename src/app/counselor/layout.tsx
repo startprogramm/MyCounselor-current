@@ -22,7 +22,6 @@ const counselorNavItems: SidebarItem[] = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
       </svg>
     ),
-    badge: 24,
   },
   {
     label: 'Tasks',
@@ -32,7 +31,6 @@ const counselorNavItems: SidebarItem[] = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
     ),
-    badge: 8,
   },
   {
     label: 'Meetings',
@@ -40,6 +38,15 @@ const counselorNavItems: SidebarItem[] = [
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Messages',
+    href: '/counselor/messages',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
       </svg>
     ),
   },
@@ -77,6 +84,9 @@ export default function CounselorLayout({
         userType="counselor"
         userName={user ? `${user.firstName} ${user.lastName}` : 'Counselor'}
         userEmail={user?.email || 'counselor@school.edu'}
+        userSchool={user?.schoolName}
+        userTitle={user?.title}
+        userDepartment={user?.department}
       />
       <main className="lg:pl-64 min-h-screen">
         <div className="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">{children}</div>

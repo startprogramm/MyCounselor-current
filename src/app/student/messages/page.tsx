@@ -14,32 +14,39 @@ interface Message {
 interface Conversation {
   id: number;
   counselor: string;
+  counselorId?: string;
   avatar: string;
   lastMessage: string;
   timestamp: string;
   unread: number;
   messages: Message[];
+  studentName?: string;
+  studentId?: string;
 }
 
-const STORAGE_KEY = 'mycounselor_student_messages';
+function getStorageKey(userId: string) {
+  return `mycounselor_student_messages_${userId}`;
+}
 
-function buildConversationsFromCounselors(counselors: User[], existingConversations: Conversation[]): Conversation[] {
+function buildConversationsFromCounselors(counselors: User[], existingConversations: Conversation[], student: User): Conversation[] {
   return counselors.map((c, index) => {
     const name = `${c.firstName} ${c.lastName}`;
     const initials = `${c.firstName[0]}${c.lastName[0]}`.toUpperCase();
-    // Try to find existing conversation with this counselor by name
-    const existing = existingConversations.find(conv => conv.counselor === name);
+    const existing = existingConversations.find(conv => conv.counselor === name || conv.counselorId === c.id);
     if (existing) {
-      return { ...existing, id: index + 1, avatar: initials };
+      return { ...existing, id: index + 1, avatar: initials, counselorId: c.id, studentName: `${student.firstName} ${student.lastName}`, studentId: student.id };
     }
     return {
       id: index + 1,
       counselor: name,
+      counselorId: c.id,
       avatar: initials,
       lastMessage: 'Start a conversation',
       timestamp: '',
       unread: 0,
       messages: [],
+      studentName: `${student.firstName} ${student.lastName}`,
+      studentId: student.id,
     };
   });
 }
@@ -79,9 +86,10 @@ export default function StudentMessagesPage() {
 
   // Load conversations — merge school counselors with any existing chat history
   useEffect(() => {
-    if (!user?.schoolId) return;
+    if (!user?.schoolId || !user?.id) return;
     const counselors = getSchoolCounselors(user.schoolId);
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const storageKey = getStorageKey(user.id);
+    const stored = localStorage.getItem(storageKey);
     let existingConvs: Conversation[] = [];
     if (stored) {
       try {
@@ -90,14 +98,25 @@ export default function StudentMessagesPage() {
         existingConvs = [];
       }
     }
+    // Also check old key for migration
+    if (existingConvs.length === 0) {
+      const oldStored = localStorage.getItem('mycounselor_student_messages');
+      if (oldStored) {
+        try {
+          existingConvs = JSON.parse(oldStored);
+        } catch {
+          existingConvs = [];
+        }
+      }
+    }
     if (counselors.length > 0) {
-      const merged = buildConversationsFromCounselors(counselors, existingConvs);
+      const merged = buildConversationsFromCounselors(counselors, existingConvs, user);
       setConversations(merged);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      localStorage.setItem(storageKey, JSON.stringify(merged));
     } else {
       setConversations([]);
     }
-  }, [user?.schoolId, getSchoolCounselors]);
+  }, [user?.schoolId, user?.id, getSchoolCounselors, user]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -106,7 +125,9 @@ export default function StudentMessagesPage() {
 
   const saveConversations = (updated: Conversation[]) => {
     setConversations(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    if (user?.id) {
+      localStorage.setItem(getStorageKey(user.id), JSON.stringify(updated));
+    }
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -166,7 +187,9 @@ export default function StudentMessagesPage() {
             }
             return conv;
           });
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(withReply));
+          if (user?.id) {
+            localStorage.setItem(getStorageKey(user.id), JSON.stringify(withReply));
+          }
           return withReply;
         });
       }

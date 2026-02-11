@@ -5,7 +5,15 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nFix student name display - use actual user name instead of hardcoded Alex\n\n- Update StudentPortalInteractive to fetch user from auth context\n- Update student messages page to use user''s first name in mock messages\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
       "Bash(vercel:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)",
+      "Bash(git stash pop:*)"
     ]
   }
 }
