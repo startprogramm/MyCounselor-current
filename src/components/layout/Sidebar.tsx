@@ -68,6 +68,14 @@ const Sidebar: React.FC<SidebarProps> = ({
     logout();
     router.push('/auth/login');
   };
+  const userRoleLabel =
+    userType === 'student'
+      ? 'Student'
+      : userType === 'teacher'
+        ? 'Teacher'
+        : userType === 'parent'
+          ? 'Parent'
+          : 'Counselor';
 
   return (
     <>
@@ -87,9 +95,19 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           {isMobileOpen ? (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
           )}
         </svg>
       </button>
@@ -123,16 +141,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </svg>
               </div>
               {!isCollapsed && (
-                <span className="text-lg font-bold text-foreground font-heading">
-                  MyCounselor
-                </span>
+                <span className="text-lg font-bold text-foreground font-heading">MyCounselor</span>
               )}
             </Link>
           </div>
 
           {/* User Info */}
           <div className="border-b border-border">
-            <div className={`p-4 ${!isCollapsed ? 'bg-gradient-to-br from-primary/5 to-secondary/5' : ''}`}>
+            <div className="p-4">
               {isEditing && !isCollapsed ? (
                 <div className="space-y-2">
                   <div className="flex gap-2">
@@ -159,10 +175,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                     className="w-full px-2 py-1.5 rounded-md border border-input bg-card text-foreground text-sm"
                   />
                   <div className="flex gap-2">
-                    <button onClick={saveEditing} className="flex-1 px-2 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">
+                    <button
+                      onClick={saveEditing}
+                      className="flex-1 px-2 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium"
+                    >
                       Save
                     </button>
-                    <button onClick={() => setIsEditing(false)} className="flex-1 px-2 py-1.5 rounded-md bg-muted text-muted-foreground text-xs font-medium">
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="flex-1 px-2 py-1.5 rounded-md bg-muted text-muted-foreground text-xs font-medium"
+                    >
                       Cancel
                     </button>
                   </div>
@@ -173,79 +195,131 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <img
                       src={userAvatar}
                       alt={userName}
-                      className="w-11 h-11 rounded-full object-cover flex-shrink-0 ring-2 ring-primary/20"
+                      className="w-11 h-11 rounded-full object-cover flex-shrink-0 border border-border"
                     />
                   ) : (
-                    <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 ring-2 ring-primary/20">
+                    <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center flex-shrink-0 border border-border">
                       <span className="text-primary font-bold text-sm">
-                        {userName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {userName
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .toUpperCase()}
                       </span>
                     </div>
                   )}
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-foreground truncate">
-                          {userName}
-                        </p>
+                        <p className="text-sm font-semibold text-foreground truncate">{userName}</p>
                         <button
                           onClick={startEditing}
                           className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors flex-shrink-0"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
                           </svg>
                         </button>
                       </div>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
-                          userType === 'student'
-                            ? 'bg-primary/10 text-primary'
-                            : userType === 'teacher'
-                            ? 'bg-amber-500/10 text-amber-600'
-                            : userType === 'parent'
-                            ? 'bg-rose-500/10 text-rose-600'
-                            : 'bg-secondary/10 text-secondary'
-                        }`}
-                      >
-                        {userType === 'student' ? 'Student' : userType === 'teacher' ? 'Teacher' : userType === 'parent' ? 'Parent' : 'Counselor'}
-                      </span>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mt-1">
+                        {userRoleLabel}
+                      </p>
                       {userEmail && (
                         <p className="text-xs text-muted-foreground truncate mt-2 flex items-center gap-1.5">
-                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          <svg
+                            className="w-3 h-3 flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
                           </svg>
                           {userEmail}
                         </p>
                       )}
                       {userSchool && (
                         <p className="text-xs text-muted-foreground truncate mt-1 flex items-center gap-1.5">
-                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          <svg
+                            className="w-3 h-3 flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                            />
                           </svg>
                           {userSchool}
                         </p>
                       )}
                       {userGrade && (
                         <p className="text-xs text-muted-foreground truncate mt-1 flex items-center gap-1.5">
-                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                          <svg
+                            className="w-3 h-3 flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
+                            />
                           </svg>
                           Grade {userGrade}
                         </p>
                       )}
                       {userTitle && (
                         <p className="text-xs text-muted-foreground truncate mt-1 flex items-center gap-1.5">
-                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          <svg
+                            className="w-3 h-3 flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                            />
                           </svg>
                           {userTitle}
                         </p>
                       )}
                       {userDepartment && (
                         <p className="text-xs text-muted-foreground truncate mt-1 flex items-center gap-1.5">
-                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+                          <svg
+                            className="w-3 h-3 flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"
+                            />
                           </svg>
                           {userDepartment}
                         </p>
@@ -279,9 +353,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <span className="flex-shrink-0">{item.icon}</span>
                       {!isCollapsed && (
                         <>
-                          <span className="flex-1 text-sm font-medium">
-                            {item.label}
-                          </span>
+                          <span className="flex-1 text-sm font-medium">{item.label}</span>
                           {item.badge && (
                             <span
                               className={`
@@ -325,9 +397,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
                 />
               </svg>
-              {!isCollapsed && (
-                <span className="text-sm font-medium">Collapse</span>
-              )}
+              {!isCollapsed && <span className="text-sm font-medium">Collapse</span>}
             </button>
             <button
               type="button"

@@ -283,40 +283,36 @@ export default function StudentDashboardPage() {
                         {c.title || 'School Counselor'}
                       </p>
                     </div>
-                    <span className="px-2 py-1 rounded-full text-[11px] font-medium bg-muted text-muted-foreground border border-border">
+                    <span className="text-[11px] font-medium text-muted-foreground mt-1">
                       Assigned
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-border bg-muted/20 px-2.5 py-2">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                        Department
-                      </p>
-                      <p className="text-xs font-medium text-foreground mt-0.5 truncate capitalize">
+                  <div className="space-y-1 text-sm">
+                    <p className="text-muted-foreground">
+                      Department:{' '}
+                      <span className="text-foreground font-medium capitalize">
                         {c.department || 'General'}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border bg-muted/20 px-2.5 py-2">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                        School
-                      </p>
-                      <p className="text-xs font-medium text-foreground mt-0.5 truncate">
+                      </span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      School:{' '}
+                      <span className="text-foreground font-medium">
                         {c.schoolName || user?.schoolName || 'Assigned School'}
-                      </p>
-                    </div>
+                      </span>
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/student/messages"
-                      className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
                     >
                       Message
                     </Link>
                     <Link
                       href="/student/meetings"
-                      className="inline-flex items-center justify-center px-3 py-2 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
+                      className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-border text-primary text-sm font-medium hover:bg-primary/5 transition-colors"
                     >
                       Book Meeting
                     </Link>

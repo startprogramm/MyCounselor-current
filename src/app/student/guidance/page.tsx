@@ -93,7 +93,7 @@ const categoryStyleMap: Record<
   string,
   {
     label: string;
-    badge: string;
+    textColor: string;
     accent: string;
     iconBox: string;
     iconColor: string;
@@ -101,28 +101,28 @@ const categoryStyleMap: Record<
 > = {
   college: {
     label: 'College Prep',
-    badge: 'bg-primary/10 text-primary',
+    textColor: 'text-primary',
     accent: 'bg-primary',
     iconBox: 'bg-primary/10',
     iconColor: 'text-primary',
   },
   career: {
     label: 'Career Planning',
-    badge: 'bg-secondary/10 text-secondary',
+    textColor: 'text-secondary',
     accent: 'bg-secondary',
     iconBox: 'bg-secondary/10',
     iconColor: 'text-secondary',
   },
   academic: {
     label: 'Academic Success',
-    badge: 'bg-accent/10 text-accent',
+    textColor: 'text-accent',
     accent: 'bg-accent',
     iconBox: 'bg-accent/10',
     iconColor: 'text-accent',
   },
   wellness: {
     label: 'Wellness',
-    badge: 'bg-success/10 text-success',
+    textColor: 'text-success',
     accent: 'bg-success',
     iconBox: 'bg-success/10',
     iconColor: 'text-success',
@@ -147,7 +147,7 @@ export default function StudentGuidancePage() {
     return (
       categoryStyleMap[category] || {
         label: 'General',
-        badge: 'bg-muted text-muted-foreground',
+        textColor: 'text-muted-foreground',
         accent: 'bg-muted',
         iconBox: 'bg-muted',
         iconColor: 'text-muted-foreground',
@@ -273,11 +273,11 @@ export default function StudentGuidancePage() {
                           {getCategoryIcon(resource.category)}
                         </div>
                         <div className="min-w-0">
-                          <span
-                            className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${styles.badge}`}
+                          <p
+                            className={`text-[11px] font-semibold uppercase tracking-wide ${styles.textColor}`}
                           >
                             {styles.label}
-                          </span>
+                          </p>
                           <h3 className="font-semibold text-foreground mt-2 leading-snug">
                             {resource.title}
                           </h3>
@@ -293,9 +293,7 @@ export default function StudentGuidancePage() {
                     </p>
 
                     <div className="flex items-center justify-between pt-3 border-t border-border/70">
-                      <span className="inline-flex px-2 py-0.5 rounded-md bg-muted text-xs text-muted-foreground">
-                        {resource.type}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{resource.type}</span>
                       <Button variant="outline" size="sm">
                         Open Resource
                       </Button>
@@ -309,16 +307,16 @@ export default function StudentGuidancePage() {
       )}
 
       {/* Categories */}
-      <div className="rounded-xl border border-border bg-card p-2">
-        <div className="flex flex-wrap gap-2">
+      <div className="border-b border-border">
+        <div className="flex flex-wrap gap-5 px-1 pb-2">
           {categories.map((category) => (
             <button
               key={category.id}
               onClick={() => setSelectedCategory(category.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              className={`pb-1 border-b-2 text-sm font-medium transition-colors ${
                 selectedCategory === category.id
-                  ? 'bg-primary/10 text-primary border-primary/30'
-                  : 'bg-card text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'
+                  ? 'text-primary border-primary'
+                  : 'text-muted-foreground border-transparent hover:text-foreground'
               }`}
             >
               {category.label}
@@ -347,14 +345,14 @@ export default function StudentGuidancePage() {
                       <h3 className="font-semibold text-foreground leading-snug line-clamp-2">
                         {resource.title}
                       </h3>
-                      <span
-                        className={`inline-flex mt-1 px-2.5 py-1 rounded-full text-xs font-medium ${styles.badge}`}
+                      <p
+                        className={`mt-1 text-[11px] font-semibold uppercase tracking-wide ${styles.textColor}`}
                       >
                         {styles.label}
-                      </span>
+                      </p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 bg-muted rounded text-xs text-muted-foreground whitespace-nowrap">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {resource.type}
                   </span>
                 </div>
