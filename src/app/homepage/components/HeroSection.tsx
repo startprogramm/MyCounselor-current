@@ -52,23 +52,6 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
             <div className="absolute -top-20 left-1/3 h-[460px] w-[460px] rounded-full bg-[#EA8600]/15 blur-3xl animate-drift" />
           </div>
 
-          <div className="relative mb-8 flex flex-wrap items-center justify-between gap-3 rounded-full border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90">
-                <Icon name="AcademicCapIcon" size={18} variant="solid" className="text-[#325f89]" />
-              </div>
-              <span className="text-sm font-heading font-semibold text-white">MyCounselor</span>
-            </div>
-            <div className="hidden items-center gap-2 text-xs text-white/85 sm:flex">
-              {['Students', 'Counselors', 'Resources', 'Contact'].map((item) => (
-                <span key={item} className="rounded-full border border-white/20 px-3 py-1">
-                  {item}
-                </span>
-              ))}
-            </div>
-            <span className="chip-pill px-3 py-1 text-xs font-medium">Book Support</span>
-          </div>
-
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div className="space-y-8">
               {/* Badge */}
