@@ -94,7 +94,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
             Hear From Our Community
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Real experiences from students, counselors, and parents who have transformed their counseling journey with CounselConnect.
+            Real experiences from students, counselors, and parents who have transformed their counseling journey with MyCounselor.
           </p>
         </div>
 
@@ -162,7 +162,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
           {/* Navigation Arrows */}
           <button
             onClick={prevSlide}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 lg:-translate-x-12 w-12 h-12 rounded-full bg-card dark:bg-slate-800 shadow-lg border border-border dark:border-slate-700 flex items-center justify-center hover:bg-muted dark:hover:bg-slate-700 transition-colors focus-ring"
+            className="absolute left-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 -translate-x-4 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-colors hover:bg-muted focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:-translate-x-12"
             aria-label="Previous testimonial"
           >
             <Icon name="ChevronLeftIcon" size={24} variant="outline" className="text-foreground" />
@@ -170,7 +170,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
 
           <button
             onClick={nextSlide}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 lg:translate-x-12 w-12 h-12 rounded-full bg-card dark:bg-slate-800 shadow-lg border border-border dark:border-slate-700 flex items-center justify-center hover:bg-muted dark:hover:bg-slate-700 transition-colors focus-ring"
+            className="absolute right-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-colors hover:bg-muted focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:translate-x-12"
             aria-label="Next testimonial"
           >
             <Icon name="ChevronRightIcon" size={24} variant="outline" className="text-foreground" />

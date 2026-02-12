@@ -15,21 +15,24 @@ const CTASection = ({ className = '' }: CTASectionProps) => {
   return (
     <section
       ref={sectionRef}
-      className={`py-16 lg:py-24 bg-gradient-to-br from-[#2D5A87] via-[#4A90B8] to-[#7BB3D1] dark:from-slate-900 dark:via-[#2D5A87] dark:to-[#4A90B8] text-white overflow-hidden relative ${className}`}
+      className={`relative overflow-hidden bg-gradient-to-r from-[#1D4F80] via-[#1A73E8] to-[#1E8E3E] py-16 text-white lg:py-24 ${className}`}
     >
+      <div className="absolute inset-0 bg-campus-grid opacity-20" />
+
       {/* Decorative Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-10 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-10 right-10 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-float-delayed"></div>
+        <div className="absolute top-10 left-10 w-64 h-64 rounded-full bg-white/10 blur-3xl animate-float"></div>
+        <div className="absolute bottom-10 right-10 w-80 h-80 rounded-full bg-white/10 blur-3xl animate-float-delayed"></div>
+        <div className="absolute right-1/3 top-1/3 h-56 w-56 rounded-full bg-[#EA8600]/20 blur-3xl animate-drift"></div>
       </div>
 
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="relative mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
         {/* Badge */}
         <div
-          className={`inline-flex items-center space-x-2 glass rounded-full px-4 py-2 text-sm font-medium mb-6 animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
+          className={`mb-6 inline-flex items-center space-x-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur-sm animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
         >
           <Icon name="RocketLaunchIcon" size={16} variant="solid" className="text-[#F4A261]" />
-          <span>Start Your Journey Today</span>
+          <span>Start Your Counseling Rollout</span>
         </div>
 
         {/* Heading */}
@@ -43,7 +46,7 @@ const CTASection = ({ className = '' }: CTASectionProps) => {
         <p
           className={`text-lg sm:text-xl text-white/90 mb-8 max-w-3xl mx-auto leading-relaxed animate-on-scroll stagger-2 ${isVisible ? 'animate-visible' : ''}`}
         >
-          Join thousands of students and counselors who have discovered the power of organized, accessible guidance. Your path to success starts here.
+          Launch with a student-friendly portal, counselor-ready workflows, and secure communication from day one.
         </p>
 
         {/* CTA Buttons */}
@@ -51,16 +54,16 @@ const CTASection = ({ className = '' }: CTASectionProps) => {
           className={`flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 animate-on-scroll stagger-3 ${isVisible ? 'animate-visible' : ''}`}
         >
           <Link
-            href="/student-portal-dashboard"
-            className="group inline-flex items-center justify-center space-x-2 bg-white text-[#2D5A87] px-8 py-4 rounded-lg font-heading font-semibold text-base hover:bg-white/90 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 w-full sm:w-auto focus-ring"
+            href="/auth/signup/student"
+            className="group inline-flex w-full items-center justify-center space-x-2 rounded-lg bg-white px-8 py-4 text-base font-heading font-semibold text-[#1D4F80] shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white/90 hover:shadow-xl sm:w-auto focus-ring"
           >
             <Icon name="AcademicCapIcon" size={20} variant="solid" className="group-hover:rotate-12 transition-transform" />
             <span>Get Started as Student</span>
           </Link>
 
           <Link
-            href="/counselor-command-center"
-            className="group inline-flex items-center justify-center space-x-2 glass text-white px-8 py-4 rounded-lg font-heading font-semibold text-base hover:bg-white/20 transition-all duration-300 w-full sm:w-auto focus-ring"
+            href="/auth/signup/counselor"
+            className="group inline-flex w-full items-center justify-center space-x-2 rounded-lg border border-white/35 bg-white/10 px-8 py-4 text-base font-heading font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 sm:w-auto focus-ring"
           >
             <Icon name="UserGroupIcon" size={20} variant="outline" className="group-hover:scale-110 transition-transform" />
             <span>Counselor Access</span>
@@ -69,19 +72,19 @@ const CTASection = ({ className = '' }: CTASectionProps) => {
 
         {/* Trust Indicators */}
         <div
-          className={`flex flex-wrap justify-center items-center gap-6 text-sm animate-on-scroll stagger-4 ${isVisible ? 'animate-visible' : ''}`}
+          className={`flex flex-wrap items-center justify-center gap-3 text-sm animate-on-scroll stagger-4 ${isVisible ? 'animate-visible' : ''}`}
         >
-          <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
+          <div className="flex items-center space-x-2 rounded-full bg-white/10 px-4 py-2 backdrop-blur-sm">
             <Icon name="CheckCircleIcon" size={20} variant="solid" className="text-[#2A9D8F]" />
             <span>No credit card required</span>
           </div>
-          <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
+          <div className="flex items-center space-x-2 rounded-full bg-white/10 px-4 py-2 backdrop-blur-sm">
             <Icon name="ShieldCheckIcon" size={20} variant="solid" className="text-[#2A9D8F]" />
             <span>FERPA compliant</span>
           </div>
-          <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2">
+          <div className="flex items-center space-x-2 rounded-full bg-white/10 px-4 py-2 backdrop-blur-sm">
             <Icon name="ClockIcon" size={20} variant="solid" className="text-[#2A9D8F]" />
-            <span>24/7 support available</span>
+            <span>Rapid onboarding support</span>
           </div>
         </div>
       </div>
