@@ -54,7 +54,7 @@ export default function CounselorMessagesPage() {
   const loadStudentChats = useCallback(() => {
     if (!user?.schoolId || !user?.id) return;
 
-    const schoolStudents = getSchoolStudents(user.schoolId);
+    const schoolStudents = getSchoolStudents(user.schoolId).filter(s => s.approved === true);
     const chats: StudentChat[] = schoolStudents.map((student) => {
       const storageKey = getStudentStorageKey(student.id);
       const stored = localStorage.getItem(storageKey);

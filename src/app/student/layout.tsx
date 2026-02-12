@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 
@@ -81,12 +81,22 @@ const studentNavItems: SidebarItem[] = [
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isApproved = user?.approved === true;
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'student')) {
       router.push('/auth/login');
     }
   }, [user, isLoading, router]);
+
+  // Redirect unapproved students to dashboard
+  useEffect(() => {
+    if (!isLoading && user && user.role === 'student' && !isApproved && pathname !== '/student/dashboard') {
+      router.push('/student/dashboard');
+    }
+  }, [isLoading, user, isApproved, pathname, router]);
 
   if (isLoading) {
     return (
@@ -103,10 +113,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return null;
   }
 
+  const visibleNavItems = isApproved ? studentNavItems : studentNavItems.filter(item => item.href === '/student/dashboard');
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
-        items={studentNavItems}
+        items={visibleNavItems}
         userType="student"
         userName={`${user.firstName} ${user.lastName}`}
         userEmail={user.email}

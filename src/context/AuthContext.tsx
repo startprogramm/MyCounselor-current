@@ -14,6 +14,7 @@ export interface User {
   title?: string;
   department?: string;
   profileImage?: string;
+  approved?: boolean;
   // Teacher-specific fields
   subject?: string;
   // Parent-specific fields
@@ -32,6 +33,8 @@ interface AuthContextType {
   findRegisteredUser: (email: string) => User | null;
   getSchoolCounselors: (schoolId: string) => User[];
   getSchoolStudents: (schoolId: string) => User[];
+  updateRegisteredUser: (userId: string, updates: Partial<User>) => void;
+  removeRegisteredUser: (userId: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -104,8 +107,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateRegisteredUser = (userId: string, updates: Partial<User>) => {
+    const registeredUsers: User[] = JSON.parse(localStorage.getItem('mycounselor_registered_users') || '[]');
+    const updatedList = registeredUsers.map((u) => u.id === userId ? { ...u, ...updates } : u);
+    localStorage.setItem('mycounselor_registered_users', JSON.stringify(updatedList));
+    // If this is the current user, update session too
+    if (user && user.id === userId) {
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+      localStorage.setItem('mycounselor_user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const removeRegisteredUser = (userId: string) => {
+    const registeredUsers: User[] = JSON.parse(localStorage.getItem('mycounselor_registered_users') || '[]');
+    const filtered = registeredUsers.filter((u) => u.id !== userId);
+    localStorage.setItem('mycounselor_registered_users', JSON.stringify(filtered));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, findRegisteredUser, getSchoolCounselors, getSchoolStudents }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateUser, findRegisteredUser, getSchoolCounselors, getSchoolStudents, updateRegisteredUser, removeRegisteredUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -96,6 +96,7 @@ export default function StudentSignupPage() {
       schoolId: formData.school,
       schoolName: school?.name || '',
       gradeLevel: formData.gradeLevel,
+      approved: false,
     });
 
     router.push('/student/dashboard');

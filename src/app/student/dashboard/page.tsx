@@ -202,6 +202,97 @@ export default function StudentDashboardPage() {
     }
   };
 
+  // Pending approval view for unapproved students
+  if (user?.approved !== true) {
+    return (
+      <div className="space-y-6">
+        {/* Welcome Header */}
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
+            Welcome, {user?.firstName || 'Student'}!
+          </h1>
+          {user?.schoolName && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {user.schoolName} {user.gradeLevel && `• Grade ${user.gradeLevel}`}
+            </p>
+          )}
+        </div>
+
+        {/* Pending Approval Notice */}
+        <Card className="p-0 overflow-hidden border-warning/30">
+          <div className="h-1 bg-warning" />
+          <div className="p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Account Pending Approval</h2>
+                <p className="text-muted-foreground mt-1">
+                  Your account has been created successfully. A school counselor needs to approve your account before you can access all features. This usually happens within 1-2 school days.
+                </p>
+                <div className="mt-4 flex items-center gap-2 text-sm text-warning font-medium">
+                  <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                  Waiting for counselor approval
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Counselor Info (read-only) */}
+        {counselors.length > 0 && (
+          <ContentCard
+            title="Your School Counselor(s)"
+            description="Your counselors will review your account."
+          >
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {counselors.map((c, index) => (
+                <Card key={c.id} className="p-0 overflow-hidden">
+                  <div
+                    className={`h-1 ${index % 3 === 0 ? 'bg-primary' : index % 3 === 1 ? 'bg-secondary' : 'bg-accent'}`}
+                  />
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-full border border-border bg-muted/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        {c.profileImage ? (
+                          <img
+                            src={c.profileImage}
+                            alt={`${c.firstName} ${c.lastName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span
+                            className={`font-bold text-sm ${index % 3 === 0 ? 'text-primary' : index % 3 === 1 ? 'text-secondary' : 'text-accent'}`}
+                          >
+                            {c.firstName[0]}{c.lastName[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate">
+                          {c.firstName} {c.lastName}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {c.title || 'School Counselor'}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {c.department || 'General'} Department
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </ContentCard>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}

@@ -30,6 +30,7 @@ interface Meeting {
 export default function CounselorDashboardPage() {
   const { user, getSchoolStudents } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
 
@@ -37,7 +38,9 @@ export default function CounselorDashboardPage() {
 
   useEffect(() => {
     if (user?.schoolId) {
-      setStudentCount(getSchoolStudents(user.schoolId).length);
+      const allStudents = getSchoolStudents(user.schoolId);
+      setStudentCount(allStudents.length);
+      setPendingApprovals(allStudents.filter(s => s.approved !== true).length);
     }
 
     // Load requests assigned to this counselor
@@ -68,7 +71,7 @@ export default function CounselorDashboardPage() {
   const upcomingMeetings = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');
 
   const stats = [
-    { title: 'Students', value: studentCount, subtitle: 'At your school', accent: 'primary' as const },
+    { title: 'Students', value: studentCount, subtitle: pendingApprovals > 0 ? `${pendingApprovals} pending approval` : 'At your school', accent: (pendingApprovals > 0 ? 'warning' : 'primary') as 'warning' | 'primary' },
     { title: 'Pending Requests', value: pendingRequests.length, subtitle: `${requests.length} total`, accent: 'warning' as const },
     { title: 'Upcoming Meetings', value: upcomingMeetings.length, subtitle: 'Scheduled', accent: 'accent' as const },
     { title: 'Completed', value: completedRequests.length, subtitle: 'Tasks finished', accent: 'success' as const },
