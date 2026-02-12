@@ -27,31 +27,34 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
   const testimonials: Testimonial[] = [
     {
       id: 1,
-      name: "Sarah Johnson",
-      role: "11th Grade Student",
-      content: "MyCounselor made college applications so much less stressful. I could schedule appointments easily and access resources whenever I needed them. My counselor was always just a message away!",
-      image: "https://img.rocket.new/generatedImages/rocket_gen_img_1f9595025-1767185860161.png",
-      alt: "Young woman with long brown hair smiling at camera wearing casual blue sweater",
-      rating: 5
+      name: 'Sarah Johnson',
+      role: '11th Grade Student',
+      content:
+        'MyCounselor made college applications so much less stressful. I could schedule appointments easily and access resources whenever I needed them. My counselor was always just a message away!',
+      image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1f9595025-1767185860161.png',
+      alt: 'Young woman with long brown hair smiling at camera wearing casual blue sweater',
+      rating: 5,
     },
     {
       id: 2,
-      name: "Michael Chen",
-      role: "School Counselor",
-      content: "This platform has transformed how I work with students. I can manage my caseload efficiently, track student progress, and maintain meaningful connections without feeling overwhelmed. It's a game-changer.",
-      image: "https://img.rocket.new/generatedImages/rocket_gen_img_1c3671659-1763299671587.png",
-      alt: "Professional Asian man in navy blazer with short black hair smiling confidently",
-      rating: 5
+      name: 'Michael Chen',
+      role: 'School Counselor',
+      content:
+        "This platform has transformed how I work with students. I can manage my caseload efficiently, track student progress, and maintain meaningful connections without feeling overwhelmed. It's a game-changer.",
+      image: 'https://img.rocket.new/generatedImages/rocket_gen_img_1c3671659-1763299671587.png',
+      alt: 'Professional Asian man in navy blazer with short black hair smiling confidently',
+      rating: 5,
     },
     {
       id: 3,
-      name: "Jennifer Martinez",
-      role: "Parent",
-      content: "As a parent, I love being able to see my daughter's progress and communicate with her counselor. The platform keeps me informed and involved in her academic journey. Highly recommend!",
-      image: "https://img.rocket.new/generatedImages/rocket_gen_img_11bdfc8f0-1763296614484.png",
-      alt: "Hispanic woman with shoulder-length dark hair in professional attire smiling warmly",
-      rating: 5
-    }
+      name: 'Jennifer Martinez',
+      role: 'Parent',
+      content:
+        "As a parent, I love being able to see my daughter's progress and communicate with her counselor. The platform keeps me informed and involved in her academic journey. Highly recommend!",
+      image: 'https://img.rocket.new/generatedImages/rocket_gen_img_11bdfc8f0-1763296614484.png',
+      alt: 'Hispanic woman with shoulder-length dark hair in professional attire smiling warmly',
+      rating: 5,
+    },
   ];
 
   // Auto-advance carousel
@@ -78,14 +81,16 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
   return (
     <section
       ref={sectionRef}
-      className={`py-16 lg:py-24 bg-background dark:bg-slate-900 ${className}`}
+      className={`relative overflow-hidden bg-sky-wash py-16 lg:py-24 dark:bg-slate-900 ${className}`}
     >
+      <div className="pointer-events-none absolute inset-0 bg-campus-grid opacity-15" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div
           className={`text-center mb-12 animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
         >
-          <div className="inline-flex items-center space-x-2 bg-accent/10 dark:bg-accent/20 rounded-full px-4 py-2 text-sm font-medium text-accent mb-4">
+          <div className="mb-4 inline-flex items-center space-x-2 rounded-full border border-accent/20 bg-accent/10 px-4 py-2 text-sm font-medium text-accent dark:bg-accent/20">
             <Icon name="StarIcon" size={16} variant="solid" />
             <span>Success Stories</span>
           </div>
@@ -94,7 +99,8 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
             Hear From Our Community
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Real experiences from students, counselors, and parents who have transformed their counseling journey with MyCounselor.
+            Real experiences from students, counselors, and parents who have transformed their
+            counseling journey with MyCounselor.
           </p>
         </div>
 
@@ -111,45 +117,52 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
               style={{ transform: `translateX(-${currentIndex * 100}%)` }}
             >
               {testimonials.map((testimonial) => (
-                <div
-                  key={testimonial.id}
-                  className="w-full flex-shrink-0 px-4"
-                >
-                  <div className="bg-card dark:bg-slate-800/50 rounded-2xl p-8 md:p-12 shadow-lg border border-border dark:border-slate-700 max-w-3xl mx-auto">
-                    {/* Stars */}
-                    <div className="flex items-center justify-center mb-6">
-                      {[...Array(testimonial.rating)].map((_, index) => (
-                        <Icon
-                          key={index}
-                          name="StarIcon"
-                          size={24}
-                          variant="solid"
-                          className="text-amber-400"
-                        />
-                      ))}
-                    </div>
-
-                    {/* Quote */}
-                    <blockquote className="text-xl md:text-2xl text-center text-foreground mb-8 leading-relaxed italic">
-                      "{testimonial.content}"
-                    </blockquote>
-
-                    {/* Author */}
-                    <div className="flex flex-col items-center">
-                      <div className="relative w-16 h-16 rounded-full overflow-hidden mb-4 ring-4 ring-primary/20">
+                <div key={testimonial.id} className="w-full flex-shrink-0 px-4">
+                  <div className="mx-auto max-w-4xl rounded-[1.6rem] border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-700 dark:bg-slate-800/60 md:p-8">
+                    <div className="grid gap-6 md:grid-cols-[220px,1fr] md:items-center">
+                      <div className="relative overflow-hidden rounded-2xl">
                         <AppImage
                           src={testimonial.image}
                           alt={testimonial.alt}
-                          className="w-full h-full object-cover"
+                          width={260}
+                          height={260}
+                          className="h-[220px] w-full object-cover"
                         />
+                        <div className="absolute inset-x-3 bottom-3 rounded-full bg-[#0f2b45]/80 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+                          Trusted community story
+                        </div>
                       </div>
 
-                      <div className="text-center">
-                        <div className="font-heading font-semibold text-foreground text-lg">
-                          {testimonial.name}
+                      <div>
+                        {/* Stars */}
+                        <div className="mb-4 flex items-center">
+                          {[...Array(testimonial.rating)].map((_, index) => (
+                            <Icon
+                              key={index}
+                              name="StarIcon"
+                              size={20}
+                              variant="solid"
+                              className="text-amber-400"
+                            />
+                          ))}
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {testimonial.role}
+
+                        {/* Quote */}
+                        <blockquote className="mb-5 text-lg leading-relaxed text-foreground md:text-xl">
+                          &ldquo;{testimonial.content}&rdquo;
+                        </blockquote>
+
+                        {/* Author */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-lg font-heading font-semibold text-foreground">
+                              {testimonial.name}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                          </div>
+                          <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                            Verified User
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -162,7 +175,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
           {/* Navigation Arrows */}
           <button
             onClick={prevSlide}
-            className="absolute left-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 -translate-x-4 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-colors hover:bg-muted focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:-translate-x-12"
+            className="absolute left-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 -translate-x-4 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition-colors hover:bg-slate-100 focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:-translate-x-12"
             aria-label="Previous testimonial"
           >
             <Icon name="ChevronLeftIcon" size={24} variant="outline" className="text-foreground" />
@@ -170,7 +183,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
 
           <button
             onClick={nextSlide}
-            className="absolute right-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-colors hover:bg-muted focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:translate-x-12"
+            className="absolute right-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition-colors hover:bg-slate-100 focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:translate-x-12"
             aria-label="Next testimonial"
           >
             <Icon name="ChevronRightIcon" size={24} variant="outline" className="text-foreground" />
@@ -195,11 +208,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
               className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               aria-label={isPaused ? 'Resume auto-play' : 'Pause auto-play'}
             >
-              <Icon
-                name={isPaused ? 'PlayIcon' : 'PauseIcon'}
-                size={16}
-                variant="solid"
-              />
+              <Icon name={isPaused ? 'PlayIcon' : 'PauseIcon'} size={16} variant="solid" />
               <span>{isPaused ? 'Resume' : 'Pause'}</span>
             </button>
           </div>

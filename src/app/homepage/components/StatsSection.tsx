@@ -18,7 +18,15 @@ interface StatsSectionProps {
 }
 
 // Animated counter component
-const AnimatedCounter = ({ end, suffix, isVisible }: { end: number; suffix: string; isVisible: boolean }) => {
+const AnimatedCounter = ({
+  end,
+  suffix,
+  isVisible,
+}: {
+  end: number;
+  suffix: string;
+  isVisible: boolean;
+}) => {
   const [count, setCount] = useState(0);
   const hasAnimated = useRef(false);
 
@@ -47,7 +55,8 @@ const AnimatedCounter = ({ end, suffix, isVisible }: { end: number; suffix: stri
 
   return (
     <span>
-      {count.toLocaleString()}{suffix}
+      {count.toLocaleString()}
+      {suffix}
     </span>
   );
 };
@@ -59,41 +68,41 @@ const StatsSection = ({ className = '' }: StatsSectionProps) => {
     {
       id: 1,
       value: 15000,
-      suffix: "+",
-      label: "Active Students",
-      icon: "UserGroupIcon",
-      description: "Students using the platform daily"
+      suffix: '+',
+      label: 'Active Students',
+      icon: 'UserGroupIcon',
+      description: 'Students using the platform daily',
     },
     {
       id: 2,
       value: 98,
-      suffix: "%",
-      label: "Satisfaction Rate",
-      icon: "HeartIcon",
-      description: "Positive feedback from users"
+      suffix: '%',
+      label: 'Satisfaction Rate',
+      icon: 'HeartIcon',
+      description: 'Positive feedback from users',
     },
     {
       id: 3,
       value: 50000,
-      suffix: "+",
-      label: "Appointments Completed",
-      icon: "CalendarIcon",
-      description: "Successful counseling sessions"
+      suffix: '+',
+      label: 'Appointments Completed',
+      icon: 'CalendarIcon',
+      description: 'Successful counseling sessions',
     },
     {
       id: 4,
       value: 24,
-      suffix: "/7",
-      label: "Support Available",
-      icon: "ClockIcon",
-      description: "Round-the-clock assistance"
-    }
+      suffix: '/7',
+      label: 'Support Available',
+      icon: 'ClockIcon',
+      description: 'Round-the-clock assistance',
+    },
   ];
 
   return (
     <section
       ref={sectionRef}
-      className={`relative overflow-hidden bg-gradient-to-br from-[#1D4F80] to-[#337AA4] py-16 text-white lg:py-24 dark:from-slate-900 dark:to-[#1D4F80] ${className}`}
+      className={`relative overflow-hidden bg-gradient-to-br from-[#152f4a] via-[#1f466c] to-[#2d6392] py-16 text-white lg:py-24 dark:from-slate-900 dark:to-[#1D4F80] ${className}`}
     >
       <div className="absolute inset-0 bg-campus-grid opacity-20" />
 
@@ -112,16 +121,17 @@ const StatsSection = ({ className = '' }: StatsSectionProps) => {
             Trusted by Thousands
           </h2>
           <p className="text-lg text-white/90 max-w-2xl mx-auto">
-            Our platform has helped countless students achieve their goals through organized, accessible counseling support.
+            Our platform has helped countless students achieve their goals through organized,
+            accessible counseling support.
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat, index) => (
             <div
               key={stat.id}
-              className={`rounded-2xl border border-white/20 bg-white/10 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:bg-white/20 group animate-on-scroll-scale stagger-${index + 1} ${isVisible ? 'animate-visible' : ''}`}
+              className={`group rounded-[1.4rem] border border-white/20 bg-white/10 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/18 animate-on-scroll-scale stagger-${index + 1} ${isVisible ? 'animate-visible' : ''}`}
             >
               {/* Icon */}
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4 group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300">
@@ -134,14 +144,10 @@ const StatsSection = ({ className = '' }: StatsSectionProps) => {
               </div>
 
               {/* Label */}
-              <div className="text-lg font-semibold mb-2">
-                {stat.label}
-              </div>
+              <div className="text-lg font-semibold mb-2">{stat.label}</div>
 
               {/* Description */}
-              <p className="text-sm text-white/80">
-                {stat.description}
-              </p>
+              <p className="text-sm text-white/80">{stat.description}</p>
             </div>
           ))}
         </div>

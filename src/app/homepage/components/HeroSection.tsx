@@ -17,193 +17,239 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
       id: 1,
       value: '500+',
       label: 'School Communities',
-      icon: 'BuildingLibraryIcon'
+      icon: 'BuildingLibraryIcon',
     },
     {
       id: 2,
       value: '98%',
       label: 'Student Satisfaction',
-      icon: 'FaceSmileIcon'
+      icon: 'FaceSmileIcon',
     },
     {
       id: 3,
       value: '50k+',
       label: 'Sessions Completed',
-      icon: 'CalendarDaysIcon'
-    }
+      icon: 'CalendarDaysIcon',
+    },
   ];
 
   return (
     <section
       ref={sectionRef}
       id="main-content"
-      className={`relative overflow-hidden bg-gradient-to-br from-[#114572] via-[#1A73E8] to-[#1E8E3E] text-white ${className}`}
+      className={`relative overflow-hidden bg-sky-wash py-8 sm:py-10 lg:py-12 ${className}`}
     >
-      <div className="absolute inset-0 bg-campus-grid opacity-20" />
-      <div className="absolute inset-0 bg-soft-radial opacity-70" />
+      <div className="absolute inset-0 bg-campus-grid opacity-30" />
 
-      {/* Animated Background Decorations */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl animate-float" />
-        <div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-white/10 blur-3xl animate-float-delayed" />
-        <div className="absolute -top-20 left-1/3 h-[460px] w-[460px] rounded-full bg-[#EA8600]/20 blur-3xl animate-drift" />
-      </div>
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#325f89] via-[#4f83b0] to-[#6ca6cb] px-6 py-12 text-white shadow-panel sm:px-8 lg:px-12 lg:py-14">
+          <div className="absolute inset-0 bg-soft-radial opacity-55" />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8">
-            {/* Badge */}
-            <div
-              className={`inline-flex items-center space-x-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur-sm animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
-            >
-              <Icon name="SparklesIcon" size={16} variant="solid" className="text-[#F4A261]" />
-              <span>Purpose-built for school counseling teams</span>
-            </div>
-
-            {/* Heading */}
-            <h1
-              className={`text-4xl sm:text-5xl lg:text-6xl font-heading font-bold leading-tight animate-on-scroll stagger-1 ${isVisible ? 'animate-visible' : ''}`}
-            >
-              Design for Human Guidance at
-              <span className="block text-[#F4A261]">School Scale</span>
-            </h1>
-
-            {/* Description */}
-            <p
-              className={`max-w-2xl text-lg leading-relaxed text-white/90 sm:text-xl animate-on-scroll stagger-2 ${isVisible ? 'animate-visible' : ''}`}
-            >
-              MyCounselor turns complex counseling workflows into a clear, coordinated experience for students, counselors, and families without losing the personal connection.
-            </p>
-
-            {/* CTA Buttons */}
-            <div
-              className={`flex flex-col sm:flex-row gap-4 animate-on-scroll stagger-3 ${isVisible ? 'animate-visible' : ''}`}
-            >
-              <Link
-                href="/auth/signup/student"
-                className="group inline-flex items-center justify-center space-x-2 rounded-lg bg-white px-8 py-4 text-base font-heading font-semibold text-[#114572] shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white/90 hover:shadow-xl focus-ring"
-              >
-                <Icon name="AcademicCapIcon" size={20} variant="solid" className="group-hover:rotate-12 transition-transform" />
-                <span>Start as Student</span>
-              </Link>
-
-              <Link
-                href="/auth/signup/counselor"
-                className="group inline-flex items-center justify-center space-x-2 rounded-lg border border-white/35 bg-white/10 px-8 py-4 text-base font-heading font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 focus-ring"
-              >
-                <Icon name="UserGroupIcon" size={20} variant="outline" className="group-hover:scale-110 transition-transform" />
-                <span>Start as Counselor</span>
-              </Link>
-            </div>
-
-            {/* Trust Badges */}
-            <div
-              className={`flex items-center space-x-6 pt-4 animate-on-scroll stagger-4 ${isVisible ? 'animate-visible' : ''}`}
-            >
-              <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1.5 backdrop-blur-sm">
-                <Icon name="CheckCircleIcon" size={20} variant="solid" className="text-[#2A9D8F]" />
-                <span className="text-sm font-medium">FERPA Compliant</span>
-              </div>
-              <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1.5 backdrop-blur-sm">
-                <Icon name="ShieldCheckIcon" size={20} variant="solid" className="text-[#2A9D8F]" />
-                <span className="text-sm font-medium">SSL Secured</span>
-              </div>
-            </div>
-
-            {/* Highlights */}
-            <div
-              className={`grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3 animate-on-scroll stagger-5 ${isVisible ? 'animate-visible' : ''}`}
-            >
-              {heroHighlights.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm"
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <Icon name={item.icon} size={18} variant="solid" className="text-[#FDD663]" />
-                    <span className="text-xl font-heading font-bold">{item.value}</span>
-                  </div>
-                  <p className="text-sm text-white/90">{item.label}</p>
-                </div>
-              ))}
-            </div>
+          {/* Animated Background Decorations */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl animate-float" />
+            <div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-white/10 blur-3xl animate-float-delayed" />
+            <div className="absolute -top-20 left-1/3 h-[460px] w-[460px] rounded-full bg-[#EA8600]/15 blur-3xl animate-drift" />
           </div>
 
-          {/* Hero Illustration */}
-          <div
-            className={`relative hidden lg:block animate-on-scroll-right stagger-2 ${isVisible ? 'animate-visible' : ''}`}
-          >
-            <div className="relative h-[540px] w-full overflow-hidden rounded-2xl border border-white/15 bg-white/10 p-6 shadow-2xl backdrop-blur-xl animate-float">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-white/80">Counselor Workspace</p>
-                  <p className="text-xl font-heading font-semibold">Today at a Glance</p>
+          <div className="relative mb-8 flex flex-wrap items-center justify-between gap-3 rounded-full border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90">
+                <Icon name="AcademicCapIcon" size={18} variant="solid" className="text-[#325f89]" />
+              </div>
+              <span className="text-sm font-heading font-semibold text-white">MyCounselor</span>
+            </div>
+            <div className="hidden items-center gap-2 text-xs text-white/85 sm:flex">
+              {['Students', 'Counselors', 'Resources', 'Contact'].map((item) => (
+                <span key={item} className="rounded-full border border-white/20 px-3 py-1">
+                  {item}
+                </span>
+              ))}
+            </div>
+            <span className="chip-pill px-3 py-1 text-xs font-medium">Book Support</span>
+          </div>
+
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div className="space-y-8">
+              {/* Badge */}
+              <div
+                className={`inline-flex items-center space-x-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur-sm animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
+              >
+                <Icon name="SparklesIcon" size={16} variant="solid" className="text-[#F4A261]" />
+                <span>Compassion-first counseling platform</span>
+              </div>
+
+              {/* Heading */}
+              <h1
+                className={`text-4xl sm:text-5xl lg:text-6xl font-heading font-bold leading-tight animate-on-scroll stagger-1 ${isVisible ? 'animate-visible' : ''}`}
+              >
+                Guiding Every Student
+                <span className="block text-[#F4A261]">With Genuine Care</span>
+              </h1>
+
+              {/* Description */}
+              <p
+                className={`max-w-2xl text-lg leading-relaxed text-white/90 sm:text-xl animate-on-scroll stagger-2 ${isVisible ? 'animate-visible' : ''}`}
+              >
+                MyCounselor keeps the experience warm and personal while giving schools a clean,
+                organized workflow for guidance, planning, and follow-up.
+              </p>
+
+              {/* CTA Buttons */}
+              <div
+                className={`flex flex-col sm:flex-row gap-4 animate-on-scroll stagger-3 ${isVisible ? 'animate-visible' : ''}`}
+              >
+                <Link
+                  href="/auth/signup/student"
+                  className="group inline-flex items-center justify-center space-x-2 rounded-full bg-white px-8 py-4 text-base font-heading font-semibold text-[#325f89] shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white/90 hover:shadow-xl focus-ring"
+                >
+                  <Icon
+                    name="AcademicCapIcon"
+                    size={20}
+                    variant="solid"
+                    className="group-hover:rotate-12 transition-transform"
+                  />
+                  <span>Start as Student</span>
+                </Link>
+
+                <Link
+                  href="/auth/signup/counselor"
+                  className="group inline-flex items-center justify-center space-x-2 rounded-full border border-white/35 bg-white/10 px-8 py-4 text-base font-heading font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 focus-ring"
+                >
+                  <Icon
+                    name="UserGroupIcon"
+                    size={20}
+                    variant="outline"
+                    className="group-hover:scale-110 transition-transform"
+                  />
+                  <span>Start as Counselor</span>
+                </Link>
+              </div>
+
+              {/* Trust Badges */}
+              <div
+                className={`flex flex-wrap items-center gap-3 pt-4 animate-on-scroll stagger-4 ${isVisible ? 'animate-visible' : ''}`}
+              >
+                <div className="chip-pill flex items-center space-x-2 px-3 py-1.5">
+                  <Icon
+                    name="CheckCircleIcon"
+                    size={20}
+                    variant="solid"
+                    className="text-[#2A9D8F]"
+                  />
+                  <span className="text-sm font-medium">FERPA Compliant</span>
                 </div>
-                <div className="rounded-lg bg-white/15 px-3 py-1.5 text-sm">
-                  8 appointments
+                <div className="chip-pill flex items-center space-x-2 px-3 py-1.5">
+                  <Icon
+                    name="ShieldCheckIcon"
+                    size={20}
+                    variant="solid"
+                    className="text-[#2A9D8F]"
+                  />
+                  <span className="text-sm font-medium">SSL Secured</span>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {[
-                  { student: 'Sofia M.', focus: 'College essay review', time: '9:00 AM' },
-                  { student: 'Jordan L.', focus: 'Course planning', time: '11:30 AM' },
-                  { student: 'Ava R.', focus: 'Career pathway check-in', time: '2:15 PM' }
-                ].map((entry) => (
-                  <div
-                    key={entry.student}
-                    className="rounded-xl border border-white/20 bg-white/10 p-4 transition-colors hover:bg-white/20"
-                  >
-                    <div className="mb-1 flex items-center justify-between">
-                      <p className="font-semibold">{entry.student}</p>
-                      <span className="text-sm text-white/80">{entry.time}</span>
+              {/* Highlights */}
+              <div
+                className={`grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3 animate-on-scroll stagger-5 ${isVisible ? 'animate-visible' : ''}`}
+              >
+                {heroHighlights.map((item) => (
+                  <div key={item.id} className="panel-frost rounded-xl px-4 py-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <Icon name={item.icon} size={18} variant="solid" className="text-[#FDD663]" />
+                      <span className="text-xl font-heading font-bold">{item.value}</span>
                     </div>
-                    <p className="text-sm text-white/85">{entry.focus}</p>
+                    <p className="text-sm text-white/90">{item.label}</p>
                   </div>
                 ))}
               </div>
+            </div>
 
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-white/20 bg-white/10 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm text-white/85">Priority Queue</p>
-                    <Icon name="ExclamationTriangleIcon" size={18} variant="solid" className="text-[#FDD663]" />
+            {/* Hero Illustration */}
+            <div
+              className={`relative hidden lg:block animate-on-scroll-right stagger-2 ${isVisible ? 'animate-visible' : ''}`}
+            >
+              <div className="relative h-[540px] w-full overflow-hidden rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-xl animate-float">
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-white/80">Counselor Workspace</p>
+                    <p className="text-xl font-heading font-semibold">Today at a Glance</p>
                   </div>
-                  <p className="text-2xl font-heading font-bold">5</p>
-                  <p className="text-xs text-white/80">Students flagged for follow-up</p>
+                  <div className="chip-pill px-3 py-1.5 text-sm">8 appointments</div>
                 </div>
-                <div className="rounded-xl border border-white/20 bg-white/10 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm text-white/85">Completion Rate</p>
-                    <Icon name="ChartBarIcon" size={18} variant="solid" className="text-[#81C995]" />
+
+                <div className="space-y-3">
+                  {[
+                    { student: 'Sofia M.', focus: 'College essay review', time: '9:00 AM' },
+                    { student: 'Jordan L.', focus: 'Course planning', time: '11:30 AM' },
+                    { student: 'Ava R.', focus: 'Career pathway check-in', time: '2:15 PM' },
+                  ].map((entry) => (
+                    <div
+                      key={entry.student}
+                      className="panel-frost rounded-xl p-4 transition-colors hover:bg-white/20"
+                    >
+                      <div className="mb-1 flex items-center justify-between">
+                        <p className="font-semibold">{entry.student}</p>
+                        <span className="text-sm text-white/80">{entry.time}</span>
+                      </div>
+                      <p className="text-sm text-white/85">{entry.focus}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <div className="panel-frost rounded-xl p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm text-white/85">Priority Queue</p>
+                      <Icon
+                        name="ExclamationTriangleIcon"
+                        size={18}
+                        variant="solid"
+                        className="text-[#FDD663]"
+                      />
+                    </div>
+                    <p className="text-2xl font-heading font-bold">5</p>
+                    <p className="text-xs text-white/80">Students flagged for follow-up</p>
                   </div>
-                  <p className="text-2xl font-heading font-bold">92%</p>
-                  <p className="text-xs text-white/80">Plans updated this week</p>
+                  <div className="panel-frost rounded-xl p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-sm text-white/85">Completion Rate</p>
+                      <Icon
+                        name="ChartBarIcon"
+                        size={18}
+                        variant="solid"
+                        className="text-[#81C995]"
+                      />
+                    </div>
+                    <p className="text-2xl font-heading font-bold">92%</p>
+                    <p className="text-xs text-white/80">Plans updated this week</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-6 rounded-xl border border-white/20 bg-white/10 p-4">
-                <p className="mb-3 text-sm text-white/80">Quick Actions</p>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-medium transition-colors hover:bg-white/25"
-                  >
-                    <Icon name="CalendarIcon" size={18} variant="outline" />
-                    Schedule
-                  </button>
-                  <button
-                    type="button"
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-medium transition-colors hover:bg-white/25"
-                  >
-                    <Icon name="ChatBubbleLeftRightIcon" size={18} variant="outline" />
-                    Message
-                  </button>
+                <div className="panel-frost mt-6 rounded-xl p-4">
+                  <p className="mb-3 text-sm text-white/80">Quick Actions</p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white/15 px-3 py-2 text-sm font-medium transition-colors hover:bg-white/25"
+                    >
+                      <Icon name="CalendarIcon" size={18} variant="outline" />
+                      Schedule
+                    </button>
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-full bg-white/15 px-3 py-2 text-sm font-medium transition-colors hover:bg-white/25"
+                    >
+                      <Icon name="ChatBubbleLeftRightIcon" size={18} variant="outline" />
+                      Message
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-[#EA8600]/20 blur-3xl" />
-              <div className="pointer-events-none absolute -left-16 -top-24 h-52 w-52 rounded-full bg-white/20 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-[#EA8600]/20 blur-3xl" />
+                <div className="pointer-events-none absolute -left-16 -top-24 h-52 w-52 rounded-full bg-white/20 blur-3xl" />
+              </div>
             </div>
           </div>
         </div>

@@ -15,7 +15,7 @@ const CTASection = ({ className = '' }: CTASectionProps) => {
   return (
     <section
       ref={sectionRef}
-      className={`relative overflow-hidden bg-gradient-to-r from-[#1D4F80] via-[#1A73E8] to-[#1E8E3E] py-16 text-white lg:py-24 ${className}`}
+      className={`relative overflow-hidden bg-gradient-to-r from-[#22466a] via-[#315f89] to-[#4f81ae] py-16 text-white lg:py-24 ${className}`}
     >
       <div className="absolute inset-0 bg-campus-grid opacity-20" />
 
@@ -46,7 +46,8 @@ const CTASection = ({ className = '' }: CTASectionProps) => {
         <p
           className={`text-lg sm:text-xl text-white/90 mb-8 max-w-3xl mx-auto leading-relaxed animate-on-scroll stagger-2 ${isVisible ? 'animate-visible' : ''}`}
         >
-          Launch with a student-friendly portal, counselor-ready workflows, and secure communication from day one.
+          Launch with a student-friendly portal, counselor-ready workflows, and secure communication
+          from day one.
         </p>
 
         {/* CTA Buttons */}
@@ -55,17 +56,27 @@ const CTASection = ({ className = '' }: CTASectionProps) => {
         >
           <Link
             href="/auth/signup/student"
-            className="group inline-flex w-full items-center justify-center space-x-2 rounded-lg bg-white px-8 py-4 text-base font-heading font-semibold text-[#1D4F80] shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white/90 hover:shadow-xl sm:w-auto focus-ring"
+            className="group inline-flex w-full items-center justify-center space-x-2 rounded-full bg-white px-8 py-4 text-base font-heading font-semibold text-[#22466a] shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white/90 hover:shadow-xl sm:w-auto focus-ring"
           >
-            <Icon name="AcademicCapIcon" size={20} variant="solid" className="group-hover:rotate-12 transition-transform" />
+            <Icon
+              name="AcademicCapIcon"
+              size={20}
+              variant="solid"
+              className="group-hover:rotate-12 transition-transform"
+            />
             <span>Get Started as Student</span>
           </Link>
 
           <Link
             href="/auth/signup/counselor"
-            className="group inline-flex w-full items-center justify-center space-x-2 rounded-lg border border-white/35 bg-white/10 px-8 py-4 text-base font-heading font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 sm:w-auto focus-ring"
+            className="group inline-flex w-full items-center justify-center space-x-2 rounded-full border border-white/35 bg-white/10 px-8 py-4 text-base font-heading font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 sm:w-auto focus-ring"
           >
-            <Icon name="UserGroupIcon" size={20} variant="outline" className="group-hover:scale-110 transition-transform" />
+            <Icon
+              name="UserGroupIcon"
+              size={20}
+              variant="outline"
+              className="group-hover:scale-110 transition-transform"
+            />
             <span>Counselor Access</span>
           </Link>
         </div>
