@@ -76,14 +76,9 @@ const Footer = ({ className = '' }: FooterProps) => {
   ];
 
   return (
-    <footer className={`relative overflow-hidden text-white ${className}`}>
-      <div className="absolute inset-0 bg-gradient-to-br from-[#1b588c] via-[#2f7cae] to-[#3aa592]" />
-      <div className="absolute inset-0 bg-campus-grid opacity-18" />
-      <div className="pointer-events-none absolute -left-24 top-20 h-72 w-72 rounded-full bg-[#9fceff]/25 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-10 h-72 w-72 rounded-full bg-[#ffd4a7]/22 blur-3xl" />
-
-      <div className="relative mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-        <div className="mb-10 rounded-2xl border border-white/30 bg-white/15 p-6 backdrop-blur-sm lg:p-8">
+    <footer className={`bg-[#1f2937] text-white ${className}`}>
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+        <div className="mb-10 rounded-2xl border border-white/20 bg-white/5 p-6 lg:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
@@ -95,7 +90,7 @@ const Footer = ({ className = '' }: FooterProps) => {
             </div>
             <Link
               href="/auth/signup"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#ffb15e] to-[#ff8f6b] px-6 py-3 text-sm font-heading font-semibold text-white transition-colors hover:from-[#ffab52] hover:to-[#ff835f] focus-ring"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-heading font-semibold text-[#1f2937] transition-colors hover:bg-white/90 focus-ring"
             >
               <span>Create an Account</span>
               <Icon name="ArrowRightIcon" size={18} variant="outline" />
@@ -106,7 +101,7 @@ const Footer = ({ className = '' }: FooterProps) => {
         <div className="mb-10 grid gap-8 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
             <Link href="/homepage" className="mb-4 inline-flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/20">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/15">
                 <Icon name="AcademicCapIcon" size={24} variant="solid" className="text-white" />
               </div>
               <span className="text-2xl font-heading font-bold">MyCounselor</span>
@@ -122,9 +117,9 @@ const Footer = ({ className = '' }: FooterProps) => {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className="flex items-center gap-3 text-sm text-white/90 transition-colors hover:text-[#fff0dc]"
+                  className="flex items-center gap-3 text-sm text-white/85 transition-colors hover:text-white"
                 >
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/15">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
                     <Icon name={item.icon} size={18} variant="outline" />
                   </span>
                   <span>{item.label}</span>
@@ -143,7 +138,7 @@ const Footer = ({ className = '' }: FooterProps) => {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-sm text-white/80 transition-colors hover:text-[#fff0dc]"
+                      className="text-sm text-white/75 transition-colors hover:text-white"
                     >
                       {link.label}
                     </Link>
@@ -159,7 +154,7 @@ const Footer = ({ className = '' }: FooterProps) => {
             <Link
               key={badge.label}
               href={badge.href}
-              className="flex items-center gap-3 rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/25"
+              className="flex items-center gap-3 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
             >
               <Icon name={badge.icon} size={18} variant="outline" />
               <span>{badge.label}</span>
