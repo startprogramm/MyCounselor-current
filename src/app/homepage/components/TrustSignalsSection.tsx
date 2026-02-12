@@ -10,6 +10,9 @@ interface TrustSignal {
   description: string;
   icon: string;
   metric: string;
+  cardTone: string;
+  iconTone: string;
+  metricTone: string;
 }
 
 interface TrustSignalsSectionProps {
@@ -27,6 +30,10 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
         'Student records and communications are structured around education privacy requirements.',
       icon: 'DocumentCheckIcon',
       metric: 'Policy-Audited',
+      cardTone:
+        'from-[#eef7ff] via-[#f9fcff] to-[#eaf3ff] dark:from-[#1a3048]/80 dark:via-[#203651]/70 dark:to-[#1a3048]/80',
+      iconTone: 'from-[#5b9cde] to-[#7fc0ef]',
+      metricTone: 'bg-[#e9f3ff] text-[#2f6ea8] dark:bg-slate-700 dark:text-[#a7ccf0]',
     },
     {
       id: 2,
@@ -35,6 +42,10 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
         'Messages and appointment data are secured in transit and while stored on platform systems.',
       icon: 'LockClosedIcon',
       metric: 'TLS Protected',
+      cardTone:
+        'from-[#f1f7ff] via-[#f8fbff] to-[#edf4ff] dark:from-[#1c2f49]/80 dark:via-[#23385a]/70 dark:to-[#1c2f49]/80',
+      iconTone: 'from-[#4f96da] to-[#72b4eb]',
+      metricTone: 'bg-[#edf4ff] text-[#3a6e9a] dark:bg-slate-700 dark:text-[#a7ccf0]',
     },
     {
       id: 3,
@@ -43,6 +54,10 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
         'Infrastructure monitoring and incident response keep student support workflows consistently available.',
       icon: 'ShieldCheckIcon',
       metric: '24/7 Coverage',
+      cardTone:
+        'from-[#eefaf6] via-[#f8fdfb] to-[#e8f7f0] dark:from-[#19372f]/75 dark:via-[#1f4339]/70 dark:to-[#19372f]/75',
+      iconTone: 'from-[#4fb890] to-[#7ed7b8]',
+      metricTone: 'bg-[#ecfaf4] text-[#2f8e6d] dark:bg-slate-700 dark:text-[#9fe6cb]',
     },
     {
       id: 4,
@@ -51,21 +66,25 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
         'Regular platform checks and release controls maintain reliability across school-year demand spikes.',
       icon: 'ClipboardDocumentCheckIcon',
       metric: 'Routine QA',
+      cardTone:
+        'from-[#fff6ec] via-[#fffdf7] to-[#fff1e1] dark:from-[#443116]/75 dark:via-[#503a1c]/70 dark:to-[#443116]/75',
+      iconTone: 'from-[#f3a34f] to-[#f7c670]',
+      metricTone: 'bg-[#fff3e5] text-[#bc7123] dark:bg-slate-700 dark:text-[#ffd38f]',
     },
   ];
 
   return (
     <section
       ref={sectionRef}
-      className={`relative overflow-hidden bg-gradient-to-b from-[#eaf2fb] via-[#f8fbff] to-[#eef6ff] py-16 lg:py-20 dark:from-[#0f1725] dark:via-[#111b2b] dark:to-[#162234] ${className}`}
+      className={`relative overflow-hidden bg-gradient-to-b from-[#e4f4ff] via-[#f5fbff] to-[#ecfff4] py-16 lg:py-20 dark:from-[#0f1725] dark:via-[#111b2b] dark:to-[#162234] ${className}`}
     >
       <div className="pointer-events-none absolute inset-0 bg-campus-grid opacity-20 dark:opacity-25" />
-      <div className="pointer-events-none absolute -left-24 top-16 h-64 w-64 rounded-full bg-[#93b7d9]/30 blur-3xl dark:bg-[#4f78a3]/25" />
-      <div className="pointer-events-none absolute -right-20 bottom-16 h-72 w-72 rounded-full bg-[#a2d4c6]/25 blur-3xl dark:bg-[#4f8a76]/20" />
+      <div className="pointer-events-none absolute -left-24 top-16 h-64 w-64 rounded-full bg-[#93b7ff]/32 blur-3xl dark:bg-[#4f78a3]/25" />
+      <div className="pointer-events-none absolute -right-20 bottom-16 h-72 w-72 rounded-full bg-[#a2f0c3]/26 blur-3xl dark:bg-[#4f8a76]/20" />
 
       <div className="relative mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1.05fr,1.45fr] lg:items-stretch lg:px-8">
         <div
-          className={`rounded-[1.75rem] border border-[#dce8f5] bg-white/90 p-8 shadow-[0_14px_30px_rgba(24,66,105,0.10)] backdrop-blur-sm dark:border-slate-600 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900 animate-on-scroll-left ${isVisible ? 'animate-visible' : ''}`}
+          className={`rounded-[1.75rem] border border-[#dce8f5] bg-gradient-to-br from-white via-[#f8fcff] to-[#f2f9ff] p-8 shadow-[0_14px_30px_rgba(24,66,105,0.10)] backdrop-blur-sm dark:border-slate-600 dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900 animate-on-scroll-left ${isVisible ? 'animate-visible' : ''}`}
         >
           <div className="mb-4 inline-flex items-center space-x-2 rounded-full border border-[#e1ebf7] bg-[#f3f8ff] px-4 py-2 text-sm font-medium text-[#2e6ea2] dark:border-slate-600 dark:bg-slate-700/70 dark:text-[#ffd77a]">
             <Icon name="ShieldCheckIcon" size={16} variant="solid" />
@@ -88,7 +107,7 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
             ].map((point) => (
               <div
                 key={point}
-                className="flex items-start gap-3 rounded-xl border border-[#dde9f6] bg-white p-3 shadow-[0_4px_10px_rgba(24,66,105,0.07)] dark:border-slate-600 dark:bg-slate-800/85"
+                className="flex items-start gap-3 rounded-xl border border-[#dde9f6] bg-gradient-to-r from-white to-[#f7fbff] p-3 shadow-[0_4px_10px_rgba(24,66,105,0.07)] dark:border-slate-600 dark:bg-slate-800/85"
               >
                 <Icon
                   name="CheckCircleIcon"
@@ -106,13 +125,17 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
           {trustSignals.map((signal, index) => (
             <div
               key={signal.id}
-              className={`group rounded-[1.3rem] border border-[#dce8f5] bg-white/85 p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#7aa8cf] hover:shadow-[0_12px_24px_rgba(24,66,105,0.16)] dark:border-slate-700 dark:bg-slate-800/85 dark:hover:border-[#6a97c0] animate-on-scroll-scale stagger-${Math.min(index + 1, 6)} ${isVisible ? 'animate-visible' : ''}`}
+              className={`group rounded-[1.3rem] border border-[#dce8f5] bg-gradient-to-br ${signal.cardTone} p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#7aa8cf] hover:shadow-[0_12px_24px_rgba(24,66,105,0.16)] dark:border-slate-700 dark:hover:border-[#6a97c0] animate-on-scroll-scale stagger-${Math.min(index + 1, 6)} ${isVisible ? 'animate-visible' : ''}`}
             >
               <div className="mb-4 flex items-center justify-between">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#79a9cf] to-[#8fd0b9] text-white transition-transform duration-300 group-hover:scale-110 dark:from-[#4e78a5] dark:to-[#5ca38b]">
+                <div
+                  className={`inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br text-white transition-transform duration-300 group-hover:scale-110 ${signal.iconTone}`}
+                >
                   <Icon name={signal.icon} size={24} variant="solid" />
                 </div>
-                <span className="rounded-full bg-[#edf4ff] px-3 py-1 text-xs font-semibold text-[#35648c] dark:bg-slate-700 dark:text-[#9ec3e5]">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${signal.metricTone}`}
+                >
                   {signal.metric}
                 </span>
               </div>
