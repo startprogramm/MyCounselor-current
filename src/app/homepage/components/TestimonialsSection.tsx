@@ -57,6 +57,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
     },
   ];
 
+  // Auto-advance carousel
   const nextSlide = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % testimonials.length);
   }, [testimonials.length]);
@@ -69,6 +70,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
     setCurrentIndex(index);
   };
 
+  // Auto-play logic
   useEffect(() => {
     if (isPaused || !isVisible) return;
 
@@ -79,15 +81,18 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
   return (
     <section
       ref={sectionRef}
-      className={`relative overflow-hidden bg-muted/30 py-16 lg:py-24 dark:bg-slate-900/50 ${className}`}
+      className={`relative overflow-hidden bg-vivid-wash py-16 lg:py-24 dark:bg-slate-900 ${className}`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-campus-grid opacity-10" />
+      <div className="pointer-events-none absolute inset-0 bg-campus-grid opacity-15" />
+      <div className="pointer-events-none absolute -left-16 top-14 h-52 w-52 rounded-full bg-[#9bc9ff]/30 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-20 h-56 w-56 rounded-full bg-[#ffc79e]/28 blur-3xl" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
         <div
           className={`text-center mb-12 animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
         >
-          <div className="mb-4 inline-flex items-center space-x-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-medium text-primary dark:border-primary/25 dark:bg-primary/15">
+          <div className="mb-4 inline-flex items-center space-x-2 rounded-full border border-[#87bce8]/30 bg-white/80 px-4 py-2 text-sm font-semibold text-[#2f6ea8] shadow-sm backdrop-blur-sm dark:border-accent/20 dark:bg-accent/20 dark:text-[#ffd77a]">
             <Icon name="StarIcon" size={16} variant="solid" />
             <span>Success Stories</span>
           </div>
@@ -95,17 +100,19 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-bold text-foreground mb-4">
             Hear From Our Community
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
             Real experiences from students, counselors, and parents who have transformed their
             counseling journey with MyCounselor.
           </p>
         </div>
 
+        {/* Carousel Container */}
         <div
           className={`relative animate-on-scroll stagger-2 ${isVisible ? 'animate-visible' : ''}`}
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
         >
+          {/* Main Carousel */}
           <div className="overflow-hidden rounded-2xl">
             <div
               className="flex transition-transform duration-500 ease-out"
@@ -113,9 +120,9 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
             >
               {testimonials.map((testimonial) => (
                 <div key={testimonial.id} className="w-full flex-shrink-0 px-4">
-                  <div className="mx-auto max-w-4xl rounded-2xl border border-border bg-card p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800/60 md:p-8">
+                  <div className="mx-auto max-w-4xl rounded-[1.6rem] border border-white/85 bg-gradient-to-br from-[#ffffff] via-[#f8fbff] to-[#eef6ff] p-6 shadow-[0_18px_34px_rgba(52,100,154,0.16)] dark:border-slate-700 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 md:p-8">
                     <div className="grid gap-6 md:grid-cols-[220px,1fr] md:items-center">
-                      <div className="relative overflow-hidden rounded-xl border border-border dark:border-slate-700">
+                      <div className="relative overflow-hidden rounded-2xl">
                         <AppImage
                           src={testimonial.image}
                           alt={testimonial.alt}
@@ -123,9 +130,13 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
                           height={260}
                           className="h-[220px] w-full object-cover"
                         />
+                        <div className="absolute inset-x-3 bottom-3 rounded-full bg-gradient-to-r from-[#2f6ea8]/85 to-[#5aa28e]/85 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                          Trusted community story
+                        </div>
                       </div>
 
                       <div>
+                        {/* Stars */}
                         <div className="mb-4 flex items-center">
                           {[...Array(testimonial.rating)].map((_, index) => (
                             <Icon
@@ -133,23 +144,27 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
                               name="StarIcon"
                               size={20}
                               variant="solid"
-                              className="text-[#F9AB00]"
+                              className="text-[#f5ad4f]"
                             />
                           ))}
                         </div>
 
-                        <blockquote className="mb-5 text-lg leading-relaxed text-foreground md:text-xl">
+                        {/* Quote */}
+                        <blockquote className="mb-5 text-lg leading-relaxed text-[#234a6f] md:text-xl dark:text-slate-100">
                           &ldquo;{testimonial.content}&rdquo;
                         </blockquote>
 
+                        {/* Author */}
                         <div className="flex items-center justify-between gap-3">
                           <div>
-                            <div className="text-lg font-heading font-semibold text-foreground">
+                            <div className="text-lg font-heading font-semibold text-[#1e4265] dark:text-slate-100">
                               {testimonial.name}
                             </div>
-                            <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-300">
+                              {testimonial.role}
+                            </div>
                           </div>
-                          <span className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                          <span className="rounded-full border border-[#4f96da]/30 bg-[#4f96da]/10 px-3 py-1 text-xs font-semibold text-[#2f6ea8] dark:text-[#9ec9f0]">
                             Verified User
                           </span>
                         </div>
@@ -161,9 +176,10 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
             </div>
           </div>
 
+          {/* Navigation Arrows */}
           <button
             onClick={prevSlide}
-            className="absolute left-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 -translate-x-4 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-colors hover:bg-muted focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:-translate-x-12"
+            className="absolute left-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 -translate-x-4 items-center justify-center rounded-full border border-[#8ebde7]/30 bg-white shadow-lg transition-colors hover:bg-[#eaf5ff] focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:-translate-x-12"
             aria-label="Previous testimonial"
           >
             <Icon name="ChevronLeftIcon" size={24} variant="outline" className="text-foreground" />
@@ -171,12 +187,13 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
 
           <button
             onClick={nextSlide}
-            className="absolute right-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-colors hover:bg-muted focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:translate-x-12"
+            className="absolute right-0 top-1/2 hidden h-12 w-12 -translate-y-1/2 translate-x-4 items-center justify-center rounded-full border border-[#8ebde7]/30 bg-white shadow-lg transition-colors hover:bg-[#eaf5ff] focus-ring md:flex dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 lg:translate-x-12"
             aria-label="Next testimonial"
           >
             <Icon name="ChevronRightIcon" size={24} variant="outline" className="text-foreground" />
           </button>
 
+          {/* Dots Navigation */}
           <div className="flex items-center justify-center space-x-2 mt-8">
             {testimonials.map((_, index) => (
               <button
@@ -188,6 +205,7 @@ const TestimonialsSection = ({ className = '' }: TestimonialsSectionProps) => {
             ))}
           </div>
 
+          {/* Auto-play Indicator */}
           <div className="flex items-center justify-center mt-4">
             <button
               onClick={() => setIsPaused(!isPaused)}
