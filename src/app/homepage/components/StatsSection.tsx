@@ -93,8 +93,10 @@ const StatsSection = ({ className = '' }: StatsSectionProps) => {
   return (
     <section
       ref={sectionRef}
-      className={`py-16 lg:py-24 bg-gradient-to-br from-[#2D5A87] to-[#4A90B8] dark:from-slate-900 dark:to-[#2D5A87] text-white overflow-hidden ${className}`}
+      className={`relative overflow-hidden bg-gradient-to-br from-[#1D4F80] to-[#337AA4] py-16 text-white lg:py-24 dark:from-slate-900 dark:to-[#1D4F80] ${className}`}
     >
+      <div className="absolute inset-0 bg-campus-grid opacity-20" />
+
       {/* Decorative Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-float"></div>
@@ -119,7 +121,7 @@ const StatsSection = ({ className = '' }: StatsSectionProps) => {
           {stats.map((stat, index) => (
             <div
               key={stat.id}
-              className={`glass rounded-2xl p-6 text-center hover:bg-white/20 transition-all duration-300 group animate-on-scroll-scale stagger-${index + 1} ${isVisible ? 'animate-visible' : ''}`}
+              className={`rounded-2xl border border-white/20 bg-white/10 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:bg-white/20 group animate-on-scroll-scale stagger-${index + 1} ${isVisible ? 'animate-visible' : ''}`}
             >
               {/* Icon */}
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4 group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300">

@@ -9,6 +9,7 @@ interface TrustSignal {
   title: string;
   description: string;
   icon: string;
+  metric: string;
 }
 
 interface TrustSignalsSectionProps {
@@ -21,67 +22,88 @@ const TrustSignalsSection = ({ className = '' }: TrustSignalsSectionProps) => {
   const trustSignals: TrustSignal[] = [
     {
       id: 1,
-      title: "FERPA Compliant",
-      description: "Full compliance with Family Educational Rights and Privacy Act to protect student information.",
-      icon: "DocumentCheckIcon"
+      title: 'FERPA Alignment',
+      description: 'Student records and communications are structured around education privacy requirements.',
+      icon: 'DocumentCheckIcon',
+      metric: 'Policy-Audited'
     },
     {
       id: 2,
-      title: "SSL Encrypted",
-      description: "Bank-level encryption ensures all communications and data remain secure and private.",
-      icon: "LockClosedIcon"
+      title: 'Encrypted Communications',
+      description: 'Messages and appointment data are secured in transit and while stored on platform systems.',
+      icon: 'LockClosedIcon',
+      metric: 'TLS Protected'
     },
     {
       id: 3,
-      title: "Certified Platform",
-      description: "Endorsed by leading educational organizations and academic institutions.",
-      icon: "AcademicCapIcon"
+      title: 'Reliable Uptime',
+      description: 'Infrastructure monitoring and incident response keep student support workflows consistently available.',
+      icon: 'ShieldCheckIcon',
+      metric: '24/7 Coverage'
     },
     {
       id: 4,
-      title: "24/7 Monitoring",
-      description: "Continuous system monitoring and support to ensure platform reliability and security.",
-      icon: "ShieldCheckIcon"
+      title: 'Operational Review',
+      description: 'Regular platform checks and release controls maintain reliability across school-year demand spikes.',
+      icon: 'ClipboardDocumentCheckIcon',
+      metric: 'Routine QA'
     }
   ];
 
   return (
     <section
       ref={sectionRef}
-      className={`py-16 lg:py-20 bg-muted/30 dark:bg-slate-900/50 ${className}`}
+      className={`relative overflow-hidden bg-muted/30 py-16 lg:py-20 dark:bg-slate-900/50 ${className}`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div
-          className={`text-center mb-12 animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
-        >
-          <h2 className="text-2xl sm:text-3xl font-heading font-bold text-foreground mb-3">
-            Your Security & Privacy Matter
+      <div className="pointer-events-none absolute inset-0 bg-campus-grid opacity-20" />
+
+      <div className="relative mx-auto grid max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[1.05fr,1.45fr] lg:items-stretch lg:px-8">
+        <div className={`rounded-2xl border border-border bg-card p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800/60 animate-on-scroll-left ${isVisible ? 'animate-visible' : ''}`}>
+          <div className="mb-4 inline-flex items-center space-x-2 rounded-full bg-accent/10 px-4 py-2 text-sm font-medium text-accent dark:bg-accent/20">
+            <Icon name="ShieldCheckIcon" size={16} variant="solid" />
+            <span>Trust & Compliance</span>
+          </div>
+
+          <h2 className="mb-4 text-2xl font-heading font-bold text-foreground sm:text-3xl">
+            Built for Sensitive School Workflows
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            We maintain the highest standards of security and compliance to protect student information and ensure trust.
+          <p className="mb-6 text-muted-foreground">
+            School counseling depends on privacy, consistency, and clear accountability. The platform is designed around those expectations.
           </p>
+
+          <div className="space-y-3">
+            {[
+              'Role-aware access controls across student and counselor views',
+              'Security review checkpoints before production releases',
+              'Incident monitoring and response procedures'
+            ].map((point) => (
+              <div key={point} className="flex items-start gap-3 rounded-lg bg-muted/60 p-3 dark:bg-slate-700/35">
+                <Icon name="CheckCircleIcon" size={18} variant="solid" className="mt-0.5 text-secondary" />
+                <p className="text-sm text-foreground">{point}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Trust Signals Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid gap-5 sm:grid-cols-2">
           {trustSignals.map((signal, index) => (
             <div
               key={signal.id}
-              className={`bg-card dark:bg-slate-800/50 rounded-xl p-6 text-center shadow-sm hover:shadow-md transition-all duration-300 border border-border dark:border-slate-700 group animate-on-scroll-scale stagger-${index + 1} ${isVisible ? 'animate-visible' : ''}`}
+              className={`group rounded-2xl border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-brand dark:border-slate-700 dark:bg-slate-800/60 animate-on-scroll-scale stagger-${Math.min(index + 1, 6)} ${isVisible ? 'animate-visible' : ''}`}
             >
-              {/* Icon */}
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent/10 dark:bg-accent/20 mb-4 group-hover:scale-110 group-hover:bg-accent/20 transition-all duration-300">
-                <Icon name={signal.icon as any} size={28} variant="solid" className="text-accent" />
+              <div className="mb-4 flex items-center justify-between">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary text-white transition-transform duration-300 group-hover:scale-110">
+                  <Icon name={signal.icon as any} size={24} variant="solid" />
+                </div>
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary dark:bg-primary/20">
+                  {signal.metric}
+                </span>
               </div>
 
-              {/* Title */}
-              <h3 className="text-lg font-heading font-bold text-foreground mb-2 group-hover:text-accent transition-colors">
+              <h3 className="mb-2 text-lg font-heading font-semibold text-foreground">
                 {signal.title}
               </h3>
-
-              {/* Description */}
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {signal.description}
               </p>
             </div>
