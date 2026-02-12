@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -44,6 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editEmail, setEditEmail] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startEditing = () => {
     const parts = userName.split(' ');
@@ -62,6 +63,25 @@ const Sidebar: React.FC<SidebarProps> = ({
       });
       setIsEditing(false);
     }
+  };
+
+  const handleProfilePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > 5 * 1024 * 1024) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        updateUser({ profileImage: reader.result });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleLogout = () => {
@@ -149,6 +169,13 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* User Info */}
           <div className="border-b border-border">
             <div className="p-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleProfilePhotoChange}
+              />
               {isEditing && !isCollapsed ? (
                 <div className="space-y-2">
                   <div className="flex gap-2">
@@ -174,14 +201,23 @@ const Sidebar: React.FC<SidebarProps> = ({
                     placeholder="Email"
                     className="w-full px-2 py-1.5 rounded-md border border-input bg-card text-foreground text-sm"
                   />
+                  <button
+                    type="button"
+                    onClick={handleProfilePhotoClick}
+                    className="w-full px-2 py-1.5 rounded-md border border-border text-foreground text-xs font-medium hover:bg-muted transition-colors"
+                  >
+                    Upload Profile Photo
+                  </button>
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={saveEditing}
                       className="flex-1 px-2 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium"
                     >
                       Save
                     </button>
                     <button
+                      type="button"
                       onClick={() => setIsEditing(false)}
                       className="flex-1 px-2 py-1.5 rounded-md bg-muted text-muted-foreground text-xs font-medium"
                     >
@@ -191,23 +227,47 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               ) : (
                 <div className="flex items-start gap-3">
-                  {userAvatar ? (
-                    <img
-                      src={userAvatar}
-                      alt={userName}
-                      className="w-11 h-11 rounded-full object-cover flex-shrink-0 border border-border"
-                    />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center flex-shrink-0 border border-border">
-                      <span className="text-primary font-bold text-sm">
-                        {userName
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')
-                          .toUpperCase()}
-                      </span>
-                    </div>
-                  )}
+                  <div className="relative flex-shrink-0">
+                    {userAvatar ? (
+                      <img
+                        src={userAvatar}
+                        alt={userName}
+                        className="w-11 h-11 rounded-full object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center border border-border">
+                        <span className="text-primary font-bold text-sm">
+                          {userName
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')
+                            .toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    {!isCollapsed && (
+                      <button
+                        type="button"
+                        onClick={handleProfilePhotoClick}
+                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label="Upload profile photo"
+                      >
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 7h4l2-2h6l2 2h4v12H3V7zm9 3a4 4 0 100 8 4 4 0 000-8z"
+                          />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">

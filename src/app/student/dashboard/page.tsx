@@ -269,38 +269,52 @@ export default function StudentDashboardPage() {
                 />
                 <div className="p-4 space-y-4">
                   <div className="flex items-start gap-3">
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-base flex-shrink-0 ${index % 3 === 0 ? 'bg-primary/10 text-primary' : index % 3 === 1 ? 'bg-secondary/10 text-secondary' : 'bg-accent/10 text-accent'}`}
-                    >
-                      {c.firstName[0]}
-                      {c.lastName[0]}
+                    <div className="w-14 h-14 rounded-full border border-border bg-muted/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {c.profileImage ? (
+                        <img
+                          src={c.profileImage}
+                          alt={`${c.firstName} ${c.lastName}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span
+                          className={`font-bold text-base ${index % 3 === 0 ? 'text-primary' : index % 3 === 1 ? 'text-secondary' : 'text-accent'}`}
+                        >
+                          {c.firstName[0]}
+                          {c.lastName[0]}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground truncate">
-                        {c.firstName} {c.lastName}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {c.title || 'School Counselor'}
-                      </p>
-                    </div>
-                    <span className="text-[11px] font-medium text-muted-foreground mt-1">
-                      Assigned
-                    </span>
-                  </div>
+                    <div className="flex-1 min-w-0 rounded-xl border border-border bg-muted/20 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-foreground truncate">
+                            {c.firstName} {c.lastName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {c.title || 'School Counselor'}
+                          </p>
+                        </div>
+                        <span className="text-[11px] font-medium text-muted-foreground mt-0.5">
+                          Assigned
+                        </span>
+                      </div>
 
-                  <div className="space-y-1 text-sm">
-                    <p className="text-muted-foreground">
-                      Department:{' '}
-                      <span className="text-foreground font-medium capitalize">
-                        {c.department || 'General'}
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      School:{' '}
-                      <span className="text-foreground font-medium">
-                        {c.schoolName || user?.schoolName || 'Assigned School'}
-                      </span>
-                    </p>
+                      <div className="space-y-1 text-sm mt-2">
+                        <p className="text-muted-foreground">
+                          Department:{' '}
+                          <span className="text-foreground font-medium capitalize">
+                            {c.department || 'General'}
+                          </span>
+                        </p>
+                        <p className="text-muted-foreground">
+                          School:{' '}
+                          <span className="text-foreground font-medium">
+                            {c.schoolName || user?.schoolName || 'Assigned School'}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
