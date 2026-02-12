@@ -147,6 +147,24 @@ export default function StudentMessagesPage() {
     setSelectedConvId(0);
   }, [user?.schoolId, user?.id, getSchoolCounselors, user]);
 
+  // Refresh conversations periodically to catch new counselor messages
+  useEffect(() => {
+    if (!user?.schoolId || !user?.id) return;
+    const interval = setInterval(() => {
+      const storageKey = getStorageKey(user.id);
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        try {
+          const latest: Conversation[] = JSON.parse(stored);
+          setConversations(latest);
+        } catch {
+          // skip
+        }
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [user?.schoolId, user?.id]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedConvId, conversations]);
