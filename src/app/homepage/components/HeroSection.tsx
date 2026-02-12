@@ -33,28 +33,23 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
     },
   ];
 
-  const focusTags = ['College Prep', 'Career Planning', 'Mental Wellness', 'Goal Tracking'];
-
   return (
     <section
       ref={sectionRef}
       id="main-content"
-      className={`relative overflow-hidden bg-lively-wash py-8 sm:py-10 lg:py-12 ${className}`}
+      className={`relative overflow-hidden bg-sky-wash py-8 sm:py-10 lg:py-12 ${className}`}
     >
-      <div className="absolute inset-0 bg-campus-grid opacity-25" />
-      <div className="pointer-events-none absolute -left-20 top-12 h-56 w-56 rounded-full bg-[#8dd0ff]/45 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-24 h-60 w-60 rounded-full bg-[#ffbf8e]/35 blur-3xl" />
+      <div className="absolute inset-0 bg-campus-grid opacity-30" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#2d6fa4] via-[#4b93bf] to-[#5bc0a8] px-6 py-12 text-white shadow-panel sm:px-8 lg:px-12 lg:py-14">
-          <div className="absolute inset-0 bg-soft-radial opacity-65" />
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#325f89] via-[#4f83b0] to-[#6ca6cb] px-6 py-12 text-white shadow-panel sm:px-8 lg:px-12 lg:py-14">
+          <div className="absolute inset-0 bg-soft-radial opacity-55" />
 
           {/* Animated Background Decorations */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-white/15 blur-3xl animate-float" />
-            <div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-white/15 blur-3xl animate-float-delayed" />
-            <div className="absolute -top-20 left-1/3 h-[460px] w-[460px] rounded-full bg-[#ff8f73]/20 blur-3xl animate-drift" />
-            <div className="absolute -right-16 bottom-8 h-64 w-64 rounded-full bg-[#fcd47a]/20 blur-3xl animate-float-delayed" />
+            <div className="absolute top-20 left-10 h-72 w-72 rounded-full bg-white/10 blur-3xl animate-float" />
+            <div className="absolute bottom-20 right-10 h-96 w-96 rounded-full bg-white/10 blur-3xl animate-float-delayed" />
+            <div className="absolute -top-20 left-1/3 h-[460px] w-[460px] rounded-full bg-[#EA8600]/15 blur-3xl animate-drift" />
           </div>
 
           <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -64,7 +59,7 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
                 className={`inline-flex items-center space-x-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur-sm animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
               >
                 <Icon name="SparklesIcon" size={16} variant="solid" className="text-[#F4A261]" />
-                <span>Brighter counseling experience for every student</span>
+                <span>Compassion-first counseling platform</span>
               </div>
 
               {/* Heading */}
@@ -72,7 +67,7 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
                 className={`text-4xl sm:text-5xl lg:text-6xl font-heading font-bold leading-tight animate-on-scroll stagger-1 ${isVisible ? 'animate-visible' : ''}`}
               >
                 Guiding Every Student
-                <span className="block text-[#ffe09a]">With Genuine Care</span>
+                <span className="block text-[#F4A261]">With Genuine Care</span>
               </h1>
 
               {/* Description */}
@@ -83,26 +78,13 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
                 organized workflow for guidance, planning, and follow-up.
               </p>
 
-              <div
-                className={`flex flex-wrap gap-2 animate-on-scroll stagger-2 ${isVisible ? 'animate-visible' : ''}`}
-              >
-                {focusTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-white/30 bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur-sm"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
               {/* CTA Buttons */}
               <div
                 className={`flex flex-col sm:flex-row gap-4 animate-on-scroll stagger-3 ${isVisible ? 'animate-visible' : ''}`}
               >
                 <Link
                   href="/auth/signup/student"
-                  className="group inline-flex items-center justify-center space-x-2 rounded-full bg-gradient-to-r from-[#ffb15e] to-[#ff8f6b] px-8 py-4 text-base font-heading font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-[#ffab52] hover:to-[#ff835f] hover:shadow-xl focus-ring"
+                  className="group inline-flex items-center justify-center space-x-2 rounded-full bg-white px-8 py-4 text-base font-heading font-semibold text-[#325f89] shadow-lg transition-all duration-300 hover:scale-105 hover:bg-white/90 hover:shadow-xl focus-ring"
                 >
                   <Icon
                     name="AcademicCapIcon"
@@ -115,7 +97,7 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
 
                 <Link
                   href="/auth/signup/counselor"
-                  className="group inline-flex items-center justify-center space-x-2 rounded-full border border-white/35 bg-white/15 px-8 py-4 text-base font-heading font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/25 focus-ring"
+                  className="group inline-flex items-center justify-center space-x-2 rounded-full border border-white/35 bg-white/10 px-8 py-4 text-base font-heading font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20 focus-ring"
                 >
                   <Icon
                     name="UserGroupIcon"
@@ -136,7 +118,7 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
                     name="CheckCircleIcon"
                     size={20}
                     variant="solid"
-                    className="text-[#8ff4af]"
+                    className="text-[#2A9D8F]"
                   />
                   <span className="text-sm font-medium">FERPA Compliant</span>
                 </div>
@@ -145,7 +127,7 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
                     name="ShieldCheckIcon"
                     size={20}
                     variant="solid"
-                    className="text-[#8ff4af]"
+                    className="text-[#2A9D8F]"
                   />
                   <span className="text-sm font-medium">SSL Secured</span>
                 </div>
