@@ -1,0 +1,96 @@
+<svg width="1440" height="960" viewBox="0 0 1440 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .title { font: 700 32px 'Inter', Arial, sans-serif; fill: #202124; }
+      .h2 { font: 700 22px 'Inter', Arial, sans-serif; fill: #202124; }
+      .h3 { font: 700 16px 'Inter', Arial, sans-serif; fill: #202124; }
+      .body { font: 500 14px 'Source Sans 3', Arial, sans-serif; fill: #5F6368; }
+      .small { font: 600 12px 'Inter', Arial, sans-serif; fill: #5F6368; letter-spacing: 0.2px; }
+    </style>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <rect width="1440" height="960" fill="#F1F3F4"/>
+  <text x="44" y="58" class="title">Messages - Social-Style Concept</text>
+  <text x="44" y="84" class="body">Clear contact list, stronger chat identity, and simple input flow</text>
+
+  <!-- Main shell -->
+  <rect x="36" y="112" width="1368" height="812" rx="18" fill="#FFFFFF" stroke="#DADCE0" filter="url(#shadow)"/>
+
+  <!-- Left list panel -->
+  <rect x="36" y="112" width="388" height="812" rx="18" fill="#FFFFFF"/>
+  <rect x="423" y="112" width="1" height="812" fill="#DADCE0"/>
+  <text x="66" y="156" class="h2">Conversations</text>
+  <rect x="66" y="174" width="328" height="40" rx="10" fill="#F8FAFD" stroke="#DADCE0"/>
+  <text x="84" y="199" class="body">Search counselor...</text>
+
+  <!-- Conversation row 1 active -->
+  <rect x="52" y="234" width="356" height="92" rx="12" fill="#E8F0FE"/>
+  <circle cx="92" cy="280" r="22" fill="#D2E3FC"/>
+  <text x="92" y="286" text-anchor="middle" class="h3" fill="#1A73E8">MS</text>
+  <text x="126" y="270" class="h3">Madina Saparova</text>
+  <text x="126" y="288" class="small">School Counselor • General</text>
+  <text x="126" y="306" class="body">I reviewed your request, lets discuss options.</text>
+  <text x="358" y="270" class="small">2m</text>
+  <circle cx="376" cy="301" r="10" fill="#1A73E8"/>
+  <text x="376" y="305" text-anchor="middle" class="small" fill="#FFFFFF">2</text>
+
+  <!-- Conversation rows -->
+  <rect x="52" y="338" width="356" height="88" rx="12" fill="#FFFFFF" stroke="#DADCE0"/>
+  <circle cx="92" cy="382" r="22" fill="#E6F4EA"/>
+  <text x="92" y="388" text-anchor="middle" class="h3" fill="#1E8E3E">SK</text>
+  <text x="126" y="373" class="h3">Sherzod Karimov</text>
+  <text x="126" y="391" class="small">Career Counselor • College Prep</text>
+  <text x="126" y="409" class="body">Please send your preferred meeting time.</text>
+  <text x="358" y="373" class="small">28m</text>
+
+  <rect x="52" y="438" width="356" height="88" rx="12" fill="#FFFFFF" stroke="#DADCE0"/>
+  <circle cx="92" cy="482" r="22" fill="#FEEFC3"/>
+  <text x="92" y="488" text-anchor="middle" class="h3" fill="#EA8600">AD</text>
+  <text x="126" y="473" class="h3">Aziza Djalilova</text>
+  <text x="126" y="491" class="small">Academic Counselor • Support</text>
+  <text x="126" y="509" class="body">Great progress this week, keep going.</text>
+  <text x="358" y="473" class="small">1h</text>
+
+  <!-- Right chat panel -->
+  <rect x="424" y="112" width="980" height="812" rx="0" fill="#FFFFFF"/>
+  <rect x="448" y="136" width="932" height="78" rx="12" fill="#F8FAFD" stroke="#DADCE0"/>
+  <circle cx="488" cy="175" r="22" fill="#D2E3FC"/>
+  <text x="488" y="181" text-anchor="middle" class="h3" fill="#1A73E8">MS</text>
+  <text x="522" y="170" class="h3">Madina Saparova</text>
+  <text x="522" y="189" class="small">School Counselor • General • Online</text>
+  <rect x="1234" y="157" width="130" height="36" rx="10" fill="#FFFFFF" stroke="#DADCE0"/>
+  <text x="1258" y="180" class="h3" font-size="14">Book Meeting</text>
+
+  <!-- Chat body -->
+  <rect x="448" y="228" width="932" height="560" rx="12" fill="#FAFBFC" stroke="#EDF0F2"/>
+
+  <!-- incoming message -->
+  <circle cx="486" cy="286" r="15" fill="#D2E3FC"/>
+  <text x="486" y="291" text-anchor="middle" class="small" fill="#1A73E8">MS</text>
+  <rect x="510" y="264" width="408" height="74" rx="14" fill="#FFFFFF" stroke="#DADCE0"/>
+  <text x="528" y="288" class="body" fill="#202124">I reviewed your request. You have two options:</text>
+  <text x="528" y="309" class="body" fill="#202124">1) Study planning support, 2) Career pathway plan.</text>
+  <text x="528" y="329" class="small">Counselor • 9:41 AM</text>
+
+  <!-- outgoing message -->
+  <rect x="910" y="362" width="420" height="62" rx="14" fill="#1A73E8"/>
+  <text x="928" y="388" class="body" fill="#FFFFFF">I prefer the career pathway plan. Can we meet this week?</text>
+  <text x="928" y="409" class="small" fill="#D2E3FC">You • 9:43 AM</text>
+
+  <!-- incoming message -->
+  <circle cx="486" cy="472" r="15" fill="#D2E3FC"/>
+  <text x="486" y="477" text-anchor="middle" class="small" fill="#1A73E8">MS</text>
+  <rect x="510" y="450" width="376" height="62" rx="14" fill="#FFFFFF" stroke="#DADCE0"/>
+  <text x="528" y="476" class="body" fill="#202124">Perfect. Please open Meetings and pick any slot.</text>
+  <text x="528" y="498" class="small">Counselor • 9:44 AM</text>
+
+  <!-- input -->
+  <rect x="448" y="804" width="932" height="96" rx="12" fill="#FFFFFF" stroke="#DADCE0"/>
+  <rect x="470" y="830" width="792" height="44" rx="10" fill="#FFFFFF" stroke="#DADCE0"/>
+  <text x="486" y="858" class="body">Type your message...</text>
+  <rect x="1276" y="830" width="84" height="44" rx="10" fill="#1A73E8"/>
+  <text x="1304" y="858" class="h3" font-size="14" fill="#FFFFFF">Send</text>
+</svg>
