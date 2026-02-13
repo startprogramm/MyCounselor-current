@@ -6,6 +6,13 @@ import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
 import { useAuth, User } from '@/context/AuthContext';
 
+interface AttachedDocument {
+  name: string;
+  data: string;
+  type: string;
+  uploadedAt: string;
+}
+
 interface CounselingRequest {
   id: number;
   title: string;
@@ -16,6 +23,8 @@ interface CounselingRequest {
   category: string;
   studentName?: string;
   studentId?: string;
+  response?: string;
+  documents?: AttachedDocument[];
 }
 
 const STORAGE_KEY = 'mycounselor_student_requests';
@@ -319,6 +328,38 @@ export default function StudentRequestsPage() {
                       {getStatusLabel(request.status)}
                     </span>
                   </div>
+                  {/* Counselor Response */}
+                  {request.response && (
+                    <div className="mt-3 p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                      <p className="text-xs font-medium text-primary mb-1">Counselor Response:</p>
+                      <p className="text-sm text-foreground whitespace-pre-wrap">{request.response}</p>
+                    </div>
+                  )}
+
+                  {/* Attached Documents */}
+                  {request.documents && request.documents.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Attached Documents:</p>
+                      {request.documents.map((doc, idx) => (
+                        <a
+                          key={idx}
+                          href={doc.data}
+                          download={doc.name}
+                          className="flex items-center gap-3 p-2.5 bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                        >
+                          <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                            <p className="text-xs text-muted-foreground">{doc.uploadedAt}</p>
+                          </div>
+                          <span className="text-xs text-primary font-medium">Download</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between mt-3">
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">

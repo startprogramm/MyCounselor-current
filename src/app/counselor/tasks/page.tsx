@@ -1,8 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
+
+interface AttachedDocument {
+  name: string;
+  data: string;
+  type: string;
+  uploadedAt: string;
+}
 
 interface CounselingRequest {
   id: number;
@@ -14,6 +21,8 @@ interface CounselingRequest {
   category: string;
   studentName?: string;
   studentId?: string;
+  response?: string;
+  documents?: AttachedDocument[];
 }
 
 const STORAGE_KEY = 'mycounselor_student_requests';
@@ -22,6 +31,10 @@ export default function CounselorTasksPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [filter, setFilter] = useState('all');
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [responseText, setResponseText] = useState('');
+  const [pendingDocs, setPendingDocs] = useState<AttachedDocument[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
 
@@ -37,15 +50,66 @@ export default function CounselorTasksPage() {
     }
   }, [counselorName]);
 
-  const updateRequestStatus = (id: number, newStatus: CounselingRequest['status']) => {
-    // Update in full list (so students see changes)
+  const updateRequest = (id: number, updates: Partial<CounselingRequest>) => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const all: CounselingRequest[] = JSON.parse(stored);
-      const updated = all.map(r => r.id === id ? { ...r, status: newStatus } : r);
+      const updated = all.map(r => r.id === id ? { ...r, ...updates } : r);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       setRequests(updated.filter(r => r.counselor === counselorName));
     }
+  };
+
+  const handleExpand = (request: CounselingRequest) => {
+    if (expandedId === request.id) {
+      setExpandedId(null);
+      setResponseText('');
+      setPendingDocs([]);
+    } else {
+      setExpandedId(request.id);
+      setResponseText(request.response || '');
+      setPendingDocs(request.documents || []);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const doc: AttachedDocument = {
+          name: file.name,
+          data: reader.result as string,
+          type: file.type,
+          uploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        };
+        setPendingDocs(prev => [...prev, doc]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removePendingDoc = (index: number) => {
+    setPendingDocs(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveResponse = (id: number) => {
+    updateRequest(id, {
+      response: responseText.trim(),
+      documents: pendingDocs,
+    });
+    setExpandedId(null);
+    setResponseText('');
+    setPendingDocs([]);
+  };
+
+  const handleStatusChange = (id: number, newStatus: CounselingRequest['status']) => {
+    updateRequest(id, { status: newStatus });
   };
 
   const getStatusColor = (status: string) => {
@@ -103,29 +167,12 @@ export default function CounselorTasksPage() {
     }
   };
 
-  const getActionButton = (request: CounselingRequest) => {
-    switch (request.status) {
-      case 'pending':
-        return (
-          <Button size="sm" onClick={() => updateRequestStatus(request.id, 'in_progress')}>
-            Start
-          </Button>
-        );
-      case 'in_progress':
-        return (
-          <Button size="sm" onClick={() => updateRequestStatus(request.id, 'approved')}>
-            Approve
-          </Button>
-        );
-      case 'approved':
-        return (
-          <Button size="sm" variant="outline" onClick={() => updateRequestStatus(request.id, 'completed')}>
-            Complete
-          </Button>
-        );
-      default:
-        return null;
-    }
+  const getFileIcon = (type: string) => {
+    if (type.startsWith('image/')) return '🖼';
+    if (type.includes('pdf')) return '📄';
+    if (type.includes('word') || type.includes('document')) return '📝';
+    if (type.includes('sheet') || type.includes('excel')) return '📊';
+    return '📎';
   };
 
   const filteredRequests = filter === 'all'
@@ -181,8 +228,8 @@ export default function CounselorTasksPage() {
         {filteredRequests.map((request) => (
           <div
             key={request.id}
-            className={`bg-card rounded-xl border p-5 transition-all hover:shadow-md ${
-              request.status === 'completed' ? 'border-border opacity-60' : 'border-border hover:border-primary/20'
+            className={`bg-card rounded-xl border p-5 transition-all ${
+              request.status === 'completed' ? 'border-border opacity-60' : 'border-border hover:border-primary/20 hover:shadow-md'
             }`}
           >
             <div className="flex items-start gap-4">
@@ -212,6 +259,109 @@ export default function CounselorTasksPage() {
                     {getStatusLabel(request.status)}
                   </span>
                 </div>
+
+                {/* Saved response preview (when not expanded) */}
+                {request.response && expandedId !== request.id && (
+                  <div className="mt-3 p-3 bg-primary/5 border border-primary/10 rounded-lg">
+                    <p className="text-xs font-medium text-primary mb-1">Your Response:</p>
+                    <p className="text-sm text-foreground line-clamp-2">{request.response}</p>
+                    {request.documents && request.documents.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {request.documents.length} document{request.documents.length > 1 ? 's' : ''} attached
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Expanded response area */}
+                {expandedId === request.id && (
+                  <div className="mt-4 space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
+                    <label className="block text-sm font-medium text-foreground">
+                      Write your response
+                    </label>
+                    <textarea
+                      value={responseText}
+                      onChange={(e) => setResponseText(e.target.value)}
+                      placeholder="Write your response to this request..."
+                      rows={4}
+                      className="w-full px-4 py-3 rounded-lg border border-input bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y text-sm"
+                    />
+
+                    {/* Attached documents */}
+                    {pendingDocs.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-foreground">Attached Documents</p>
+                        {pendingDocs.map((doc, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-3 p-2.5 bg-card rounded-lg border border-border"
+                          >
+                            <span className="text-lg">{getFileIcon(doc.type)}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                              <p className="text-xs text-muted-foreground">{doc.uploadedAt}</p>
+                            </div>
+                            <button
+                              onClick={() => removePendingDoc(index)}
+                              className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between gap-3 pt-2">
+                      <div>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          onChange={handleFileUpload}
+                          className="hidden"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          </svg>
+                          Attach File
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => { setExpandedId(null); setResponseText(''); setPendingDocs([]); }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handleSaveResponse(request.id)}
+                          disabled={!responseText.trim() && pendingDocs.length === 0}
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                          Save Response
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
@@ -227,7 +377,35 @@ export default function CounselorTasksPage() {
                       {request.createdAt}
                     </span>
                   </div>
-                  {getActionButton(request)}
+                  <div className="flex items-center gap-2">
+                    {request.status !== 'completed' && expandedId !== request.id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleExpand(request)}
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        {request.response ? 'Edit Response' : 'Respond'}
+                      </Button>
+                    )}
+                    {request.status === 'pending' && (
+                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'in_progress')}>
+                        Start
+                      </Button>
+                    )}
+                    {request.status === 'in_progress' && (
+                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'approved')}>
+                        Approve
+                      </Button>
+                    )}
+                    {request.status === 'approved' && (
+                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(request.id, 'completed')}>
+                        Complete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

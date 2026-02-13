@@ -346,10 +346,10 @@ export default function StudentMessagesPage() {
                 <button
                   key={conversation.id}
                   onClick={() => handleSelectConversation(conversation.id)}
-                  className={`w-full p-3.5 text-left border-b border-border/60 transition-colors ${
+                  className={`w-full p-3.5 text-left border-b border-border/60 transition-all ${
                     selectedConversation?.id === conversation.id
-                      ? 'bg-primary/5'
-                      : 'hover:bg-muted/40'
+                      ? 'bg-primary/10 border-l-[3px] border-l-primary'
+                      : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
                   }`}
                 >
                   <div className="flex items-start gap-3">

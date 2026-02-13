@@ -92,13 +92,48 @@ export default function CounselorGuidancePage() {
     ? resources
     : resources.filter(r => r.status === filter);
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryStyle = (category: string) => {
     switch (category) {
-      case 'college': return 'bg-primary/10 text-primary';
-      case 'career': return 'bg-secondary/10 text-secondary';
-      case 'academic': return 'bg-accent/10 text-accent';
-      case 'wellness': return 'bg-success/10 text-success';
-      default: return 'bg-muted text-muted-foreground';
+      case 'college': return { accent: 'bg-primary', iconBox: 'bg-primary/10', iconColor: 'text-primary', label: 'College Prep' };
+      case 'career': return { accent: 'bg-secondary', iconBox: 'bg-secondary/10', iconColor: 'text-secondary', label: 'Career Planning' };
+      case 'academic': return { accent: 'bg-accent', iconBox: 'bg-accent/10', iconColor: 'text-accent', label: 'Academic Success' };
+      case 'wellness': return { accent: 'bg-success', iconBox: 'bg-success/10', iconColor: 'text-success', label: 'Wellness' };
+      default: return { accent: 'bg-muted', iconBox: 'bg-muted', iconColor: 'text-muted-foreground', label: 'General' };
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'college':
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l7.5-4.167M12 14v7" />
+          </svg>
+        );
+      case 'career':
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'academic':
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        );
+      case 'wellness':
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        );
+      default:
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        );
     }
   };
 
@@ -233,50 +268,62 @@ export default function CounselorGuidancePage() {
         ))}
       </div>
 
-      {/* Resources List */}
+      {/* Resources Grid */}
       {filteredResources.length > 0 ? (
-        <div className="space-y-4">
-          {filteredResources.map((resource) => (
-            <div
-              key={resource.id}
-              className="bg-card rounded-xl border border-border p-5 hover:border-primary/20 hover:shadow-sm transition-all"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getCategoryColor(resource.category)}`}>
-                      {resource.category}
-                    </span>
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      resource.status === 'published'
-                        ? 'bg-success/10 text-success'
-                        : 'bg-warning/10 text-warning'
-                    }`}>
-                      {resource.status}
-                    </span>
-                    {resource.type && (
-                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                        {resource.type}
-                      </span>
-                    )}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredResources.map((resource) => {
+            const styles = getCategoryStyle(resource.category);
+            return (
+              <Card key={resource.id} className="p-0 overflow-hidden h-full" hover>
+                <div className={`h-1 ${styles.accent}`} />
+                <div className="p-5 flex flex-col h-full">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${styles.iconBox} ${styles.iconColor}`}>
+                        {getCategoryIcon(resource.category)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className={`text-[11px] font-semibold uppercase tracking-wide ${styles.iconColor}`}>
+                          {styles.label}
+                        </p>
+                        <h3 className="font-semibold text-foreground mt-1 leading-snug line-clamp-2">
+                          {resource.title}
+                        </h3>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(resource.id)}
+                      className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors flex-shrink-0"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
-                  <h3 className="font-semibold text-foreground mb-1">{resource.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-3">{resource.description}</p>
-                  <div className="text-sm text-muted-foreground">
-                    Created: {resource.createdAt}
+
+                  <p className="text-sm text-muted-foreground mt-3 mb-4 line-clamp-3 leading-relaxed flex-1">
+                    {resource.description}
+                  </p>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-border/70">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        resource.status === 'published'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-warning/10 text-warning'
+                      }`}>
+                        {resource.status === 'published' ? 'Published' : 'Draft'}
+                      </span>
+                      {resource.type && (
+                        <span className="text-xs text-muted-foreground">{resource.type}</span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground">{resource.createdAt}</span>
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete(resource.id)}
-                  className="p-2 text-muted-foreground hover:text-destructive rounded-lg hover:bg-destructive/10 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 bg-card rounded-xl border border-border">
