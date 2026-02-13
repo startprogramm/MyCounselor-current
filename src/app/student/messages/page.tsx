@@ -377,7 +377,7 @@ export default function StudentMessagesPage() {
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {conversation.counselorTitle || 'School Counselor'} •{' '}
+                        {conversation.counselorTitle || 'School Counselor'} |{' '}
                         {conversation.department || 'General'}
                       </p>
                       <p
@@ -445,7 +445,7 @@ export default function StudentMessagesPage() {
                         {selectedConversation.counselor}
                       </h3>
                       <p className="text-xs text-muted-foreground truncate">
-                        {selectedConversation.counselorTitle || 'School Counselor'} •{' '}
+                        {selectedConversation.counselorTitle || 'School Counselor'} |{' '}
                         {selectedConversation.department || 'General'}
                       </p>
                     </div>
@@ -520,7 +520,7 @@ export default function StudentMessagesPage() {
                               isStudentMessage ? 'text-right' : 'text-left'
                             }`}
                           >
-                            {isStudentMessage ? 'You' : 'Counselor'} • {message.timestamp}
+                            {isStudentMessage ? 'You' : 'Counselor'} | {message.timestamp}
                           </p>
                         </div>
                       </div>

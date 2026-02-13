@@ -45,10 +45,34 @@ interface Goal {
 const GOALS_STORAGE_KEY = 'mycounselor_student_goals';
 
 const quickActions = [
-  { label: 'Book Meeting', href: '/student/meetings', icon: 'calendar', color: 'bg-primary' },
-  { label: 'New Request', href: '/student/requests', icon: 'document', color: 'bg-secondary' },
-  { label: 'View Resources', href: '/student/guidance', icon: 'book', color: 'bg-accent' },
-  { label: 'Send Message', href: '/student/messages', icon: 'chat', color: 'bg-warning' },
+  {
+    label: 'Book Meeting',
+    description: 'Schedule with counselor',
+    href: '/student/meetings',
+    icon: 'calendar',
+    color: 'bg-primary',
+  },
+  {
+    label: 'New Request',
+    description: 'Submit support need',
+    href: '/student/requests',
+    icon: 'document',
+    color: 'bg-secondary',
+  },
+  {
+    label: 'View Resources',
+    description: 'Guides and articles',
+    href: '/student/guidance',
+    icon: 'book',
+    color: 'bg-accent',
+  },
+  {
+    label: 'Send Message',
+    description: 'Start conversation',
+    href: '/student/messages',
+    icon: 'chat',
+    color: 'bg-warning',
+  },
 ];
 
 export default function StudentDashboardPage() {
@@ -213,7 +237,7 @@ export default function StudentDashboardPage() {
           </h1>
           {user?.schoolName && (
             <p className="text-sm text-muted-foreground mt-1">
-              {user.schoolName} {user.gradeLevel && `• Grade ${user.gradeLevel}`}
+              {user.schoolName} {user.gradeLevel && `| Grade ${user.gradeLevel}`}
             </p>
           )}
         </div>
@@ -224,14 +248,26 @@ export default function StudentDashboardPage() {
           <div className="p-6 sm:p-8">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0">
-                <svg className="w-6 h-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-6 h-6 text-warning"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Account Pending Approval</h2>
                 <p className="text-muted-foreground mt-1">
-                  Your account has been created successfully. A school counselor needs to approve your account before you can access all features. This usually happens within 1-2 school days.
+                  Your account has been created successfully. A school counselor needs to approve
+                  your account before you can access all features. This usually happens within 1-2
+                  school days.
                 </p>
                 <div className="mt-4 flex items-center gap-2 text-sm text-warning font-medium">
                   <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
@@ -267,7 +303,8 @@ export default function StudentDashboardPage() {
                           <span
                             className={`font-bold text-sm ${index % 3 === 0 ? 'text-primary' : index % 3 === 1 ? 'text-secondary' : 'text-accent'}`}
                           >
-                            {c.firstName[0]}{c.lastName[0]}
+                            {c.firstName[0]}
+                            {c.lastName[0]}
                           </span>
                         )}
                       </div>
@@ -306,7 +343,7 @@ export default function StudentDashboardPage() {
           </p>
           {user?.schoolName && (
             <p className="text-sm text-muted-foreground mt-1">
-              {user.schoolName} {user.gradeLevel && `• Grade ${user.gradeLevel}`}
+              {user.schoolName} {user.gradeLevel && `| Grade ${user.gradeLevel}`}
             </p>
           )}
         </div>
@@ -334,14 +371,19 @@ export default function StudentDashboardPage() {
           <Link
             key={action.label}
             href={action.href}
-            className="flex flex-col items-center gap-3 p-4 bg-card rounded-xl border border-border hover:border-primary/20 hover:shadow-md transition-all"
+            className="group p-4 bg-card rounded-xl border border-border hover:border-primary/20 hover:shadow-md transition-all"
           >
-            <div
-              className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center text-white`}
-            >
-              {getActionIcon(action.icon)}
+            <div className="flex items-start gap-3">
+              <div
+                className={`w-11 h-11 ${action.color} rounded-lg flex items-center justify-center text-white flex-shrink-0`}
+              >
+                {getActionIcon(action.icon)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">{action.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
+              </div>
             </div>
-            <span className="text-sm font-medium text-foreground">{action.label}</span>
           </Link>
         ))}
       </div>
@@ -352,9 +394,9 @@ export default function StudentDashboardPage() {
           title="Your School Counselor(s)"
           description="Your assigned support team, organized for quick contact."
         >
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4">
             {counselors.map((c, index) => (
-              <Card key={c.id} className="p-0 overflow-hidden" hover>
+              <Card key={c.id} className="p-0 overflow-hidden h-full" hover>
                 <div
                   className={`h-1 ${index % 3 === 0 ? 'bg-primary' : index % 3 === 1 ? 'bg-secondary' : 'bg-accent'}`}
                 />
@@ -417,7 +459,7 @@ export default function StudentDashboardPage() {
                     </Link>
                     <Link
                       href="/student/meetings"
-                      className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-border text-primary text-sm font-medium hover:bg-primary/5 transition-colors"
+                      className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-primary/30 bg-primary/5 text-primary text-sm font-medium hover:bg-primary/10 transition-colors"
                     >
                       Book Meeting
                     </Link>
