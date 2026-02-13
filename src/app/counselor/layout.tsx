@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 
@@ -106,12 +107,105 @@ const counselorNavItems: SidebarItem[] = [
 ];
 
 export default function CounselorLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading, getSchoolStudents } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+
+  const isApproved = user?.approved === true;
+
+  // Redirect unapproved counselors to dashboard only
+  useEffect(() => {
+    if (!isLoading && user && user.role === 'counselor' && !isApproved && pathname !== '/counselor/dashboard') {
+      router.push('/counselor/dashboard');
+    }
+  }, [isLoading, user, isApproved, pathname, router]);
+
+  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
+
+  // Compute badge counts
+  const computeBadges = useCallback(() => {
+    if (!user) return;
+
+    const counts: Record<string, number> = {};
+
+    // Pending tasks (pending status requests)
+    try {
+      const storedRequests = localStorage.getItem('mycounselor_student_requests');
+      if (storedRequests) {
+        const all = JSON.parse(storedRequests);
+        const pending = all.filter((r: { counselor: string; status: string }) => r.counselor === counselorName && r.status === 'pending');
+        if (pending.length > 0) counts['/counselor/tasks'] = pending.length;
+      }
+    } catch { /* skip */ }
+
+    // Unread messages
+    try {
+      if (user.schoolId) {
+        const students = getSchoolStudents(user.schoolId).filter(s => s.approved === true);
+        let totalUnread = 0;
+        students.forEach((student) => {
+          const stored = localStorage.getItem(`mycounselor_student_messages_${student.id}`);
+          if (stored) {
+            const convs = JSON.parse(stored);
+            const myConv = convs.find((c: { counselorId?: string; counselor?: string }) =>
+              c.counselorId === user.id || c.counselor === counselorName
+            );
+            if (myConv?.messages) {
+              const msgs = myConv.messages;
+              const lastCounselorIdx = [...msgs].reverse().findIndex((m: { sender: string }) => m.sender === 'counselor');
+              if (lastCounselorIdx === -1) {
+                totalUnread += msgs.filter((m: { sender: string }) => m.sender === 'student').length;
+              } else {
+                totalUnread += lastCounselorIdx;
+              }
+            }
+          }
+        });
+        if (totalUnread > 0) counts['/counselor/messages'] = totalUnread;
+      }
+    } catch { /* skip */ }
+
+    // Pending student approvals
+    try {
+      if (user.schoolId) {
+        const students = getSchoolStudents(user.schoolId);
+        const pendingStudents = students.filter(s => s.approved !== true).length;
+        if (pendingStudents > 0) counts['/counselor/students'] = pendingStudents;
+      }
+    } catch { /* skip */ }
+
+    setBadgeCounts(counts);
+  }, [user, counselorName, getSchoolStudents]);
+
+  useEffect(() => {
+    computeBadges();
+    const interval = setInterval(computeBadges, 5000);
+    return () => clearInterval(interval);
+  }, [computeBadges]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const visibleNavItems = isApproved
+    ? counselorNavItems.map(item => ({
+        ...item,
+        badge: badgeCounts[item.href] || undefined,
+      }))
+    : counselorNavItems.filter(item => item.href === '/counselor/dashboard');
 
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
-        items={counselorNavItems}
+        items={visibleNavItems}
         userType="counselor"
         userName={user ? `${user.firstName} ${user.lastName}` : 'Counselor'}
         userEmail={user?.email || 'counselor@school.edu'}

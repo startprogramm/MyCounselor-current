@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { StatsCard, ContentCard } from '@/components/ui/Card';
+import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, User } from '@/context/AuthContext';
 
 interface CounselingRequest {
   id: number;
@@ -28,9 +29,10 @@ interface Meeting {
 }
 
 export default function CounselorDashboardPage() {
-  const { user, getSchoolStudents } = useAuth();
+  const { user, getSchoolStudents, getSchoolCounselors, updateRegisteredUser, removeRegisteredUser } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingCounselors, setPendingCounselors] = useState<User[]>([]);
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
 
@@ -41,6 +43,12 @@ export default function CounselorDashboardPage() {
       const allStudents = getSchoolStudents(user.schoolId);
       setStudentCount(allStudents.length);
       setPendingApprovals(allStudents.filter(s => s.approved !== true).length);
+
+      // Load pending counselors (only if current user is approved)
+      if (user.approved === true) {
+        const allCounselors = getSchoolCounselors(user.schoolId);
+        setPendingCounselors(allCounselors.filter(c => c.approved !== true));
+      }
     }
 
     // Load requests assigned to this counselor
@@ -79,6 +87,77 @@ export default function CounselorDashboardPage() {
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
+  const handleApproveCounselor = (counselorId: string) => {
+    updateRegisteredUser(counselorId, { approved: true });
+    setPendingCounselors(prev => prev.filter(c => c.id !== counselorId));
+  };
+
+  const handleRejectCounselor = (counselorId: string) => {
+    removeRegisteredUser(counselorId);
+    setPendingCounselors(prev => prev.filter(c => c.id !== counselorId));
+  };
+
+  // Show pending approval view for unapproved counselors
+  if (user && user.approved !== true) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
+            Welcome, {user.firstName}!
+          </h1>
+          {user.schoolName && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {user.schoolName} {user.title && `\u2022 ${user.title}`}
+            </p>
+          )}
+        </div>
+
+        <Card className="border-warning/30 bg-warning/5">
+          <div className="p-6 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-warning/10 flex items-center justify-center">
+              <svg className="w-8 h-8 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-foreground mb-2">Account Pending Approval</h2>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Your counselor account is awaiting approval from an existing counselor at {user.schoolName || 'your school'}.
+              You&apos;ll get full access once approved.
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-warning">
+              <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+              Waiting for approval
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="p-6">
+            <h3 className="font-semibold text-foreground mb-2">Your Information</h3>
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Name:</span>
+                <span className="ml-2 text-foreground">{user.firstName} {user.lastName}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Email:</span>
+                <span className="ml-2 text-foreground">{user.email}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Title:</span>
+                <span className="ml-2 text-foreground">{user.title || 'Not set'}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Department:</span>
+                <span className="ml-2 text-foreground">{user.department || 'Not set'}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
@@ -100,6 +179,53 @@ export default function CounselorDashboardPage() {
           {today}
         </div>
       </div>
+
+      {/* Pending Counselor Approvals */}
+      {pendingCounselors.length > 0 && (
+        <ContentCard
+          title="Pending Counselor Approvals"
+          description="New counselors requesting access to your school"
+        >
+          <div className="space-y-3">
+            {pendingCounselors.map((counselor) => (
+              <div
+                key={counselor.id}
+                className="flex items-center justify-between p-4 bg-warning/5 border border-warning/20 rounded-lg"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary font-semibold text-sm">
+                    {counselor.firstName[0]}{counselor.lastName[0]}
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{counselor.firstName} {counselor.lastName}</p>
+                    <p className="text-sm text-muted-foreground">{counselor.email}</p>
+                    {counselor.title && (
+                      <p className="text-xs text-muted-foreground">{counselor.title}{counselor.department ? ` \u2022 ${counselor.department}` : ''}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleApproveCounselor(counselor.id)}
+                    className="bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRejectCounselor(counselor.id)}
+                    className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ContentCard>
+      )}
 
       {/* Stats */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

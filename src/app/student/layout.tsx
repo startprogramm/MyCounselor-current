@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
@@ -79,9 +79,10 @@ const studentNavItems: SidebarItem[] = [
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, getSchoolCounselors } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
 
   const isApproved = user?.approved === true;
 
@@ -98,6 +99,57 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     }
   }, [isLoading, user, isApproved, pathname, router]);
 
+  // Compute badge counts for nav items
+  const computeBadges = useCallback(() => {
+    if (!user || !isApproved) return;
+
+    const counts: Record<string, number> = {};
+    const studentName = `${user.firstName} ${user.lastName}`;
+
+    // Requests with counselor responses
+    try {
+      const storedRequests = localStorage.getItem('mycounselor_student_requests');
+      if (storedRequests) {
+        const all = JSON.parse(storedRequests);
+        const withResponses = all.filter((r: { studentName?: string; response?: string; status: string }) =>
+          r.studentName === studentName && r.response && r.status !== 'pending'
+        );
+        if (withResponses.length > 0) counts['/student/requests'] = withResponses.length;
+      }
+    } catch { /* skip */ }
+
+    // Unread messages from counselors
+    try {
+      if (user.schoolId) {
+        const stored = localStorage.getItem(`mycounselor_student_messages_${user.id}`);
+        if (stored) {
+          const convs = JSON.parse(stored);
+          let totalUnread = 0;
+          convs.forEach((conv: { messages?: { sender: string }[] }) => {
+            if (conv.messages) {
+              const msgs = conv.messages;
+              const lastStudentIdx = [...msgs].reverse().findIndex((m: { sender: string }) => m.sender === 'student');
+              if (lastStudentIdx === -1) {
+                totalUnread += msgs.filter((m: { sender: string }) => m.sender === 'counselor').length;
+              } else {
+                totalUnread += lastStudentIdx;
+              }
+            }
+          });
+          if (totalUnread > 0) counts['/student/messages'] = totalUnread;
+        }
+      }
+    } catch { /* skip */ }
+
+    setBadgeCounts(counts);
+  }, [user, isApproved]);
+
+  useEffect(() => {
+    computeBadges();
+    const interval = setInterval(computeBadges, 5000);
+    return () => clearInterval(interval);
+  }, [computeBadges]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -113,7 +165,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     return null;
   }
 
-  const visibleNavItems = isApproved ? studentNavItems : studentNavItems.filter(item => item.href === '/student/dashboard');
+  const visibleNavItems = isApproved
+    ? studentNavItems.map(item => ({
+        ...item,
+        badge: badgeCounts[item.href] || undefined,
+      }))
+    : studentNavItems.filter(item => item.href === '/student/dashboard');
 
   return (
     <div className="min-h-screen bg-background">
