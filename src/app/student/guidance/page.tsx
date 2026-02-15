@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const categories = [
   { id: 'all', label: 'All Resources' },
@@ -12,82 +14,15 @@ const categories = [
   { id: 'wellness', label: 'Wellness' },
 ];
 
-const resources = [
-  {
-    id: 1,
-    title: 'College Essay Writing Guide',
-    description:
-      'Learn how to craft compelling personal statements that stand out to admissions officers.',
-    category: 'college',
-    type: 'Guide',
-    readTime: '15 min',
-    featured: true,
-  },
-  {
-    id: 2,
-    title: 'SAT/ACT Preparation Strategies',
-    description:
-      'Proven techniques to improve your standardized test scores and build test-taking confidence.',
-    category: 'college',
-    type: 'Guide',
-    readTime: '20 min',
-    featured: true,
-  },
-  {
-    id: 3,
-    title: 'Career Interest Assessment',
-    description: 'Discover career paths that align with your interests, skills, and values.',
-    category: 'career',
-    type: 'Assessment',
-    readTime: '25 min',
-    featured: false,
-  },
-  {
-    id: 4,
-    title: 'Time Management for Students',
-    description: 'Effective strategies to balance academics, extracurriculars, and personal life.',
-    category: 'academic',
-    type: 'Article',
-    readTime: '10 min',
-    featured: false,
-  },
-  {
-    id: 5,
-    title: 'Managing Academic Stress',
-    description: 'Practical mindfulness and coping techniques for student well-being.',
-    category: 'wellness',
-    type: 'Article',
-    readTime: '12 min',
-    featured: false,
-  },
-  {
-    id: 6,
-    title: 'Scholarship Search Guide',
-    description: 'How to find and apply for scholarships to fund your education.',
-    category: 'college',
-    type: 'Guide',
-    readTime: '18 min',
-    featured: false,
-  },
-  {
-    id: 7,
-    title: 'Resume Building Workshop',
-    description: 'Create a standout resume for internships, jobs, and college applications.',
-    category: 'career',
-    type: 'Workshop',
-    readTime: '30 min',
-    featured: false,
-  },
-  {
-    id: 8,
-    title: 'Study Techniques That Work',
-    description: 'Evidence-based study methods to improve retention and academic performance.',
-    category: 'academic',
-    type: 'Article',
-    readTime: '15 min',
-    featured: false,
-  },
-];
+interface GuidanceResource {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  type: string;
+  readTime: string;
+  featured: boolean;
+}
 
 const categoryStyleMap: Record<
   string,
@@ -129,9 +64,57 @@ const categoryStyleMap: Record<
   },
 };
 
+function estimateReadTime(text: string) {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(3, Math.ceil(words / 180));
+  return `${minutes} min`;
+}
+
+function formatType(value: string) {
+  if (!value) return 'Guide';
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 export default function StudentGuidancePage() {
+  const { user } = useAuth();
+  const [resources, setResources] = useState<GuidanceResource[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (!user?.schoolId) return;
+
+    const loadResources = async () => {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('id,title,description,category,type,content,created_at')
+        .eq('school_id', user.schoolId)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false });
+
+      if (error || !data) {
+        setResources([]);
+        return;
+      }
+
+      const mapped = data.map((row, index) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        type: formatType(row.type),
+        readTime: estimateReadTime(row.content || row.description),
+        featured: index < 2,
+      }));
+
+      setResources(mapped);
+    };
+
+    loadResources();
+  }, [user?.schoolId]);
 
   const filteredResources = resources.filter((resource) => {
     const matchesCategory = selectedCategory === 'all' || resource.category === selectedCategory;
@@ -141,7 +124,7 @@ export default function StudentGuidancePage() {
     return matchesCategory && matchesSearch;
   });
 
-  const featuredResources = resources.filter((r) => r.featured);
+  const featuredResources = resources.filter((resource) => resource.featured);
 
   const getCategoryStyles = (category: string) => {
     return (
@@ -252,7 +235,7 @@ export default function StudentGuidancePage() {
       </div>
 
       {/* Featured Resources */}
-      {selectedCategory === 'all' && !searchQuery && (
+      {selectedCategory === 'all' && !searchQuery && featuredResources.length > 0 && (
         <ContentCard
           title="Featured Resources"
           description="Recommended starting points picked for students."

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface GuidanceResource {
   id: number;
@@ -16,9 +18,38 @@ interface GuidanceResource {
   createdAt: string;
 }
 
-const STORAGE_KEY = 'mycounselor_counselor_resources';
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function mapResource(row: {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  type: string;
+  content: string;
+  status: string;
+  created_at: string;
+}): GuidanceResource {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    category: row.category,
+    type: row.type,
+    content: row.content,
+    status: row.status as GuidanceResource['status'],
+    createdAt: formatDate(row.created_at),
+  };
+}
 
 export default function CounselorGuidancePage() {
+  const { user } = useAuth();
   const [resources, setResources] = useState<GuidanceResource[]>([]);
   const [showNewResource, setShowNewResource] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -31,22 +62,27 @@ export default function CounselorGuidancePage() {
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setResources(JSON.parse(stored));
-      } catch {
+    if (!user?.schoolId) return;
+
+    const loadResources = async () => {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .order('created_at', { ascending: false });
+
+      if (error || !data) {
         setResources([]);
+        return;
       }
-    }
-  }, []);
 
-  const saveResources = (updated: GuidanceResource[]) => {
-    setResources(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+      setResources(data.map(mapResource));
+    };
 
-  const handleSubmit = (status: 'published' | 'draft') => {
+    loadResources();
+  }, [user?.schoolId]);
+
+  const handleSubmit = async (status: 'published' | 'draft') => {
     const errors: Record<string, string> = {};
     if (!newTitle.trim()) errors.title = 'Title is required';
     if (!newCategory) errors.category = 'Category is required';
@@ -57,18 +93,26 @@ export default function CounselorGuidancePage() {
       return;
     }
 
-    const newResource: GuidanceResource = {
-      id: Date.now(),
-      title: newTitle.trim(),
-      description: newDescription.trim(),
-      category: newCategory,
-      type: newType || 'guide',
-      content: newContent.trim(),
-      status,
-      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    };
+    if (!user) return;
 
-    saveResources([newResource, ...resources]);
+    const { data, error } = await supabase
+      .from('resources')
+      .insert({
+        counselor_id: user.id,
+        school_id: user.schoolId,
+        title: newTitle.trim(),
+        description: newDescription.trim(),
+        category: newCategory,
+        type: newType || 'guide',
+        content: newContent.trim(),
+        status,
+      })
+      .select('*')
+      .single();
+
+    if (error || !data) return;
+
+    setResources((prev) => [mapResource(data), ...prev]);
     resetForm();
     setSuccessMessage(status === 'published' ? 'Resource published!' : 'Draft saved!');
     setTimeout(() => setSuccessMessage(''), 3000);
@@ -84,8 +128,10 @@ export default function CounselorGuidancePage() {
     setShowNewResource(false);
   };
 
-  const handleDelete = (id: number) => {
-    saveResources(resources.filter(r => r.id !== id));
+  const handleDelete = async (id: number) => {
+    const { error } = await supabase.from('resources').delete().eq('id', id);
+    if (error) return;
+    setResources((prev) => prev.filter((resource) => resource.id !== id));
   };
 
   const filteredResources = filter === 'all'

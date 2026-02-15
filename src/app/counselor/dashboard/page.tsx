@@ -6,6 +6,7 @@ import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface CounselingRequest {
   id: number;
@@ -28,51 +29,78 @@ interface Meeting {
   status: string;
 }
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export default function CounselorDashboardPage() {
-  const { user, getSchoolStudents, getSchoolCounselors, updateRegisteredUser, removeRegisteredUser } = useAuth();
+  const { user, getSchoolStudents, getSchoolCounselors, updateRegisteredUser, removeRegisteredUser, refreshSchoolUsers } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [pendingCounselors, setPendingCounselors] = useState<User[]>([]);
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
 
-  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
-
   useEffect(() => {
-    if (user?.schoolId) {
-      const allStudents = getSchoolStudents(user.schoolId);
-      setStudentCount(allStudents.length);
-      setPendingApprovals(allStudents.filter(s => s.approved !== true).length);
+    if (!user) return;
 
-      // Load pending counselors (only if current user is approved)
-      if (user.approved === true) {
-        const allCounselors = getSchoolCounselors(user.schoolId);
-        setPendingCounselors(allCounselors.filter(c => c.approved !== true));
-      }
-    }
+    const loadDashboardData = async () => {
+      if (user.schoolId) {
+        const allStudents = getSchoolStudents(user.schoolId);
+        setStudentCount(allStudents.length);
+        setPendingApprovals(allStudents.filter(s => s.approved !== true).length);
 
-    // Load requests assigned to this counselor
-    const storedRequests = localStorage.getItem('mycounselor_student_requests');
-    if (storedRequests) {
-      try {
-        const all: CounselingRequest[] = JSON.parse(storedRequests);
-        setRequests(all.filter(r => r.counselor === counselorName));
-      } catch {
-        setRequests([]);
+        if (user.approved === true) {
+          const allCounselors = getSchoolCounselors(user.schoolId);
+          setPendingCounselors(allCounselors.filter(c => c.approved !== true));
+        }
       }
-    }
 
-    // Load meetings for this counselor
-    const storedMeetings = localStorage.getItem('mycounselor_student_meetings');
-    if (storedMeetings) {
-      try {
-        const all: Meeting[] = JSON.parse(storedMeetings);
-        setMeetings(all.filter(m => m.counselor === counselorName));
-      } catch {
-        setMeetings([]);
-      }
-    }
-  }, [user?.schoolId, counselorName, getSchoolStudents]);
+      const [requestsResult, meetingsResult] = await Promise.all([
+        supabase
+          .from('requests')
+          .select('*')
+          .eq('counselor_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('meetings')
+          .select('*')
+          .eq('counselor_id', user.id)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      setRequests(
+        (requestsResult.data || []).map((row) => ({
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          status: row.status,
+          createdAt: formatDate(row.created_at),
+          counselor: row.counselor_name,
+          category: row.category,
+          studentName: row.student_name,
+        }))
+      );
+
+      setMeetings(
+        (meetingsResult.data || []).map((row) => ({
+          id: row.id,
+          title: row.title,
+          counselor: row.counselor_name,
+          date: row.date,
+          time: row.time,
+          type: row.type,
+          status: row.status,
+        }))
+      );
+    };
+
+    loadDashboardData();
+  }, [user, getSchoolStudents, getSchoolCounselors]);
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const completedRequests = requests.filter(r => r.status === 'completed');
@@ -87,13 +115,15 @@ export default function CounselorDashboardPage() {
 
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-  const handleApproveCounselor = (counselorId: string) => {
-    updateRegisteredUser(counselorId, { approved: true });
+  const handleApproveCounselor = async (counselorId: string) => {
+    await updateRegisteredUser(counselorId, { approved: true });
+    await refreshSchoolUsers();
     setPendingCounselors(prev => prev.filter(c => c.id !== counselorId));
   };
 
-  const handleRejectCounselor = (counselorId: string) => {
-    removeRegisteredUser(counselorId);
+  const handleRejectCounselor = async (counselorId: string) => {
+    await removeRegisteredUser(counselorId);
+    await refreshSchoolUsers();
     setPendingCounselors(prev => prev.filter(c => c.id !== counselorId));
   };
 

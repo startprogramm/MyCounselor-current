@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface Message {
   id: number;
@@ -14,6 +15,7 @@ interface Message {
 
 interface Conversation {
   id: number;
+  conversationKey: string;
   counselor: string;
   counselorId?: string;
   avatar: string;
@@ -28,34 +30,76 @@ interface Conversation {
   studentId?: string;
 }
 
-function getStorageKey(userId: string) {
-  return `mycounselor_student_messages_${userId}`;
+function buildConversationKey(studentId: string, counselorId: string) {
+  return [studentId, counselorId].sort().join('__');
+}
+
+function formatMessageTime(value: string) {
+  return new Date(value).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 function buildConversationsFromCounselors(
   counselors: User[],
-  existingConversations: Conversation[],
+  rows: {
+    id: number;
+    conversation_key: string;
+    sender_role: string;
+    content: string;
+    created_at: string;
+  }[],
   student: User
 ): Conversation[] {
+  const rowsByKey = new Map<string, typeof rows>();
+
+  rows.forEach((row) => {
+    const bucket = rowsByKey.get(row.conversation_key) || [];
+    bucket.push(row);
+    rowsByKey.set(row.conversation_key, bucket);
+  });
+
   return counselors.map((c, index) => {
+    const key = buildConversationKey(student.id, c.id);
+    const groupedRows = rowsByKey.get(key) || [];
+    const mappedMessages: Message[] = groupedRows.map((row) => ({
+      id: row.id,
+      sender: row.sender_role === 'counselor' ? 'counselor' : 'student',
+      content: row.content,
+      timestamp: formatMessageTime(row.created_at),
+    }));
+
+    const lastMessage = mappedMessages[mappedMessages.length - 1];
+
+    const lastStudentIdx = [...mappedMessages]
+      .reverse()
+      .findIndex((message) => message.sender === 'student');
+
+    let unread = 0;
+    if (lastStudentIdx === -1) {
+      unread = mappedMessages.filter((message) => message.sender === 'counselor').length;
+    } else {
+      unread = lastStudentIdx;
+    }
+
     const name = `${c.firstName} ${c.lastName}`;
     const initials = `${c.firstName[0]}${c.lastName[0]}`.toUpperCase();
-    const existing = existingConversations.find(
-      (conv) => conv.counselor === name || conv.counselorId === c.id
-    );
 
     return {
       id: index + 1,
+      conversationKey: key,
       counselor: name,
       counselorId: c.id,
       avatar: initials,
-      avatarImage: c.profileImage || existing?.avatarImage,
-      counselorTitle: c.title || existing?.counselorTitle || 'School Counselor',
-      department: c.department || existing?.department || 'General',
-      lastMessage: existing?.lastMessage || 'Start a conversation',
-      timestamp: existing?.timestamp || '',
-      unread: existing?.unread || 0,
-      messages: existing?.messages || [],
+      avatarImage: c.profileImage,
+      counselorTitle: c.title || 'School Counselor',
+      department: c.department || 'General',
+      lastMessage: lastMessage?.content || 'Start a conversation',
+      timestamp: lastMessage?.timestamp || '',
+      unread,
+      messages: mappedMessages,
       studentName: `${student.firstName} ${student.lastName}`,
       studentId: student.id,
     };
@@ -106,147 +150,113 @@ export default function StudentMessagesPage() {
     );
   });
 
-  useEffect(() => {
-    if (!user?.schoolId || !user?.id) return;
-
-    const counselors = getSchoolCounselors(user.schoolId);
-    const storageKey = getStorageKey(user.id);
-    const stored = localStorage.getItem(storageKey);
-    let existingConversations: Conversation[] = [];
-
-    if (stored) {
-      try {
-        existingConversations = JSON.parse(stored);
-      } catch {
-        existingConversations = [];
-      }
-    }
-
-    if (existingConversations.length === 0) {
-      const oldStored = localStorage.getItem('mycounselor_student_messages');
-      if (oldStored) {
-        try {
-          existingConversations = JSON.parse(oldStored);
-        } catch {
-          existingConversations = [];
-        }
-      }
-    }
-
-    if (counselors.length > 0) {
-      const merged = buildConversationsFromCounselors(counselors, existingConversations, user);
-      setConversations(merged);
-      setSelectedConvId((prev) =>
-        merged.some((conversation) => conversation.id === prev) ? prev : merged[0].id
-      );
-      localStorage.setItem(storageKey, JSON.stringify(merged));
+  const loadConversations = useCallback(async () => {
+    if (!user?.schoolId || !user?.id) {
+      setConversations([]);
+      setSelectedConvId(0);
       return;
     }
 
-    setConversations([]);
-    setSelectedConvId(0);
-  }, [user?.schoolId, user?.id, getSchoolCounselors, user]);
+    const counselors = getSchoolCounselors(user.schoolId).filter((c) => c.approved === true);
 
-  // Refresh conversations periodically to catch new counselor messages
+    if (counselors.length === 0) {
+      setConversations([]);
+      setSelectedConvId(0);
+      return;
+    }
+
+    const keys = counselors.map((c) => buildConversationKey(user.id, c.id));
+
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .in('conversation_key', keys)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      setConversations([]);
+      setSelectedConvId(0);
+      return;
+    }
+
+    const merged = buildConversationsFromCounselors(counselors, data || [], user);
+    setConversations(merged);
+    setSelectedConvId((prev) =>
+      merged.some((conversation) => conversation.id === prev) ? prev : merged[0]?.id || 0
+    );
+  }, [user, getSchoolCounselors]);
+
   useEffect(() => {
-    if (!user?.schoolId || !user?.id) return;
+    loadConversations();
+  }, [loadConversations]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
     const interval = setInterval(() => {
-      const storageKey = getStorageKey(user.id);
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        try {
-          const latest: Conversation[] = JSON.parse(stored);
-          setConversations(latest);
-        } catch {
-          // skip
-        }
-      }
-    }, 3000);
+      loadConversations();
+    }, 5000);
+
     return () => clearInterval(interval);
-  }, [user?.schoolId, user?.id]);
+  }, [user?.id, loadConversations]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedConvId, conversations]);
 
-  const saveConversations = (updated: Conversation[]) => {
-    setConversations(updated);
-    if (user?.id) {
-      localStorage.setItem(getStorageKey(user.id), JSON.stringify(updated));
-    }
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedConversation) return;
+    if (!newMessage.trim() || !selectedConversation || !user) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    const currentConvId = selectedConversation.id;
     const messageToSend = newMessage.trim();
 
-    const studentMessage: Message = {
+    const optimisticMessage: Message = {
       id: Date.now(),
       sender: 'student',
       content: messageToSend,
-      timestamp: timeStr,
+      timestamp: formatMessageTime(new Date().toISOString()),
     };
 
-    const updated = conversations.map((conversation) => {
-      if (conversation.id === currentConvId) {
-        return {
-          ...conversation,
-          messages: [...conversation.messages, studentMessage],
-          lastMessage: messageToSend,
-          timestamp: 'Just now',
-        };
-      }
-      return conversation;
-    });
+    setConversations((previous) =>
+      previous.map((conversation) => {
+        if (conversation.id === selectedConversation.id) {
+          return {
+            ...conversation,
+            messages: [...conversation.messages, optimisticMessage],
+            lastMessage: optimisticMessage.content,
+            timestamp: optimisticMessage.timestamp,
+          };
+        }
+        return conversation;
+      })
+    );
 
-    saveConversations(updated);
     setNewMessage('');
 
-    setTimeout(() => {
+    const { error } = await supabase.from('messages').insert({
+      conversation_key: selectedConversation.conversationKey,
+      sender_role: 'student',
+      sender_id: user.id,
+      content: messageToSend,
+    });
+
+    if (error) {
+      await loadConversations();
+      return;
+    }
+
+    setTimeout(async () => {
       const reply = generateAutoReply(messageToSend);
-      if (!reply) return;
+      if (!reply || !selectedConversation.counselorId) return;
 
-      const replyTime = new Date();
-      replyTime.setMinutes(replyTime.getMinutes() + 1);
-      const replyTimeStr = replyTime.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-
-      const replyMessage: Message = {
-        id: Date.now() + 1,
-        sender: 'counselor',
+      await supabase.from('messages').insert({
+        conversation_key: selectedConversation.conversationKey,
+        sender_role: 'counselor',
+        sender_id: selectedConversation.counselorId,
         content: reply,
-        timestamp: replyTimeStr,
-      };
-
-      setConversations((previous) => {
-        const withReply = previous.map((conversation) => {
-          if (conversation.id === currentConvId) {
-            return {
-              ...conversation,
-              messages: [...conversation.messages, replyMessage],
-              lastMessage: reply,
-              timestamp: 'Just now',
-            };
-          }
-          return conversation;
-        });
-        if (user?.id) {
-          localStorage.setItem(getStorageKey(user.id), JSON.stringify(withReply));
-        }
-        return withReply;
       });
+
+      await loadConversations();
     }, 1500);
   };
 
@@ -254,13 +264,14 @@ export default function StudentMessagesPage() {
     setSelectedConvId(conversationId);
     setShowMobileList(false);
 
-    const updated = conversations.map((conversation) => {
-      if (conversation.id === conversationId) {
-        return { ...conversation, unread: 0 };
-      }
-      return conversation;
-    });
-    saveConversations(updated);
+    setConversations((previous) =>
+      previous.map((conversation) => {
+        if (conversation.id === conversationId) {
+          return { ...conversation, unread: 0 };
+        }
+        return conversation;
+      })
+    );
   };
 
   return (

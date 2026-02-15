@@ -8,7 +8,7 @@ import Input from '@/components/ui/Input';
 import { useAuth, User } from '@/context/AuthContext';
 
 export default function CounselorStudentsPage() {
-  const { user, getSchoolStudents, updateRegisteredUser, removeRegisteredUser } = useAuth();
+  const { user, getSchoolStudents, updateRegisteredUser, removeRegisteredUser, refreshSchoolUsers } = useAuth();
   const [students, setStudents] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGrade, setFilterGrade] = useState('all');
@@ -40,13 +40,15 @@ export default function CounselorStudentsPage() {
 
   const uniqueGrades = [...new Set(students.map(s => s.gradeLevel).filter(Boolean))].sort();
 
-  const handleApprove = (studentId: string) => {
-    updateRegisteredUser(studentId, { approved: true });
+  const handleApprove = async (studentId: string) => {
+    await updateRegisteredUser(studentId, { approved: true });
+    await refreshSchoolUsers();
     loadStudents();
   };
 
-  const handleReject = (studentId: string) => {
-    removeRegisteredUser(studentId);
+  const handleReject = async (studentId: string) => {
+    await removeRegisteredUser(studentId);
+    await refreshSchoolUsers();
     loadStudents();
   };
 

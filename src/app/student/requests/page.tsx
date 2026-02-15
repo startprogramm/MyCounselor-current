@@ -5,6 +5,7 @@ import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
 import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface AttachedDocument {
   name: string;
@@ -27,7 +28,41 @@ interface CounselingRequest {
   documents?: AttachedDocument[];
 }
 
-const STORAGE_KEY = 'mycounselor_student_requests';
+function formatCreatedAt(value: string) {
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function mapRequest(row: {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  created_at: string;
+  counselor_name: string;
+  category: string;
+  student_name: string;
+  student_id: string;
+  response: string | null;
+  documents: unknown;
+}): CounselingRequest {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status as CounselingRequest['status'],
+    createdAt: formatCreatedAt(row.created_at),
+    counselor: row.counselor_name,
+    category: row.category,
+    studentName: row.student_name,
+    studentId: row.student_id,
+    response: row.response || undefined,
+    documents: Array.isArray(row.documents) ? (row.documents as AttachedDocument[]) : undefined,
+  };
+}
 
 export default function StudentRequestsPage() {
   const { user, getSchoolCounselors } = useAuth();
@@ -41,17 +76,26 @@ export default function StudentRequestsPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Load requests from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setRequests(JSON.parse(stored));
-      } catch {
+    if (!user?.id) return;
+
+    const loadRequests = async () => {
+      const { data, error } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('student_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !data) {
         setRequests([]);
+        return;
       }
-    }
-  }, []);
+
+      setRequests(data.map(mapRequest));
+    };
+
+    loadRequests();
+  }, [user?.id]);
 
   // Load school counselors
   useEffect(() => {
@@ -60,13 +104,7 @@ export default function StudentRequestsPage() {
     }
   }, [user?.schoolId, getSchoolCounselors]);
 
-  // Save to localStorage whenever requests change
-  const saveRequests = (updated: CounselingRequest[]) => {
-    setRequests(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const errors: Record<string, string> = {};
@@ -79,23 +117,35 @@ export default function StudentRequestsPage() {
       return;
     }
 
-    const counselorNames = schoolCounselors.map(c => `${c.firstName} ${c.lastName}`);
-    const newRequest: CounselingRequest = {
-      id: Date.now(),
-      title: newTitle.trim(),
-      description: newDescription.trim(),
-      status: 'pending',
-      createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      counselor: counselorNames.length > 0
-        ? counselorNames[Math.floor(Math.random() * counselorNames.length)]
-        : 'Unassigned',
-      category: newCategory,
-      studentName: user ? `${user.firstName} ${user.lastName}` : undefined,
-      studentId: user?.id,
-    };
+    if (!user) return;
 
-    const updated = [newRequest, ...requests];
-    saveRequests(updated);
+    const availableCounselors = schoolCounselors.filter((c) => c.approved === true);
+    const assignedCounselor =
+      availableCounselors.length > 0
+        ? availableCounselors[Math.floor(Math.random() * availableCounselors.length)]
+        : null;
+
+    const { data, error } = await supabase
+      .from('requests')
+      .insert({
+        title: newTitle.trim(),
+        description: newDescription.trim(),
+        status: 'pending',
+        category: newCategory,
+        counselor_name: assignedCounselor
+          ? `${assignedCounselor.firstName} ${assignedCounselor.lastName}`
+          : 'Unassigned',
+        counselor_id: assignedCounselor?.id || null,
+        student_name: `${user.firstName} ${user.lastName}`,
+        student_id: user.id,
+        school_id: user.schoolId,
+      })
+      .select('*')
+      .single();
+
+    if (error || !data) return;
+
+    setRequests((prev) => [mapRequest(data), ...prev]);
 
     // Reset form
     setNewTitle('');
@@ -107,9 +157,17 @@ export default function StudentRequestsPage() {
     setTimeout(() => setSuccessMessage(''), 4000);
   };
 
-  const handleDelete = (id: number) => {
-    const updated = requests.filter(r => r.id !== id);
-    saveRequests(updated);
+  const handleDelete = async (id: number) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('requests')
+      .delete()
+      .eq('id', id)
+      .eq('student_id', user.id);
+
+    if (error) return;
+    setRequests((prev) => prev.filter((request) => request.id !== id));
   };
 
   const getStatusColor = (status: string) => {

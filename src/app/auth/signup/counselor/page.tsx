@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function CounselorSignupPage() {
   const router = useRouter();
-  const { register, getSchoolCounselors } = useAuth();
+  const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -79,29 +79,25 @@ export default function CounselorSignupPage() {
     if (!validateStep2()) return;
 
     setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Get school name for display
     const school = getSchoolById(formData.school);
 
-    // First counselor at a school is auto-approved, others need approval
-    const existingCounselors = getSchoolCounselors(formData.school).filter(c => c.approved === true);
-    const isFirstCounselor = existingCounselors.length === 0;
-
-    // Save user data
-    register({
-      id: `counselor_${Date.now()}`,
+    const { error } = await register({
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
+      password: formData.password,
       role: 'counselor',
       schoolId: formData.school,
       schoolName: school?.name || '',
       title: formData.title,
       department: formData.department,
-      approved: isFirstCounselor,
     });
+
+    if (error) {
+      setErrors((prev) => ({ ...prev, email: error }));
+      setIsLoading(false);
+      return;
+    }
 
     router.push('/counselor/dashboard');
   };

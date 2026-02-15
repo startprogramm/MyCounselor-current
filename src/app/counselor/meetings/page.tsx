@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface Meeting {
   id: number;
@@ -15,35 +16,56 @@ interface Meeting {
   status: string;
 }
 
-const STORAGE_KEY = 'mycounselor_student_meetings';
+function mapMeeting(row: {
+  id: number;
+  title: string;
+  counselor_name: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+}): Meeting {
+  return {
+    id: row.id,
+    title: row.title,
+    counselor: row.counselor_name,
+    date: row.date,
+    time: row.time,
+    type: row.type,
+    status: row.status,
+  };
+}
 
 export default function CounselorMeetingsPage() {
   const { user } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [view, setView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
 
-  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
-
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const all: Meeting[] = JSON.parse(stored);
-        setMeetings(all.filter(m => m.counselor === counselorName));
-      } catch {
-        setMeetings([]);
-      }
-    }
-  }, [counselorName]);
+    if (!user?.id) return;
 
-  const updateMeetingStatus = (id: number, newStatus: string) => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const all: Meeting[] = JSON.parse(stored);
-      const updated = all.map(m => m.id === id ? { ...m, status: newStatus } : m);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      setMeetings(updated.filter(m => m.counselor === counselorName));
-    }
+    const loadMeetings = async () => {
+      const { data, error } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('counselor_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !data) {
+        setMeetings([]);
+        return;
+      }
+
+      setMeetings(data.map(mapMeeting));
+    };
+
+    loadMeetings();
+  }, [user?.id]);
+
+  const updateMeetingStatus = async (id: number, newStatus: string) => {
+    const { error } = await supabase.from('meetings').update({ status: newStatus }).eq('id', id);
+    if (error) return;
+    setMeetings((prev) => prev.map((meeting) => (meeting.id === id ? { ...meeting, status: newStatus } : meeting)));
   };
 
   const upcomingMeetings = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');

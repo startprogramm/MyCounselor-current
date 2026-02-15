@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const counselorNavItems: SidebarItem[] = [
   {
@@ -121,50 +122,48 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     }
   }, [isLoading, user, isApproved, pathname, router]);
 
-  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
-
   // Compute badge counts
-  const computeBadges = useCallback(() => {
+  const computeBadges = useCallback(async () => {
     if (!user) return;
 
     const counts: Record<string, number> = {};
 
-    // Pending tasks (pending status requests)
-    try {
-      const storedRequests = localStorage.getItem('mycounselor_student_requests');
-      if (storedRequests) {
-        const all = JSON.parse(storedRequests);
-        const pending = all.filter((r: { counselor: string; status: string }) => r.counselor === counselorName && r.status === 'pending');
-        if (pending.length > 0) counts['/counselor/tasks'] = pending.length;
-      }
-    } catch { /* skip */ }
+    const { data: pendingTasks } = await supabase
+      .from('requests')
+      .select('id')
+      .eq('counselor_id', user.id)
+      .eq('status', 'pending');
 
-    // Unread messages
-    try {
-      if (user.schoolId) {
-        const students = getSchoolStudents(user.schoolId).filter(s => s.approved === true);
+    if ((pendingTasks || []).length > 0) {
+      counts['/counselor/tasks'] = pendingTasks!.length;
+    }
+
+    if (user.schoolId) {
+      const students = getSchoolStudents(user.schoolId).filter((student) => student.approved === true);
+      if (students.length > 0) {
+        const keys = students.map((student) => [student.id, user.id].sort().join('__'));
+        const { data: messageRows } = await supabase
+          .from('messages')
+          .select('conversation_key,sender_role')
+          .in('conversation_key', keys)
+          .order('created_at', { ascending: true });
+
         let totalUnread = 0;
-        students.forEach((student) => {
-          const stored = localStorage.getItem(`mycounselor_student_messages_${student.id}`);
-          if (stored) {
-            const convs = JSON.parse(stored);
-            const myConv = convs.find((c: { counselorId?: string; counselor?: string }) =>
-              c.counselorId === user.id || c.counselor === counselorName
-            );
-            if (myConv?.messages) {
-              const msgs = myConv.messages;
-              const lastCounselorIdx = [...msgs].reverse().findIndex((m: { sender: string }) => m.sender === 'counselor');
-              if (lastCounselorIdx === -1) {
-                totalUnread += msgs.filter((m: { sender: string }) => m.sender === 'student').length;
-              } else {
-                totalUnread += lastCounselorIdx;
-              }
-            }
+        keys.forEach((key) => {
+          const rows = (messageRows || []).filter((row) => row.conversation_key === key);
+          const lastCounselorIdx = [...rows]
+            .reverse()
+            .findIndex((row) => row.sender_role === 'counselor');
+          if (lastCounselorIdx === -1) {
+            totalUnread += rows.filter((row) => row.sender_role === 'student').length;
+          } else {
+            totalUnread += lastCounselorIdx;
           }
         });
+
         if (totalUnread > 0) counts['/counselor/messages'] = totalUnread;
       }
-    } catch { /* skip */ }
+    }
 
     // Pending student approvals
     try {
@@ -176,11 +175,13 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     } catch { /* skip */ }
 
     setBadgeCounts(counts);
-  }, [user, counselorName, getSchoolStudents]);
+  }, [user, getSchoolStudents]);
 
   useEffect(() => {
     computeBadges();
-    const interval = setInterval(computeBadges, 5000);
+    const interval = setInterval(() => {
+      computeBadges();
+    }, 5000);
     return () => clearInterval(interval);
   }, [computeBadges]);
 

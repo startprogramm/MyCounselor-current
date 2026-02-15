@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface Message {
   id: number;
@@ -12,32 +13,25 @@ interface Message {
   timestamp: string;
 }
 
-interface Conversation {
-  id: number;
-  counselor: string;
-  counselorId?: string;
-  avatar: string;
-  avatarImage?: string;
-  counselorTitle?: string;
-  department?: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: number;
-  messages: Message[];
-  studentName?: string;
-  studentId?: string;
-}
-
 interface StudentChat {
   student: User;
+  conversationKey: string;
   lastMessage: string;
   timestamp: string;
   unread: number;
   messages: Message[];
 }
 
-function getStudentStorageKey(studentId: string) {
-  return `mycounselor_student_messages_${studentId}`;
+function buildConversationKey(studentId: string, counselorId: string) {
+  return [studentId, counselorId].sort().join('__');
+}
+
+function formatMessageTime(value: string) {
+  return new Date(value).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 export default function CounselorMessagesPage() {
@@ -49,60 +43,81 @@ export default function CounselorMessagesPage() {
   const [showMobileList, setShowMobileList] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
+  const loadStudentChats = useCallback(async () => {
+    if (!user?.schoolId || !user?.id) {
+      setStudentChats([]);
+      return;
+    }
 
-  const loadStudentChats = useCallback(() => {
-    if (!user?.schoolId || !user?.id) return;
+    const schoolStudents = getSchoolStudents(user.schoolId).filter((student) => student.approved === true);
 
-    const schoolStudents = getSchoolStudents(user.schoolId).filter(s => s.approved === true);
-    const chats: StudentChat[] = schoolStudents.map((student) => {
-      const storageKey = getStudentStorageKey(student.id);
-      const stored = localStorage.getItem(storageKey);
-      let messages: Message[] = [];
-      let lastMessage = 'No messages yet';
-      let timestamp = '';
-      let unread = 0;
+    if (schoolStudents.length === 0) {
+      setStudentChats([]);
+      return;
+    }
 
-      if (stored) {
-        try {
-          const studentConvs: Conversation[] = JSON.parse(stored);
-          const myConv = studentConvs.find(
-            (c) => c.counselorId === user.id || c.counselor === counselorName
-          );
-          if (myConv) {
-            messages = myConv.messages || [];
-            lastMessage = myConv.lastMessage || 'No messages yet';
-            timestamp = myConv.timestamp || '';
-            // Count unread messages from student (messages after last counselor message)
-            const lastCounselorIdx = [...messages]
-              .reverse()
-              .findIndex((m) => m.sender === 'counselor');
-            if (lastCounselorIdx === -1) {
-              unread = messages.filter((m) => m.sender === 'student').length;
-            } else {
-              unread = lastCounselorIdx;
-            }
-          }
-        } catch {
-          // skip
-        }
-      }
+    const keys = schoolStudents.map((student) => buildConversationKey(student.id, user.id));
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .in('conversation_key', keys)
+      .order('created_at', { ascending: true });
 
-      return { student, messages, lastMessage, timestamp, unread };
+    if (error) {
+      setStudentChats([]);
+      return;
+    }
+
+    const grouped = new Map<string, typeof data>();
+    (data || []).forEach((row) => {
+      const bucket = grouped.get(row.conversation_key) || [];
+      bucket.push(row);
+      grouped.set(row.conversation_key, bucket);
     });
 
-    // Sort: conversations with messages first (most recent first), then students without messages
+    const chats: StudentChat[] = schoolStudents.map((student) => {
+      const conversationKey = buildConversationKey(student.id, user.id);
+      const rows = grouped.get(conversationKey) || [];
+      const messages: Message[] = rows.map((row) => ({
+        id: row.id,
+        sender: row.sender_role === 'counselor' ? 'counselor' : 'student',
+        content: row.content,
+        timestamp: formatMessageTime(row.created_at),
+      }));
+
+      const lastMessage = messages[messages.length - 1];
+      const lastCounselorIdx = [...messages]
+        .reverse()
+        .findIndex((message) => message.sender === 'counselor');
+
+      let unread = 0;
+      if (lastCounselorIdx === -1) {
+        unread = messages.filter((message) => message.sender === 'student').length;
+      } else {
+        unread = lastCounselorIdx;
+      }
+
+      return {
+        student,
+        conversationKey,
+        messages,
+        unread,
+        lastMessage: lastMessage?.content || 'No messages yet',
+        timestamp: lastMessage?.timestamp || '',
+      };
+    });
+
     chats.sort((a, b) => {
       const aHasMessages = a.messages.length > 0;
       const bHasMessages = b.messages.length > 0;
+
       if (aHasMessages && !bHasMessages) return -1;
       if (!aHasMessages && bHasMessages) return 1;
+
       if (aHasMessages && bHasMessages) {
-        // Sort by most recent message timestamp
-        const aLastTime = a.messages[a.messages.length - 1]?.id || 0;
-        const bLastTime = b.messages[b.messages.length - 1]?.id || 0;
-        return bLastTime - aLastTime;
+        return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
       }
+
       return a.student.firstName.localeCompare(b.student.firstName);
     });
 
@@ -111,17 +126,17 @@ export default function CounselorMessagesPage() {
     if (!selectedStudentId && chats.length > 0) {
       setSelectedStudentId(chats[0].student.id);
     }
-  }, [user?.schoolId, user?.id, counselorName, getSchoolStudents, selectedStudentId]);
+  }, [user, getSchoolStudents, selectedStudentId]);
 
   useEffect(() => {
     loadStudentChats();
   }, [loadStudentChats]);
 
-  // Refresh conversations periodically to catch new student messages
   useEffect(() => {
     const interval = setInterval(() => {
       loadStudentChats();
-    }, 3000);
+    }, 5000);
+
     return () => clearInterval(interval);
   }, [loadStudentChats]);
 
@@ -129,7 +144,7 @@ export default function CounselorMessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedStudentId, studentChats]);
 
-  const selectedChat = studentChats.find((c) => c.student.id === selectedStudentId);
+  const selectedChat = studentChats.find((chat) => chat.student.id === selectedStudentId);
 
   const filteredChats = studentChats.filter((chat) => {
     const query = searchQuery.trim().toLowerCase();
@@ -142,100 +157,65 @@ export default function CounselorMessagesPage() {
     );
   });
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || !user) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    const messageToSend = newMessage.trim();
 
-    const counselorMsg: Message = {
+    const optimisticMessage: Message = {
       id: Date.now(),
       sender: 'counselor',
-      content: newMessage.trim(),
-      timestamp: timeStr,
+      content: messageToSend,
+      timestamp: formatMessageTime(new Date().toISOString()),
     };
 
-    const storageKey = getStudentStorageKey(selectedChat.student.id);
-    const stored = localStorage.getItem(storageKey);
-
-    if (stored) {
-      try {
-        const studentConvs: Conversation[] = JSON.parse(stored);
-        const hasMyConv = studentConvs.some(
-          (c) => c.counselorId === user.id || c.counselor === counselorName
-        );
-
-        let updated: Conversation[];
-        if (hasMyConv) {
-          updated = studentConvs.map((conv) => {
-            if (conv.counselorId === user.id || conv.counselor === counselorName) {
-              return {
-                ...conv,
-                messages: [...conv.messages, counselorMsg],
-                lastMessage: newMessage.trim(),
-                timestamp: 'Just now',
-              };
-            }
-            return conv;
-          });
-        } else {
-          // Add a new conversation entry for this counselor
-          const newConv: Conversation = {
-            id: studentConvs.length + 1,
-            counselor: counselorName,
-            counselorId: user.id,
-            avatar: `${user.firstName[0]}${user.lastName[0]}`.toUpperCase(),
-            avatarImage: user.profileImage,
-            counselorTitle: user.title || 'School Counselor',
-            department: user.department || 'General',
-            lastMessage: newMessage.trim(),
-            timestamp: 'Just now',
-            unread: 1,
-            messages: [counselorMsg],
-            studentName: `${selectedChat.student.firstName} ${selectedChat.student.lastName}`,
-            studentId: selectedChat.student.id,
+    setStudentChats((previous) =>
+      previous.map((chat) => {
+        if (chat.student.id === selectedChat.student.id) {
+          return {
+            ...chat,
+            messages: [...chat.messages, optimisticMessage],
+            lastMessage: optimisticMessage.content,
+            timestamp: optimisticMessage.timestamp,
           };
-          updated = [...studentConvs, newConv];
         }
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-      } catch {
-        // skip
-      }
-    } else {
-      // No conversation store at all for this student — create one
-      const newConv: Conversation = {
-        id: 1,
-        counselor: counselorName,
-        counselorId: user.id,
-        avatar: `${user.firstName[0]}${user.lastName[0]}`.toUpperCase(),
-        avatarImage: user.profileImage,
-        counselorTitle: user.title || 'School Counselor',
-        department: user.department || 'General',
-        lastMessage: newMessage.trim(),
-        timestamp: 'Just now',
-        unread: 1,
-        messages: [counselorMsg],
-        studentName: `${selectedChat.student.firstName} ${selectedChat.student.lastName}`,
-        studentId: selectedChat.student.id,
-      };
-      localStorage.setItem(storageKey, JSON.stringify([newConv]));
-    }
+        return chat;
+      })
+    );
 
     setNewMessage('');
-    loadStudentChats();
+
+    const { error } = await supabase.from('messages').insert({
+      conversation_key: selectedChat.conversationKey,
+      sender_role: 'counselor',
+      sender_id: user.id,
+      content: messageToSend,
+    });
+
+    if (error) {
+      await loadStudentChats();
+      return;
+    }
+
+    await loadStudentChats();
   };
 
   const handleSelectStudent = (studentId: string) => {
     setSelectedStudentId(studentId);
     setShowMobileList(false);
+
+    setStudentChats((previous) =>
+      previous.map((chat) => {
+        if (chat.student.id === studentId) {
+          return { ...chat, unread: 0 };
+        }
+        return chat;
+      })
+    );
   };
 
-  const totalUnread = studentChats.reduce((sum, c) => sum + c.unread, 0);
+  const totalUnread = studentChats.reduce((sum, chat) => sum + chat.unread, 0);
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
@@ -428,8 +408,7 @@ export default function CounselorMessagesPage() {
                         {selectedChat.student.firstName} {selectedChat.student.lastName}
                       </h3>
                       <p className="text-xs text-muted-foreground truncate">
-                        Grade {selectedChat.student.gradeLevel || 'N/A'} •{' '}
-                        {selectedChat.student.email}
+                        Grade {selectedChat.student.gradeLevel || 'N/A'} | {selectedChat.student.email}
                       </p>
                     </div>
                   </div>
@@ -462,8 +441,7 @@ export default function CounselorMessagesPage() {
                         </svg>
                         <p className="font-medium">No messages yet</p>
                         <p className="text-sm mt-1">
-                          Send a message to start the conversation with{' '}
-                          {selectedChat.student.firstName}
+                          Send a message to start the conversation with {selectedChat.student.firstName}
                         </p>
                       </div>
                     </div>
@@ -508,7 +486,7 @@ export default function CounselorMessagesPage() {
                               isCounselorMessage ? 'text-right' : 'text-left'
                             }`}
                           >
-                            {isCounselorMessage ? 'You' : selectedChat.student.firstName} •{' '}
+                            {isCounselorMessage ? 'You' : selectedChat.student.firstName} |{' '}
                             {message.timestamp}
                           </p>
                         </div>

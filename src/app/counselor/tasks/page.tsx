@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
+import type { Json } from '@/lib/database.types';
 
 interface AttachedDocument {
   name: string;
@@ -25,7 +27,41 @@ interface CounselingRequest {
   documents?: AttachedDocument[];
 }
 
-const STORAGE_KEY = 'mycounselor_student_requests';
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function mapRequest(row: {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  created_at: string;
+  counselor_name: string;
+  category: string;
+  student_name: string;
+  student_id: string;
+  response: string | null;
+  documents: unknown;
+}): CounselingRequest {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status as CounselingRequest['status'],
+    createdAt: formatDate(row.created_at),
+    counselor: row.counselor_name,
+    category: row.category,
+    studentName: row.student_name,
+    studentId: row.student_id,
+    response: row.response || undefined,
+    documents: Array.isArray(row.documents) ? (row.documents as AttachedDocument[]) : undefined,
+  };
+}
 
 export default function CounselorTasksPage() {
   const { user } = useAuth();
@@ -36,28 +72,38 @@ export default function CounselorTasksPage() {
   const [pendingDocs, setPendingDocs] = useState<AttachedDocument[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const counselorName = user ? `${user.firstName} ${user.lastName}` : '';
-
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const all: CounselingRequest[] = JSON.parse(stored);
-        setRequests(all.filter(r => r.counselor === counselorName));
-      } catch {
-        setRequests([]);
-      }
-    }
-  }, [counselorName]);
+    if (!user?.id) return;
 
-  const updateRequest = (id: number, updates: Partial<CounselingRequest>) => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const all: CounselingRequest[] = JSON.parse(stored);
-      const updated = all.map(r => r.id === id ? { ...r, ...updates } : r);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      setRequests(updated.filter(r => r.counselor === counselorName));
-    }
+    const loadRequests = async () => {
+      const { data, error } = await supabase
+        .from('requests')
+        .select('*')
+        .eq('counselor_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !data) {
+        setRequests([]);
+        return;
+      }
+
+      setRequests(data.map(mapRequest));
+    };
+
+    loadRequests();
+  }, [user?.id]);
+
+  const updateRequest = async (id: number, updates: Partial<CounselingRequest>) => {
+    const payload: { status?: string; response?: string | null; documents?: Json | null } = {};
+
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.response !== undefined) payload.response = updates.response || null;
+    if (updates.documents !== undefined) payload.documents = updates.documents as unknown as Json;
+
+    const { error } = await supabase.from('requests').update(payload).eq('id', id);
+    if (error) return;
+
+    setRequests((prev) => prev.map((request) => (request.id === id ? { ...request, ...updates } : request)));
   };
 
   const handleExpand = (request: CounselingRequest) => {
@@ -98,8 +144,8 @@ export default function CounselorTasksPage() {
     setPendingDocs(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSaveResponse = (id: number) => {
-    updateRequest(id, {
+  const handleSaveResponse = async (id: number) => {
+    await updateRequest(id, {
       response: responseText.trim(),
       documents: pendingDocs,
     });
@@ -108,8 +154,8 @@ export default function CounselorTasksPage() {
     setPendingDocs([]);
   };
 
-  const handleStatusChange = (id: number, newStatus: CounselingRequest['status']) => {
-    updateRequest(id, { status: newStatus });
+  const handleStatusChange = async (id: number, newStatus: CounselingRequest['status']) => {
+    await updateRequest(id, { status: newStatus });
   };
 
   const getStatusColor = (status: string) => {

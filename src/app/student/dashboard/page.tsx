@@ -6,6 +6,7 @@ import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface CounselingRequest {
   id: number;
@@ -42,7 +43,17 @@ interface Goal {
   priority: 'high' | 'medium' | 'low';
 }
 
-const GOALS_STORAGE_KEY = 'mycounselor_student_goals';
+function buildConversationKey(studentId: string, counselorId: string) {
+  return [studentId, counselorId].sort().join('__');
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 const quickActions = [
   {
@@ -84,35 +95,104 @@ export default function StudentDashboardPage() {
   const [editingGoal, setEditingGoal] = useState<number | null>(null);
   const [counselors, setCounselors] = useState<User[]>([]);
 
-  // Load all data from localStorage
   useEffect(() => {
-    // Requests
-    const storedRequests = localStorage.getItem('mycounselor_student_requests');
-    if (storedRequests) setRequests(JSON.parse(storedRequests));
+    if (!user?.id) return;
 
-    // Meetings
-    const storedMeetings = localStorage.getItem('mycounselor_student_meetings');
-    if (storedMeetings) setMeetings(JSON.parse(storedMeetings));
+    const loadDashboardData = async () => {
+      const activeCounselors = getSchoolCounselors(user.schoolId).filter((c) => c.approved === true);
+      setCounselors(activeCounselors);
 
-    // Messages
-    const storedMessages = localStorage.getItem('mycounselor_student_messages');
-    if (storedMessages) setConversations(JSON.parse(storedMessages));
+      const [requestsResult, meetingsResult, goalsResult] = await Promise.all([
+        supabase
+          .from('requests')
+          .select('*')
+          .eq('student_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('meetings')
+          .select('*')
+          .eq('student_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('goals')
+          .select('*')
+          .eq('student_id', user.id)
+          .order('created_at', { ascending: false }),
+      ]);
 
-    // Goals
-    const storedGoals = localStorage.getItem(GOALS_STORAGE_KEY);
-    if (storedGoals) {
-      try {
-        setGoals(JSON.parse(storedGoals));
-      } catch {
-        setGoals([]);
+      setRequests(
+        (requestsResult.data || []).map((row) => ({
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          status: row.status,
+          createdAt: formatDate(row.created_at),
+          counselor: row.counselor_name,
+          category: row.category,
+        }))
+      );
+
+      setMeetings(
+        (meetingsResult.data || []).map((row) => ({
+          id: row.id,
+          title: row.title,
+          counselor: row.counselor_name,
+          date: row.date,
+          time: row.time,
+          type: row.type,
+          status: row.status,
+        }))
+      );
+
+      setGoals(
+        (goalsResult.data || []).map((row) => ({
+          id: row.id,
+          title: row.title,
+          progress: row.progress,
+          deadline: row.deadline,
+          priority: row.priority as Goal['priority'],
+        }))
+      );
+
+      if (activeCounselors.length === 0) {
+        setConversations([]);
+        return;
       }
-    }
 
-    // Counselors
-    if (user?.schoolId) {
-      setCounselors(getSchoolCounselors(user.schoolId));
-    }
-  }, [user?.schoolId, getSchoolCounselors]);
+      const keys = activeCounselors.map((c) => buildConversationKey(user.id, c.id));
+      const { data: messageRows } = await supabase
+        .from('messages')
+        .select('*')
+        .in('conversation_key', keys)
+        .order('created_at', { ascending: true });
+
+      const nextConversations: Conversation[] = activeCounselors.map((counselor, index) => {
+        const key = buildConversationKey(user.id, counselor.id);
+        const rows = (messageRows || []).filter((row) => row.conversation_key === key);
+        const lastStudentIdx = [...rows]
+          .reverse()
+          .findIndex((row) => row.sender_role === 'student');
+
+        let unread = 0;
+        if (lastStudentIdx === -1) {
+          unread = rows.filter((row) => row.sender_role === 'counselor').length;
+        } else {
+          unread = lastStudentIdx;
+        }
+
+        return {
+          id: index + 1,
+          counselor: `${counselor.firstName} ${counselor.lastName}`,
+          unread,
+          messages: rows.map((row) => ({ id: row.id })),
+        };
+      });
+
+      setConversations(nextConversations);
+    };
+
+    loadDashboardData();
+  }, [user?.id, user?.schoolId, getSchoolCounselors]);
 
   // Computed stats from real data
   const upcomingMeetings = meetings.filter(
@@ -151,12 +231,19 @@ export default function StudentDashboardPage() {
     },
   ];
 
-  const updateGoalProgress = (goalId: number, newProgress: number) => {
-    const updated = goals.map((g) =>
-      g.id === goalId ? { ...g, progress: Math.min(100, Math.max(0, newProgress)) } : g
-    );
-    setGoals(updated);
-    localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(updated));
+  const updateGoalProgress = async (goalId: number, newProgress: number) => {
+    if (!user) return;
+    const progress = Math.min(100, Math.max(0, newProgress));
+
+    const { error } = await supabase
+      .from('goals')
+      .update({ progress })
+      .eq('id', goalId)
+      .eq('student_id', user.id);
+
+    if (error) return;
+
+    setGoals((prev) => prev.map((goal) => (goal.id === goalId ? { ...goal, progress } : goal)));
     setEditingGoal(null);
   };
 

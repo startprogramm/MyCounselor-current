@@ -5,6 +5,7 @@ import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { Select } from '@/components/ui/Input';
 import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface Meeting {
   id: number;
@@ -17,7 +18,25 @@ interface Meeting {
   notes?: string;
 }
 
-const STORAGE_KEY = 'mycounselor_student_meetings';
+function mapMeeting(row: {
+  id: number;
+  title: string;
+  counselor_name: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+}): Meeting {
+  return {
+    id: row.id,
+    title: row.title,
+    counselor: row.counselor_name,
+    date: row.date,
+    time: row.time,
+    type: row.type as Meeting['type'],
+    status: row.status as Meeting['status'],
+  };
+}
 
 function getNextWeekdays(): { date: string; label: string; slots: string[] }[] {
   const days: { date: string; label: string; slots: string[] }[] = [];
@@ -68,17 +87,26 @@ export default function StudentMeetingsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [viewingNotes, setViewingNotes] = useState<number | null>(null);
 
-  // Load meetings from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setMeetings(JSON.parse(stored));
-      } catch {
+    if (!user?.id) return;
+
+    const loadMeetings = async () => {
+      const { data, error } = await supabase
+        .from('meetings')
+        .select('*')
+        .eq('student_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error || !data) {
         setMeetings([]);
+        return;
       }
-    }
-  }, []);
+
+      setMeetings(data.map(mapMeeting));
+    };
+
+    loadMeetings();
+  }, [user?.id]);
 
   // Load school counselors
   useEffect(() => {
@@ -94,13 +122,8 @@ export default function StudentMeetingsPage() {
     name: `${c.firstName} ${c.lastName}`,
   }));
 
-  const saveMeetings = (updated: Meeting[]) => {
-    setMeetings(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
-
-  const handleConfirmBooking = () => {
-    if (!selectedCounselor || !selectedDate || !selectedSlot || !selectedTopic) return;
+  const handleConfirmBooking = async () => {
+    if (!user || !selectedCounselor || !selectedDate || !selectedSlot || !selectedTopic) return;
 
     const counselor = counselorOptions.find(c => c.value === selectedCounselor);
     const endTime = (() => {
@@ -112,18 +135,25 @@ export default function StudentMeetingsPage() {
       return `${endHours}:${finalMinutes.toString().padStart(2, '0')} ${period}`;
     })();
 
-    const newMeeting: Meeting = {
-      id: Date.now(),
-      title: selectedTopic,
-      counselor: counselor?.name || '',
-      date: selectedDate,
-      time: `${selectedSlot} - ${endTime}`,
-      type: selectedMeetingType,
-      status: 'pending',
-    };
+    const { data, error } = await supabase
+      .from('meetings')
+      .insert({
+        title: selectedTopic,
+        counselor_name: counselor?.name || 'Unassigned',
+        counselor_id: selectedCounselor,
+        student_id: user.id,
+        school_id: user.schoolId,
+        date: selectedDate,
+        time: `${selectedSlot} - ${endTime}`,
+        type: selectedMeetingType,
+        status: 'pending',
+      })
+      .select('*')
+      .single();
 
-    const updated = [newMeeting, ...meetings];
-    saveMeetings(updated);
+    if (error || !data) return;
+
+    setMeetings((prev) => [mapMeeting(data), ...prev]);
 
     // Reset form
     setSelectedCounselor('');
@@ -136,11 +166,17 @@ export default function StudentMeetingsPage() {
     setTimeout(() => setSuccessMessage(''), 4000);
   };
 
-  const handleCancelMeeting = (id: number) => {
-    const updated = meetings.map(m =>
-      m.id === id ? { ...m, status: 'cancelled' as const } : m
-    );
-    saveMeetings(updated);
+  const handleCancelMeeting = async (id: number) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('meetings')
+      .update({ status: 'cancelled' })
+      .eq('id', id)
+      .eq('student_id', user.id);
+
+    if (error) return;
+    setMeetings((prev) => prev.map((meeting) => (meeting.id === id ? { ...meeting, status: 'cancelled' } : meeting)));
   };
 
   const upcomingMeetings = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');

@@ -77,21 +77,25 @@ export default function TeacherSignupPage() {
     if (!validateStep2()) return;
 
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
     const school = getSchoolById(formData.school);
 
-    register({
-      id: `teacher_${Date.now()}`,
+    const { error } = await register({
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
+      password: formData.password,
       role: 'teacher',
       schoolId: formData.school,
       schoolName: school?.name || '',
       subject: formData.subject,
       department: formData.department,
     });
+
+    if (error) {
+      setErrors((prev) => ({ ...prev, email: error }));
+      setIsLoading(false);
+      return;
+    }
 
     router.push('/teacher/dashboard');
   };

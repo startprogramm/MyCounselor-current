@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const studentNavItems: SidebarItem[] = [
   {
@@ -100,53 +101,53 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   }, [isLoading, user, isApproved, pathname, router]);
 
   // Compute badge counts for nav items
-  const computeBadges = useCallback(() => {
+  const computeBadges = useCallback(async () => {
     if (!user || !isApproved) return;
 
     const counts: Record<string, number> = {};
-    const studentName = `${user.firstName} ${user.lastName}`;
 
-    // Requests with counselor responses
-    try {
-      const storedRequests = localStorage.getItem('mycounselor_student_requests');
-      if (storedRequests) {
-        const all = JSON.parse(storedRequests);
-        const withResponses = all.filter((r: { studentName?: string; response?: string; status: string }) =>
-          r.studentName === studentName && r.response && r.status !== 'pending'
-        );
-        if (withResponses.length > 0) counts['/student/requests'] = withResponses.length;
-      }
-    } catch { /* skip */ }
+    const { data: responseRequests } = await supabase
+      .from('requests')
+      .select('id')
+      .eq('student_id', user.id)
+      .not('response', 'is', null)
+      .neq('status', 'pending');
 
-    // Unread messages from counselors
-    try {
-      if (user.schoolId) {
-        const stored = localStorage.getItem(`mycounselor_student_messages_${user.id}`);
-        if (stored) {
-          const convs = JSON.parse(stored);
-          let totalUnread = 0;
-          convs.forEach((conv: { messages?: { sender: string }[] }) => {
-            if (conv.messages) {
-              const msgs = conv.messages;
-              const lastStudentIdx = [...msgs].reverse().findIndex((m: { sender: string }) => m.sender === 'student');
-              if (lastStudentIdx === -1) {
-                totalUnread += msgs.filter((m: { sender: string }) => m.sender === 'counselor').length;
-              } else {
-                totalUnread += lastStudentIdx;
-              }
-            }
-          });
-          if (totalUnread > 0) counts['/student/messages'] = totalUnread;
+    if ((responseRequests || []).length > 0) {
+      counts['/student/requests'] = responseRequests!.length;
+    }
+
+    const counselors = getSchoolCounselors(user.schoolId).filter((counselor) => counselor.approved === true);
+    if (counselors.length > 0) {
+      const keys = counselors.map((counselor) => [user.id, counselor.id].sort().join('__'));
+      const { data: messageRows } = await supabase
+        .from('messages')
+        .select('conversation_key,sender_role')
+        .in('conversation_key', keys)
+        .order('created_at', { ascending: true });
+
+      let totalUnread = 0;
+      keys.forEach((key) => {
+        const rows = (messageRows || []).filter((row) => row.conversation_key === key);
+        const lastStudentIdx = [...rows].reverse().findIndex((row) => row.sender_role === 'student');
+        if (lastStudentIdx === -1) {
+          totalUnread += rows.filter((row) => row.sender_role === 'counselor').length;
+        } else {
+          totalUnread += lastStudentIdx;
         }
-      }
-    } catch { /* skip */ }
+      });
+
+      if (totalUnread > 0) counts['/student/messages'] = totalUnread;
+    }
 
     setBadgeCounts(counts);
-  }, [user, isApproved]);
+  }, [user, isApproved, getSchoolCounselors]);
 
   useEffect(() => {
     computeBadges();
-    const interval = setInterval(computeBadges, 5000);
+    const interval = setInterval(() => {
+      computeBadges();
+    }, 5000);
     return () => clearInterval(interval);
   }, [computeBadges]);
 
