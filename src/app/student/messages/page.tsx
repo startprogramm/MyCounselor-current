@@ -275,7 +275,7 @@ export default function StudentMessagesPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col">
+    <div className="min-h-[72vh] flex flex-col">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Messages</h1>
@@ -312,9 +312,9 @@ export default function StudentMessagesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 bg-card rounded-xl border border-border overflow-hidden flex">
+        <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-hidden flex">
           <div
-            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 ${
+            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background/30 ${
               showMobileList ? 'block' : 'hidden md:block'
             }`}
           >
@@ -349,7 +349,7 @@ export default function StudentMessagesPage() {
               </div>
             </div>
 
-            <div className="overflow-y-auto h-full">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {filteredConversations.length === 0 && (
                 <div className="p-5 text-sm text-muted-foreground">No matching conversations.</div>
               )}
@@ -357,9 +357,9 @@ export default function StudentMessagesPage() {
                 <button
                   key={conversation.id}
                   onClick={() => handleSelectConversation(conversation.id)}
-                  className={`w-full p-3.5 text-left border-b border-border/60 transition-all ${
+                  className={`w-full p-3.5 text-left border-b border-border/60 transition-all duration-200 ${
                     selectedConversation?.id === conversation.id
-                      ? 'bg-primary/10 border-l-[3px] border-l-primary'
+                      ? 'bg-primary/12 border-l-[3px] border-l-primary shadow-[inset_0_1px_0_rgba(59,130,246,0.08)]'
                       : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
                   }`}
                 >
@@ -413,10 +413,14 @@ export default function StudentMessagesPage() {
             </div>
           </div>
 
-          <div className={`flex-1 flex flex-col ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
+          <div
+            className={`flex-1 min-h-0 flex flex-col bg-background/10 ${
+              showMobileList ? 'hidden md:flex' : 'flex'
+            }`}
+          >
             {selectedConversation && (
               <>
-                <div className="p-4 border-b border-border flex items-center justify-between gap-3">
+                <div className="p-4 border-b border-border bg-card/90 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <button
                       type="button"
@@ -470,88 +474,105 @@ export default function StudentMessagesPage() {
                   </Link>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-muted/10">
-                  {selectedConversation.messages.length === 0 && (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center text-muted-foreground">
-                        <svg
-                          className="w-12 h-12 mx-auto mb-3 opacity-50"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                          />
-                        </svg>
-                        <p className="font-medium">No messages yet</p>
-                        <p className="text-sm mt-1">Send a message to start the conversation</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedConversation.messages.map((message) => {
-                    const isStudentMessage = message.sender === 'student';
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex gap-2 ${isStudentMessage ? 'justify-end' : 'justify-start'}`}
-                      >
-                        {!isStudentMessage && (
-                          <div className="w-8 h-8 rounded-full border border-border bg-card overflow-hidden flex items-center justify-center mt-0.5 flex-shrink-0">
-                            {selectedConversation.avatarImage ? (
-                              <img
-                                src={selectedConversation.avatarImage}
-                                alt={selectedConversation.counselor}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-xs font-semibold text-primary">
-                                {selectedConversation.avatar}
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="max-w-[85%]">
-                          <div
-                            className={`rounded-2xl px-4 py-3 border shadow-sm ${
-                              isStudentMessage
-                                ? 'bg-primary text-primary-foreground border-primary/30 rounded-br-md'
-                                : 'bg-card text-foreground border-border rounded-bl-md'
-                            }`}
+                <div className="relative flex-1 min-h-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.08),transparent_45%)]">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]"
+                  />
+                  <div className="relative h-full overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-3">
+                    {selectedConversation.messages.length === 0 && (
+                      <div className="h-full flex items-center justify-center">
+                        <div className="text-center text-muted-foreground">
+                          <svg
+                            className="w-12 h-12 mx-auto mb-3 opacity-50"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
                           >
-                            <p className="text-sm leading-relaxed">{message.content}</p>
-                          </div>
-                          <p
-                            className={`text-[11px] text-muted-foreground mt-1 ${
-                              isStudentMessage ? 'text-right' : 'text-left'
-                            }`}
-                          >
-                            {isStudentMessage ? 'You' : 'Counselor'} | {message.timestamp}
-                          </p>
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                            />
+                          </svg>
+                          <p className="font-medium">No messages yet</p>
+                          <p className="text-sm mt-1">Send a message to start the conversation</p>
                         </div>
                       </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
+                    )}
+
+                    {selectedConversation.messages.map((message) => {
+                      const isStudentMessage = message.sender === 'student';
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex items-end gap-2.5 ${isStudentMessage ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {!isStudentMessage && (
+                            <div className="w-8 h-8 rounded-full border border-border bg-card overflow-hidden flex items-center justify-center mb-1 flex-shrink-0 shadow-sm">
+                              {selectedConversation.avatarImage ? (
+                                <img
+                                  src={selectedConversation.avatarImage}
+                                  alt={selectedConversation.counselor}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-xs font-semibold text-primary">
+                                  {selectedConversation.avatar}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="max-w-[84%] sm:max-w-[70%]">
+                            <div
+                              className={`rounded-2xl px-4 py-2.5 border ${
+                                isStudentMessage
+                                  ? 'bg-sky-500 text-white border-sky-600/40 rounded-br-md shadow-[0_8px_18px_-10px_rgba(14,165,233,0.9)]'
+                                  : 'bg-card/95 text-foreground border-border rounded-bl-md shadow-sm backdrop-blur-[1px]'
+                              }`}
+                            >
+                              <p className="text-sm leading-6 whitespace-pre-wrap break-words">
+                                {message.content}
+                              </p>
+                            </div>
+                            <p
+                              className={`text-[11px] text-muted-foreground mt-1.5 ${
+                                isStudentMessage ? 'text-right' : 'text-left'
+                              }`}
+                            >
+                              {isStudentMessage ? 'You' : 'Counselor'} • {message.timestamp}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
                 </div>
 
-                <form onSubmit={handleSendMessage} className="p-4 border-t border-border bg-card">
-                  <div className="flex gap-3">
+                <form
+                  onSubmit={handleSendMessage}
+                  className="px-4 py-4 sm:px-5 sm:py-5 border-t border-border bg-card/95"
+                >
+                  <div className="flex items-center gap-2 sm:gap-3 rounded-xl border border-input bg-background/90 px-2 sm:px-3 py-2 shadow-sm">
                     <input
                       type="text"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type your message..."
-                      className="flex-1 px-4 py-2.5 rounded-lg border border-input bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      placeholder="Write a message..."
+                      className="flex-1 bg-transparent px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
-                    <Button type="submit" disabled={!newMessage.trim()}>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!newMessage.trim()}
+                      className="rounded-full px-3.5 py-2"
+                      aria-label="Send message"
+                    >
                       <svg
-                        className="w-5 h-5"
+                        className="w-4 h-4"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -565,8 +586,8 @@ export default function StudentMessagesPage() {
                       </svg>
                     </Button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-2">
-                    Private messaging for your counseling support workflow.
+                  <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
+                    Your chat is private and only visible to approved counselors at your school.
                   </p>
                 </form>
               </>
