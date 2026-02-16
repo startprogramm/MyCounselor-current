@@ -1,16 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 
+const dashboardRoutes: Record<'student' | 'counselor' | 'teacher' | 'parent', string> = {
+  student: '/student/dashboard',
+  counselor: '/counselor/dashboard',
+  teacher: '/teacher/dashboard',
+  parent: '/parent/dashboard',
+};
+
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -39,26 +47,48 @@ export default function LoginPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  useEffect(() => {
+    if (!user) return;
+    router.replace(dashboardRoutes[user.role] || '/student/dashboard');
+  }, [user, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return;
     if (!validateForm()) return;
 
     setIsLoading(true);
-    const { user, error } = await login(formData.email, formData.password);
+    setErrors({});
 
-    if (!user || error) {
+    try {
+      const loginResult = await Promise.race([
+        login(formData.email, formData.password),
+        new Promise<{ user: null; error: string }>((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                user: null,
+                error:
+                  'Sign in is taking too long. Please check your internet and try again.',
+              }),
+            15000
+          )
+        ),
+      ]);
+
+      if (!loginResult.user || loginResult.error) {
+        setErrors({
+          email: loginResult.error || 'Unable to sign in. Please check your credentials.',
+        });
+        return;
+      }
+
+      router.replace(dashboardRoutes[loginResult.user.role] || '/student/dashboard');
+    } catch {
+      setErrors({ email: 'Unexpected sign-in error. Please try again.' });
+    } finally {
       setIsLoading(false);
-      setErrors({ email: error || 'Unable to sign in. Please check your credentials.' });
-      return;
     }
-
-    const dashboardRoutes: Record<string, string> = {
-      student: '/student/dashboard',
-      counselor: '/counselor/dashboard',
-      teacher: '/teacher/dashboard',
-      parent: '/parent/dashboard',
-    };
-    router.push(dashboardRoutes[user.role] || '/student/dashboard');
   };
 
   return (
@@ -122,7 +152,7 @@ export default function LoginPage() {
 
             <Input
               label="Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               name="password"
               placeholder="Enter your password"
               value={formData.password}
@@ -137,6 +167,41 @@ export default function LoginPage() {
                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                   />
                 </svg>
+              }
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.5 0-8.4-2.9-10-7 1.06-2.72 3.04-4.75 5.5-5.92m3.14-1A10.05 10.05 0 0112 5c4.5 0 8.4 2.9 10 7a10.55 10.55 0 01-4.33 5.2M15 12a3 3 0 00-3-3m0 0a3 3 0 00-2.12.88M3 3l18 18"
+                      />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.27 2.943 9.542 7-1.273 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
               }
             />
 
