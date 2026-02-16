@@ -159,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profile = await fetchProfile(session.user.id);
         if (profile) {
           setUser(profile);
-          await loadSchoolUsers(profile.schoolId);
+          void loadSchoolUsers(profile.schoolId);
         } else {
           setUser(null);
           setSchoolUsers([]);
@@ -178,14 +178,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!isMounted) return;
+
+      if (event === 'TOKEN_REFRESHED') {
+        return;
+      }
 
       if (session?.user) {
         const profile = await fetchProfile(session.user.id);
         if (profile) {
           setUser(profile);
-          await loadSchoolUsers(profile.schoolId);
+          void loadSchoolUsers(profile.schoolId);
           return;
         }
       }
@@ -220,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(profile);
-    await loadSchoolUsers(profile.schoolId);
+    void loadSchoolUsers(profile.schoolId);
 
     return { user: profile, error: null };
   };
@@ -286,7 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (signUpData.session) {
       setUser(profile);
-      await loadSchoolUsers(profile.schoolId);
+      void loadSchoolUsers(profile.schoolId);
     }
 
     return { user: profile, error: null };
