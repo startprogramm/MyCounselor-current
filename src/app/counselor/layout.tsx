@@ -142,24 +142,31 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
       const students = getSchoolStudents(user.schoolId).filter((student) => student.approved === true);
       if (students.length > 0) {
         const keys = students.map((student) => [student.id, user.id].sort().join('__'));
-        const { data: messageRows } = await supabase
-          .from('messages')
-          .select('conversation_key,sender_role')
-          .in('conversation_key', keys)
-          .order('created_at', { ascending: true });
+        const [{ data: messageRows }, { data: readRows }] = await Promise.all([
+          supabase
+            .from('messages')
+            .select('conversation_key,sender_role,created_at')
+            .in('conversation_key', keys)
+            .eq('sender_role', 'student'),
+          supabase
+            .from('message_reads')
+            .select('conversation_key,last_read_at')
+            .eq('reader_id', user.id)
+            .in('conversation_key', keys),
+        ]);
 
-        let totalUnread = 0;
-        keys.forEach((key) => {
-          const rows = (messageRows || []).filter((row) => row.conversation_key === key);
-          const lastCounselorIdx = [...rows]
-            .reverse()
-            .findIndex((row) => row.sender_role === 'counselor');
-          if (lastCounselorIdx === -1) {
-            totalUnread += rows.filter((row) => row.sender_role === 'student').length;
-          } else {
-            totalUnread += lastCounselorIdx;
-          }
+        const readByConversation = new Map<string, string>();
+        (readRows || []).forEach((row) => {
+          readByConversation.set(row.conversation_key, row.last_read_at);
         });
+
+        const totalUnread = (messageRows || []).reduce((sum, row) => {
+          const lastReadAt = readByConversation.get(row.conversation_key);
+          if (!lastReadAt || new Date(row.created_at).getTime() > new Date(lastReadAt).getTime()) {
+            return sum + 1;
+          }
+          return sum;
+        }, 0);
 
         if (totalUnread > 0) counts['/counselor/messages'] = totalUnread;
       }

@@ -13,6 +13,14 @@ interface Message {
   timestamp: string;
 }
 
+interface MessageRow {
+  id: number;
+  conversation_key: string;
+  sender_role: string;
+  content: string;
+  created_at: string;
+}
+
 interface StudentChat {
   student: User;
   conversationKey: string;
@@ -43,6 +51,32 @@ export default function CounselorMessagesPage() {
   const [showMobileList, setShowMobileList] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const markConversationAsRead = useCallback(
+    async (conversationKey?: string) => {
+      if (!conversationKey || !user?.id) return;
+
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('message_reads').upsert(
+        {
+          conversation_key: conversationKey,
+          reader_id: user.id,
+          last_read_at: now,
+          updated_at: now,
+        },
+        { onConflict: 'conversation_key,reader_id' }
+      );
+
+      if (error) return;
+
+      setStudentChats((previous) =>
+        previous.map((chat) =>
+          chat.conversationKey === conversationKey ? { ...chat, unread: 0 } : chat
+        )
+      );
+    },
+    [user?.id]
+  );
+
   const loadStudentChats = useCallback(async () => {
     if (!user?.schoolId || !user?.id) {
       setStudentChats([]);
@@ -57,27 +91,41 @@ export default function CounselorMessagesPage() {
     }
 
     const keys = schoolStudents.map((student) => buildConversationKey(student.id, user.id));
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .in('conversation_key', keys)
-      .order('created_at', { ascending: true });
+    const [{ data: messageRows, error: messageError }, { data: readRows }] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('*')
+        .in('conversation_key', keys)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('message_reads')
+        .select('conversation_key,last_read_at')
+        .eq('reader_id', user.id)
+        .in('conversation_key', keys),
+    ]);
 
-    if (error) {
+    if (messageError) {
       setStudentChats([]);
       return;
     }
 
-    const grouped = new Map<string, typeof data>();
-    (data || []).forEach((row) => {
+    const grouped = new Map<string, MessageRow[]>();
+    (messageRows || []).forEach((row) => {
       const bucket = grouped.get(row.conversation_key) || [];
       bucket.push(row);
       grouped.set(row.conversation_key, bucket);
     });
 
+    const readByConversation = new Map<string, string>();
+    (readRows || []).forEach((row) => {
+      readByConversation.set(row.conversation_key, row.last_read_at);
+    });
+
     const chats: StudentChat[] = schoolStudents.map((student) => {
       const conversationKey = buildConversationKey(student.id, user.id);
       const rows = grouped.get(conversationKey) || [];
+      const lastReadAt = readByConversation.get(conversationKey);
+      const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
       const messages: Message[] = rows.map((row) => ({
         id: row.id,
         sender: row.sender_role === 'counselor' ? 'counselor' : 'student',
@@ -86,16 +134,11 @@ export default function CounselorMessagesPage() {
       }));
 
       const lastMessage = messages[messages.length - 1];
-      const lastCounselorIdx = [...messages]
-        .reverse()
-        .findIndex((message) => message.sender === 'counselor');
-
-      let unread = 0;
-      if (lastCounselorIdx === -1) {
-        unread = messages.filter((message) => message.sender === 'student').length;
-      } else {
-        unread = lastCounselorIdx;
-      }
+      const unread = rows.filter(
+        (row) =>
+          row.sender_role === 'student' &&
+          (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
+      ).length;
 
       return {
         student,
@@ -145,6 +188,11 @@ export default function CounselorMessagesPage() {
   }, [selectedStudentId, studentChats]);
 
   const selectedChat = studentChats.find((chat) => chat.student.id === selectedStudentId);
+
+  useEffect(() => {
+    if (!selectedChat || selectedChat.unread === 0) return;
+    void markConversationAsRead(selectedChat.conversationKey);
+  }, [selectedChat?.conversationKey, selectedChat?.unread, markConversationAsRead]);
 
   const filteredChats = studentChats.filter((chat) => {
     const query = searchQuery.trim().toLowerCase();
@@ -204,6 +252,11 @@ export default function CounselorMessagesPage() {
   const handleSelectStudent = (studentId: string) => {
     setSelectedStudentId(studentId);
     setShowMobileList(false);
+
+    const openedChat = studentChats.find((chat) => chat.student.id === studentId);
+    if (openedChat?.unread) {
+      void markConversationAsRead(openedChat.conversationKey);
+    }
 
     setStudentChats((previous) =>
       previous.map((chat) => {
@@ -497,7 +550,7 @@ export default function CounselorMessagesPage() {
                                 isCounselorMessage ? 'text-right' : 'text-left'
                               }`}
                             >
-                              {isCounselorMessage ? 'You' : selectedChat.student.firstName} •{' '}
+                              {isCounselorMessage ? 'You' : selectedChat.student.firstName} |{' '}
                               {message.timestamp}
                             </p>
                           </div>

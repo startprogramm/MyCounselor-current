@@ -183,6 +183,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      message_reads: {
+        Row: {
+          id: number;
+          conversation_key: string;
+          reader_id: string;
+          last_read_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          conversation_key: string;
+          reader_id: string;
+          last_read_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          conversation_key?: string;
+          reader_id?: string;
+          last_read_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       goals: {
         Row: {
           id: number;

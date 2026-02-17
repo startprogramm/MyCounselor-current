@@ -13,6 +13,14 @@ interface Message {
   timestamp: string;
 }
 
+interface MessageRow {
+  id: number;
+  conversation_key: string;
+  sender_role: string;
+  content: string;
+  created_at: string;
+}
+
 interface Conversation {
   id: number;
   conversationKey: string;
@@ -44,13 +52,8 @@ function formatMessageTime(value: string) {
 
 function buildConversationsFromCounselors(
   counselors: User[],
-  rows: {
-    id: number;
-    conversation_key: string;
-    sender_role: string;
-    content: string;
-    created_at: string;
-  }[],
+  rows: MessageRow[],
+  readByConversation: Map<string, string>,
   student: User
 ): Conversation[] {
   const rowsByKey = new Map<string, typeof rows>();
@@ -64,6 +67,8 @@ function buildConversationsFromCounselors(
   return counselors.map((c, index) => {
     const key = buildConversationKey(student.id, c.id);
     const groupedRows = rowsByKey.get(key) || [];
+    const lastReadAt = readByConversation.get(key);
+    const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
     const mappedMessages: Message[] = groupedRows.map((row) => ({
       id: row.id,
       sender: row.sender_role === 'counselor' ? 'counselor' : 'student',
@@ -72,17 +77,11 @@ function buildConversationsFromCounselors(
     }));
 
     const lastMessage = mappedMessages[mappedMessages.length - 1];
-
-    const lastStudentIdx = [...mappedMessages]
-      .reverse()
-      .findIndex((message) => message.sender === 'student');
-
-    let unread = 0;
-    if (lastStudentIdx === -1) {
-      unread = mappedMessages.filter((message) => message.sender === 'counselor').length;
-    } else {
-      unread = lastStudentIdx;
-    }
+    const unread = groupedRows.filter(
+      (row) =>
+        row.sender_role === 'counselor' &&
+        (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
+    ).length;
 
     const name = `${c.firstName} ${c.lastName}`;
     const initials = `${c.firstName[0]}${c.lastName[0]}`.toUpperCase();
@@ -150,6 +149,34 @@ export default function StudentMessagesPage() {
     );
   });
 
+  const markConversationAsRead = useCallback(
+    async (conversationKey?: string) => {
+      if (!conversationKey || !user?.id) return;
+
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('message_reads').upsert(
+        {
+          conversation_key: conversationKey,
+          reader_id: user.id,
+          last_read_at: now,
+          updated_at: now,
+        },
+        { onConflict: 'conversation_key,reader_id' }
+      );
+
+      if (error) return;
+
+      setConversations((previous) =>
+        previous.map((conversation) =>
+          conversation.conversationKey === conversationKey
+            ? { ...conversation, unread: 0 }
+            : conversation
+        )
+      );
+    },
+    [user?.id]
+  );
+
   const loadConversations = useCallback(async () => {
     if (!user?.schoolId || !user?.id) {
       setConversations([]);
@@ -167,19 +194,36 @@ export default function StudentMessagesPage() {
 
     const keys = counselors.map((c) => buildConversationKey(user.id, c.id));
 
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .in('conversation_key', keys)
-      .order('created_at', { ascending: true });
+    const [{ data: messageRows, error: messageError }, { data: readRows }] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('*')
+        .in('conversation_key', keys)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('message_reads')
+        .select('conversation_key,last_read_at')
+        .eq('reader_id', user.id)
+        .in('conversation_key', keys),
+    ]);
 
-    if (error) {
+    if (messageError) {
       setConversations([]);
       setSelectedConvId(0);
       return;
     }
 
-    const merged = buildConversationsFromCounselors(counselors, data || [], user);
+    const readByConversation = new Map<string, string>();
+    (readRows || []).forEach((row) => {
+      readByConversation.set(row.conversation_key, row.last_read_at);
+    });
+
+    const merged = buildConversationsFromCounselors(
+      counselors,
+      messageRows || [],
+      readByConversation,
+      user
+    );
     setConversations(merged);
     setSelectedConvId((prev) =>
       merged.some((conversation) => conversation.id === prev) ? prev : merged[0]?.id || 0
@@ -203,6 +247,11 @@ export default function StudentMessagesPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedConvId, conversations]);
+
+  useEffect(() => {
+    if (!selectedConversation || selectedConversation.unread === 0) return;
+    void markConversationAsRead(selectedConversation.conversationKey);
+  }, [selectedConversation?.conversationKey, selectedConversation?.unread, markConversationAsRead]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -263,6 +312,11 @@ export default function StudentMessagesPage() {
   const handleSelectConversation = (conversationId: number) => {
     setSelectedConvId(conversationId);
     setShowMobileList(false);
+
+    const openedConversation = conversations.find((conversation) => conversation.id === conversationId);
+    if (openedConversation?.unread) {
+      void markConversationAsRead(openedConversation.conversationKey);
+    }
 
     setConversations((previous) =>
       previous.map((conversation) => {
@@ -542,7 +596,7 @@ export default function StudentMessagesPage() {
                                 isStudentMessage ? 'text-right' : 'text-left'
                               }`}
                             >
-                              {isStudentMessage ? 'You' : 'Counselor'} • {message.timestamp}
+                              {isStudentMessage ? 'You' : 'Counselor'} | {message.timestamp}
                             </p>
                           </div>
                         </div>
