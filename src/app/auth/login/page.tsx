@@ -6,13 +6,7 @@ import { useRouter } from 'next/navigation';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
-
-const dashboardRoutes: Record<'student' | 'counselor' | 'teacher' | 'parent', string> = {
-  student: '/student/dashboard',
-  counselor: '/counselor/dashboard',
-  teacher: '/teacher/dashboard',
-  parent: '/parent/dashboard',
-};
+import { getDashboardRouteForRole } from '@/lib/role-routes';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,7 +43,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!user) return;
-    router.replace(dashboardRoutes[user.role] || '/student/dashboard');
+    router.replace(getDashboardRouteForRole(user.role));
   }, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,7 +77,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.replace(dashboardRoutes[loginResult.user.role] || '/student/dashboard');
+      router.replace(getDashboardRouteForRole(loginResult.user.role));
     } catch {
       setErrors({ email: 'Unexpected sign-in error. Please try again.' });
     } finally {

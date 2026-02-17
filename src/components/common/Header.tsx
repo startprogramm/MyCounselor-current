@@ -8,6 +8,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 import ZoomControl from '@/components/ui/ZoomControl';
 import SkipLink from '@/components/ui/SkipLink';
 import { useAuth } from '@/context/AuthContext';
+import { getDashboardRouteForRole, getMessagesRouteForRole } from '@/lib/role-routes';
 
 interface NavItem {
   label: string;
@@ -57,23 +58,8 @@ const Header: React.FC = () => {
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
 
-  const dashboardRoute =
-    user?.role === 'student'
-      ? '/student/dashboard'
-      : user?.role === 'teacher'
-        ? '/teacher/dashboard'
-        : user?.role === 'parent'
-          ? '/parent/dashboard'
-          : '/counselor/dashboard';
-
-  const primaryActionRoute =
-    user?.role === 'student'
-      ? '/student/messages'
-      : user?.role === 'teacher'
-        ? '/teacher/messages'
-        : user?.role === 'parent'
-          ? '/parent/messages'
-          : '/counselor/messages';
+  const dashboardRoute = getDashboardRouteForRole(user?.role);
+  const primaryActionRoute = getMessagesRouteForRole(user?.role);
 
   const handleLogout = () => {
     logout();

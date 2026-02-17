@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { getDashboardRouteForRole } from '@/lib/role-routes';
 
 const studentNavItems: SidebarItem[] = [
   {
@@ -88,8 +89,15 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const isApproved = user?.approved === true;
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'student')) {
+    if (isLoading) return;
+
+    if (!user) {
       router.push('/auth/login');
+      return;
+    }
+
+    if (user.role !== 'student') {
+      router.push(getDashboardRouteForRole(user.role));
     }
   }, [user, isLoading, router]);
 

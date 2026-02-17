@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { getDashboardRouteForRole } from '@/lib/role-routes';
 
 const teacherNavItems: SidebarItem[] = [
   {
@@ -97,8 +98,15 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'teacher')) {
+    if (isLoading) return;
+
+    if (!user) {
       router.push('/auth/login');
+      return;
+    }
+
+    if (user.role !== 'teacher') {
+      router.push(getDashboardRouteForRole(user.role));
     }
   }, [user, isLoading, router]);
 

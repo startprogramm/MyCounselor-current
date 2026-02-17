@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
+import { getDashboardRouteForRole } from '@/lib/role-routes';
 
 const parentNavItems: SidebarItem[] = [
   {
@@ -86,8 +87,15 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
   const isFullyApproved = user?.studentConfirmed === true && user?.approved === true;
 
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'parent')) {
+    if (isLoading) return;
+
+    if (!user) {
       router.push('/auth/login');
+      return;
+    }
+
+    if (user.role !== 'parent') {
+      router.push(getDashboardRouteForRole(user.role));
     }
   }, [user, isLoading, router]);
 

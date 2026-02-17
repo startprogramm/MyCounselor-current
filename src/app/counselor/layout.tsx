@@ -5,13 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-
-const dashboardRoutes: Record<'student' | 'counselor' | 'teacher' | 'parent', string> = {
-  student: '/student/dashboard',
-  counselor: '/counselor/dashboard',
-  teacher: '/teacher/dashboard',
-  parent: '/parent/dashboard',
-};
+import { getDashboardRouteForRole } from '@/lib/role-routes';
 
 const counselorNavItems: SidebarItem[] = [
   {
@@ -145,7 +139,7 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     }
 
     if (user.role !== 'counselor') {
-      router.push(dashboardRoutes[user.role] || '/auth/login');
+      router.push(getDashboardRouteForRole(user.role));
     }
   }, [isLoading, user, router]);
 
