@@ -1,17 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/lib/database.types';
-
-interface AttachedDocument {
-  name: string;
-  data: string;
-  type: string;
-  uploadedAt: string;
-}
+import { startVisibilityAwarePolling } from '@/lib/polling';
+import {
+  parseRequestDocuments,
+  toRequestDocumentsJson,
+  type RequestDocument,
+} from '@/lib/request-documents';
 
 interface CounselingRequest {
   id: number;
@@ -24,8 +23,11 @@ interface CounselingRequest {
   studentName?: string;
   studentId?: string;
   response?: string;
-  documents?: AttachedDocument[];
+  documents?: RequestDocument[];
 }
+
+const MAX_ATTACHMENT_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_ATTACHMENT_COUNT = 6;
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('en-US', {
@@ -59,8 +61,17 @@ function mapRequest(row: {
     studentName: row.student_name,
     studentId: row.student_id,
     response: row.response || undefined,
-    documents: Array.isArray(row.documents) ? (row.documents as AttachedDocument[]) : undefined,
+    documents: parseRequestDocuments(row.documents),
   };
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(new Error(`Failed to read file "${file.name}".`));
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function CounselorTasksPage() {
@@ -69,44 +80,85 @@ export default function CounselorTasksPage() {
   const [filter, setFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [responseText, setResponseText] = useState('');
-  const [pendingDocs, setPendingDocs] = useState<AttachedDocument[]>([]);
+  const [pendingDocs, setPendingDocs] = useState<RequestDocument[]>([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [pendingUploadCount, setPendingUploadCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!user?.id) return;
+  const loadRequests = useCallback(async () => {
+    if (!user?.id) {
+      setRequests([]);
+      setLoadError('');
+      return;
+    }
 
-    const loadRequests = async () => {
-      const { data, error } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('counselor_id', user.id)
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('requests')
+      .select('*')
+      .eq('counselor_id', user.id)
+      .order('created_at', { ascending: false });
 
-      if (error || !data) {
-        setRequests([]);
-        return;
-      }
+    if (error || !data) {
+      setLoadError(error?.message || 'Unable to load tasks. Please refresh.');
+      return;
+    }
 
-      setRequests(data.map(mapRequest));
-    };
-
-    loadRequests();
+    setLoadError('');
+    setRequests(data.map(mapRequest));
   }, [user?.id]);
 
-  const updateRequest = async (id: number, updates: Partial<CounselingRequest>) => {
+  useEffect(() => {
+    if (!user?.id) {
+      setRequests([]);
+      return;
+    }
+
+    setIsLoadingRequests(true);
+    void loadRequests().finally(() => setIsLoadingRequests(false));
+    return startVisibilityAwarePolling(() => loadRequests(), 10000);
+  }, [user?.id, loadRequests]);
+
+  const updateRequest = async (
+    id: number,
+    updates: Partial<CounselingRequest>
+  ): Promise<{ ok: boolean; error?: string }> => {
     const payload: { status?: string; response?: string | null; documents?: Json | null } = {};
 
     if (updates.status !== undefined) payload.status = updates.status;
     if (updates.response !== undefined) payload.response = updates.response || null;
-    if (updates.documents !== undefined) payload.documents = updates.documents as unknown as Json;
+    if (updates.documents !== undefined) payload.documents = toRequestDocumentsJson(updates.documents);
 
-    const { error } = await supabase.from('requests').update(payload).eq('id', id);
-    if (error) return;
+    const { data, error } = await supabase
+      .from('requests')
+      .update(payload)
+      .eq('id', id)
+      .select('*')
+      .single();
 
-    setRequests((prev) => prev.map((request) => (request.id === id ? { ...request, ...updates } : request)));
+    if (error || !data) {
+      return {
+        ok: false,
+        error: error?.message || 'Unable to save request updates. Please try again.',
+      };
+    }
+
+    const mappedRequest = mapRequest(data);
+    setRequests((prev) =>
+      prev.map((request) => (request.id === id ? mappedRequest : request))
+    );
+
+    return { ok: true };
   };
 
   const handleExpand = (request: CounselingRequest) => {
+    setSaveError('');
+    setUploadError('');
+
     if (expandedId === request.id) {
       setExpandedId(null);
       setResponseText('');
@@ -118,44 +170,96 @@ export default function CounselorTasksPage() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const doc: AttachedDocument = {
+    setUploadError('');
+    const selectedFiles = Array.from(files);
+
+    if (pendingDocs.length + selectedFiles.length > MAX_ATTACHMENT_COUNT) {
+      setUploadError(`You can attach up to ${MAX_ATTACHMENT_COUNT} files per request.`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const oversizedFile = selectedFiles.find((file) => file.size > MAX_ATTACHMENT_SIZE_BYTES);
+    if (oversizedFile) {
+      setUploadError(
+        `"${oversizedFile.name}" is too large. Limit: ${Math.floor(
+          MAX_ATTACHMENT_SIZE_BYTES / (1024 * 1024)
+        )}MB per file.`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setPendingUploadCount((prev) => prev + selectedFiles.length);
+
+    for (const file of selectedFiles) {
+      try {
+        const data = await readFileAsDataUrl(file);
+        if (!data) throw new Error('File data is empty.');
+
+        const document: RequestDocument = {
           name: file.name,
-          data: reader.result as string,
-          type: file.type,
-          uploadedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          data,
+          type: file.type || 'application/octet-stream',
+          uploadedAt: new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
         };
-        setPendingDocs(prev => [...prev, doc]);
-      };
-      reader.readAsDataURL(file);
-    });
+
+        setPendingDocs((prev) => [...prev, document]);
+      } catch {
+        setUploadError(`Failed to attach "${file.name}". Please try again.`);
+      } finally {
+        setPendingUploadCount((prev) => Math.max(0, prev - 1));
+      }
+    }
 
     // Reset input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removePendingDoc = (index: number) => {
-    setPendingDocs(prev => prev.filter((_, i) => i !== index));
+    setPendingDocs((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSaveResponse = async (id: number) => {
-    await updateRequest(id, {
+    if (isSaving || pendingUploadCount > 0) return;
+
+    setSaveError('');
+    setSaveSuccess('');
+    setIsSaving(true);
+
+    const result = await updateRequest(id, {
       response: responseText.trim(),
       documents: pendingDocs,
     });
+
+    setIsSaving(false);
+
+    if (!result.ok) {
+      setSaveError(result.error || 'Unable to save response.');
+      return;
+    }
+
+    setSaveSuccess('Response saved successfully.');
+    setTimeout(() => setSaveSuccess(''), 3000);
     setExpandedId(null);
     setResponseText('');
     setPendingDocs([]);
+    setPendingUploadCount(0);
   };
 
   const handleStatusChange = async (id: number, newStatus: CounselingRequest['status']) => {
-    await updateRequest(id, { status: newStatus });
+    const result = await updateRequest(id, { status: newStatus });
+    if (!result.ok) {
+      setSaveError(result.error || 'Unable to update status.');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -214,11 +318,11 @@ export default function CounselorTasksPage() {
   };
 
   const getFileIcon = (type: string) => {
-    if (type.startsWith('image/')) return '🖼';
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('word') || type.includes('document')) return '📝';
-    if (type.includes('sheet') || type.includes('excel')) return '📊';
-    return '📎';
+    if (type.startsWith('image/')) return 'IMG';
+    if (type.includes('pdf')) return 'PDF';
+    if (type.includes('word') || type.includes('document')) return 'DOC';
+    if (type.includes('sheet') || type.includes('excel')) return 'XLS';
+    return 'FILE';
   };
 
   const filteredRequests = filter === 'all'
@@ -247,6 +351,46 @@ export default function CounselorTasksPage() {
         </div>
       </div>
 
+      {loadError && (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <svg className="w-5 h-5 text-destructive flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z" />
+          </svg>
+          <p className="text-sm text-destructive font-medium">{loadError}</p>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => void loadRequests()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <svg className="w-5 h-5 text-destructive flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z" />
+          </svg>
+          <p className="text-sm text-destructive font-medium">{saveError}</p>
+          <button onClick={() => setSaveError('')} className="ml-auto text-destructive hover:text-destructive/80">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {saveSuccess && (
+        <div className="flex items-center gap-3 p-4 bg-success/10 border border-success/20 rounded-lg">
+          <svg className="w-5 h-5 text-success flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <p className="text-sm text-success font-medium">{saveSuccess}</p>
+          <button onClick={() => setSaveSuccess('')} className="ml-auto text-success hover:text-success/80">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Status Tabs */}
       <div className="flex flex-wrap gap-2">
         {(['all', 'pending', 'in_progress', 'approved', 'completed'] as const).map((status) => (
@@ -271,6 +415,12 @@ export default function CounselorTasksPage() {
 
       {/* Tasks List */}
       <div className="space-y-4">
+        {isLoadingRequests && requests.length === 0 && (
+          <div className="text-center py-12 bg-card rounded-xl border border-border">
+            <p className="text-muted-foreground">Loading tasks...</p>
+          </div>
+        )}
+
         {filteredRequests.map((request) => (
           <div
             key={request.id}
@@ -333,6 +483,16 @@ export default function CounselorTasksPage() {
                       className="w-full px-4 py-3 rounded-lg border border-input bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y text-sm"
                     />
 
+                    {uploadError && (
+                      <p className="text-sm text-destructive">{uploadError}</p>
+                    )}
+
+                    {pendingUploadCount > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Processing {pendingUploadCount} file{pendingUploadCount > 1 ? 's' : ''}...
+                      </p>
+                    )}
+
                     {/* Attached documents */}
                     {pendingDocs.length > 0 && (
                       <div className="space-y-2">
@@ -342,7 +502,9 @@ export default function CounselorTasksPage() {
                             key={index}
                             className="flex items-center gap-3 p-2.5 bg-card rounded-lg border border-border"
                           >
-                            <span className="text-lg">{getFileIcon(doc.type)}</span>
+                            <span className="text-[10px] font-mono uppercase px-2 py-1 rounded bg-muted text-muted-foreground">
+                              {getFileIcon(doc.type)}
+                            </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
                               <p className="text-xs text-muted-foreground">{doc.uploadedAt}</p>
@@ -350,6 +512,7 @@ export default function CounselorTasksPage() {
                             <button
                               onClick={() => removePendingDoc(index)}
                               className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
+                              disabled={pendingUploadCount > 0}
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -376,6 +539,7 @@ export default function CounselorTasksPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
+                          disabled={pendingUploadCount > 0 || isSaving}
                         >
                           <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
@@ -388,7 +552,14 @@ export default function CounselorTasksPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => { setExpandedId(null); setResponseText(''); setPendingDocs([]); }}
+                          onClick={() => {
+                            setExpandedId(null);
+                            setResponseText('');
+                            setPendingDocs([]);
+                            setPendingUploadCount(0);
+                            setUploadError('');
+                          }}
+                          disabled={isSaving}
                         >
                           Cancel
                         </Button>
@@ -396,7 +567,8 @@ export default function CounselorTasksPage() {
                           type="button"
                           size="sm"
                           onClick={() => handleSaveResponse(request.id)}
-                          disabled={!responseText.trim() && pendingDocs.length === 0}
+                          disabled={(!responseText.trim() && pendingDocs.length === 0) || pendingUploadCount > 0}
+                          isLoading={isSaving}
                         >
                           <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -429,6 +601,7 @@ export default function CounselorTasksPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => handleExpand(request)}
+                        disabled={isSaving}
                       >
                         <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -437,17 +610,17 @@ export default function CounselorTasksPage() {
                       </Button>
                     )}
                     {request.status === 'pending' && (
-                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'in_progress')}>
+                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'in_progress')} disabled={isSaving}>
                         Start
                       </Button>
                     )}
                     {request.status === 'in_progress' && (
-                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'approved')}>
+                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'approved')} disabled={isSaving}>
                         Approve
                       </Button>
                     )}
                     {request.status === 'approved' && (
-                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(request.id, 'completed')}>
+                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(request.id, 'completed')} disabled={isSaving}>
                         Complete
                       </Button>
                     )}
@@ -459,7 +632,7 @@ export default function CounselorTasksPage() {
         ))}
       </div>
 
-      {filteredRequests.length === 0 && (
+      {filteredRequests.length === 0 && !isLoadingRequests && (
         <div className="text-center py-12 bg-card rounded-xl border border-border">
           <svg
             className="w-12 h-12 mx-auto text-muted-foreground mb-4"
@@ -476,3 +649,4 @@ export default function CounselorTasksPage() {
     </div>
   );
 }
+

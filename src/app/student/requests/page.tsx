@@ -1,19 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
-
-interface AttachedDocument {
-  name: string;
-  data: string;
-  type: string;
-  uploadedAt: string;
-}
+import { startVisibilityAwarePolling } from '@/lib/polling';
+import { parseRequestDocuments, type RequestDocument } from '@/lib/request-documents';
 
 interface CounselingRequest {
   id: number;
@@ -26,7 +21,7 @@ interface CounselingRequest {
   studentName?: string;
   studentId?: string;
   response?: string;
-  documents?: AttachedDocument[];
+  documents?: RequestDocument[];
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -63,7 +58,7 @@ function mapRequest(row: {
     studentName: row.student_name,
     studentId: row.student_id,
     response: row.response || undefined,
-    documents: Array.isArray(row.documents) ? (row.documents as AttachedDocument[]) : undefined,
+    documents: parseRequestDocuments(row.documents),
   };
 }
 
@@ -100,27 +95,41 @@ export default function StudentRequestsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [loadRequestsError, setLoadRequestsError] = useState('');
+
+  const loadRequests = useCallback(async () => {
+    if (!user?.id) {
+      setRequests([]);
+      setLoadRequestsError('');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('requests')
+      .select('*')
+      .eq('student_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) {
+      setLoadRequestsError(error?.message || 'Unable to load your requests. Please retry.');
+      return;
+    }
+
+    setLoadRequestsError('');
+    setRequests(data.map(mapRequest));
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setRequests([]);
+      return;
+    }
 
-    const loadRequests = async () => {
-      const { data, error } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('student_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error || !data) {
-        setRequests([]);
-        return;
-      }
-
-      setRequests(data.map(mapRequest));
-    };
-
-    loadRequests();
-  }, [user?.id]);
+    setIsLoadingRequests(true);
+    void loadRequests().finally(() => setIsLoadingRequests(false));
+    return startVisibilityAwarePolling(() => loadRequests(), 10000);
+  }, [user?.id, loadRequests]);
 
   // Load school counselors directly from DB
   useEffect(() => {
@@ -343,6 +352,18 @@ export default function StudentRequestsPage() {
         </div>
       )}
 
+      {loadRequestsError && (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <svg className="w-5 h-5 text-destructive flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z" />
+          </svg>
+          <p className="text-sm text-destructive font-medium">{loadRequestsError}</p>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => void loadRequests()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
       {/* New Request Form */}
       {showNewRequest && (
         <ContentCard title="Create New Request">
@@ -409,8 +430,7 @@ export default function StudentRequestsPage() {
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
-            {getStatusLabel(status === 'all' ? 'all' : status).replace('all', 'All')}
-            {status === 'all' ? ' All' : ''}
+            {status === 'all' ? 'All Requests' : getStatusLabel(status)}
             <span className="ml-1.5 opacity-70">({filterCounts[status]})</span>
           </button>
         ))}
@@ -418,7 +438,13 @@ export default function StudentRequestsPage() {
 
       {/* Requests List */}
       <div className="space-y-4">
-        {filteredRequests.length === 0 ? (
+        {isLoadingRequests && requests.length === 0 && (
+          <div className="text-center py-12 bg-card rounded-xl border border-border">
+            <p className="text-muted-foreground">Loading requests...</p>
+          </div>
+        )}
+
+        {filteredRequests.length === 0 && !isLoadingRequests ? (
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -428,7 +454,7 @@ export default function StudentRequestsPage() {
               Create your first request
             </Button>
           </div>
-        ) : (
+        ) : !isLoadingRequests ? (
           filteredRequests.map((request) => (
             <div
               key={request.id}
@@ -508,7 +534,7 @@ export default function StudentRequestsPage() {
               </div>
             </div>
           ))
-        )}
+        ) : null}
       </div>
     </div>
   );
