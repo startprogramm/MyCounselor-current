@@ -110,40 +110,82 @@ export default function CounselorMessagesPage() {
       .from('profiles')
       .select('*')
       .eq('school_id', user.schoolId)
-      .eq('role', 'student')
-      .eq('approved', true);
+      .eq('role', 'student');
 
     if (studentsError) {
       return;
     }
 
-    const schoolStudents = (studentRows || []).map(mapProfileToUser);
+    let schoolStudents = (studentRows || []).map(mapProfileToUser);
+    let messageRows: MessageRow[] = [];
 
     if (schoolStudents.length === 0) {
-      setStudentChats([]);
-      return;
+      const { data: fallbackMessages, error: fallbackMessagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .ilike('conversation_key', `%${user.id}%`)
+        .order('created_at', { ascending: true });
+
+      if (fallbackMessagesError || !fallbackMessages || fallbackMessages.length === 0) {
+        setStudentChats([]);
+        return;
+      }
+
+      const fallbackStudentIds = Array.from(
+        new Set(
+          fallbackMessages
+            .map((row) => row.conversation_key.split('__'))
+            .flat()
+            .filter((id) => id !== user.id)
+        )
+      );
+
+      if (fallbackStudentIds.length === 0) {
+        setStudentChats([]);
+        return;
+      }
+
+      const { data: fallbackStudents, error: fallbackStudentsError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'student')
+        .in('id', fallbackStudentIds);
+
+      if (fallbackStudentsError || !fallbackStudents || fallbackStudents.length === 0) {
+        setStudentChats([]);
+        return;
+      }
+
+      schoolStudents = fallbackStudents.map(mapProfileToUser);
+      messageRows = fallbackMessages;
     }
 
     const keys = schoolStudents.map((student) => buildConversationKey(student.id, user.id));
-    const [{ data: messageRows, error: messageError }, { data: readRows }] = await Promise.all([
-      supabase
+
+    let hasMessageError = false;
+    if (messageRows.length === 0) {
+      const { data: liveMessages, error } = await supabase
         .from('messages')
         .select('*')
         .in('conversation_key', keys)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('message_reads')
-        .select('conversation_key,last_read_at')
-        .eq('reader_id', user.id)
-        .in('conversation_key', keys),
-    ]);
+        .order('created_at', { ascending: true });
 
-    if (messageError) {
+      messageRows = (liveMessages || []) as MessageRow[];
+      hasMessageError = Boolean(error);
+    }
+
+    const { data: readRows } = await supabase
+      .from('message_reads')
+      .select('conversation_key,last_read_at')
+      .eq('reader_id', user.id)
+      .in('conversation_key', keys);
+
+    if (hasMessageError) {
       return;
     }
 
     const grouped = new Map<string, MessageRow[]>();
-    (messageRows || []).forEach((row) => {
+    messageRows.forEach((row) => {
       const bucket = grouped.get(row.conversation_key) || [];
       bucket.push(row);
       grouped.set(row.conversation_key, bucket);

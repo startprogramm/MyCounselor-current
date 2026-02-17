@@ -150,12 +150,10 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
         return;
       }
 
-      const approvedStudentIds = (studentRows || [])
-        .filter((student) => student.approved === true)
-        .map((student) => student.id);
+      const studentIds = (studentRows || []).map((student) => student.id);
 
-      if (approvedStudentIds.length > 0) {
-        const keys = approvedStudentIds.map((studentId) => [studentId, user.id].sort().join('__'));
+      if (studentIds.length > 0) {
+        const keys = studentIds.map((studentId) => [studentId, user.id].sort().join('__'));
         const [{ data: messageRows }, { data: readRows }] = await Promise.all([
           supabase
             .from('messages')
