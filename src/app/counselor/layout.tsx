@@ -6,6 +6,13 @@ import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 
+const dashboardRoutes: Record<'student' | 'counselor' | 'teacher' | 'parent', string> = {
+  student: '/student/dashboard',
+  counselor: '/counselor/dashboard',
+  teacher: '/teacher/dashboard',
+  parent: '/parent/dashboard',
+};
+
 const counselorNavItems: SidebarItem[] = [
   {
     label: 'Dashboard',
@@ -129,6 +136,19 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
 
   const isApproved = user?.approved === true;
 
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+
+    if (user.role !== 'counselor') {
+      router.push(dashboardRoutes[user.role] || '/auth/login');
+    }
+  }, [isLoading, user, router]);
+
   // Redirect unapproved counselors to dashboard only
   useEffect(() => {
     if (!isLoading && user && user.role === 'counselor' && !isApproved && pathname !== '/counselor/dashboard') {
@@ -232,6 +252,10 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
         </div>
       </div>
     );
+  }
+
+  if (!user || user.role !== 'counselor') {
+    return null;
   }
 
   const visibleNavItems = isApproved

@@ -57,6 +57,24 @@ const Header: React.FC = () => {
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
 
+  const dashboardRoute =
+    user?.role === 'student'
+      ? '/student/dashboard'
+      : user?.role === 'teacher'
+        ? '/teacher/dashboard'
+        : user?.role === 'parent'
+          ? '/parent/dashboard'
+          : '/counselor/dashboard';
+
+  const primaryActionRoute =
+    user?.role === 'student'
+      ? '/student/messages'
+      : user?.role === 'teacher'
+        ? '/teacher/messages'
+        : user?.role === 'parent'
+          ? '/parent/messages'
+          : '/counselor/messages';
+
   const handleLogout = () => {
     logout();
     setIsProfileMenuOpen(false);
@@ -210,7 +228,7 @@ const Header: React.FC = () => {
                         )}
                       </div>
                       <Link
-                        href={user.role === 'student' ? '/student/dashboard' : '/counselor/dashboard'}
+                        href={dashboardRoute}
                         className="flex items-center space-x-2 px-4 py-2 text-sm text-[#202124] dark:text-[#E8EAED] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043]"
                         onClick={() => setIsProfileMenuOpen(false)}
                       >
@@ -218,7 +236,7 @@ const Header: React.FC = () => {
                         <span>Dashboard</span>
                       </Link>
                       <Link
-                        href={user.role === 'student' ? '/student/messages' : '/counselor/students'}
+                        href={primaryActionRoute}
                         className="flex items-center space-x-2 px-4 py-2 text-sm text-[#202124] dark:text-[#E8EAED] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043]"
                         onClick={() => setIsProfileMenuOpen(false)}
                       >
@@ -347,7 +365,7 @@ const Header: React.FC = () => {
                       </div>
                     </div>
                     <Link
-                      href={user.role === 'student' ? '/student/dashboard' : '/counselor/dashboard'}
+                      href={dashboardRoute}
                       className="px-4 py-3 text-sm font-medium text-[#202124] dark:text-[#E8EAED] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] rounded-lg transition-colors focus-ring"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
