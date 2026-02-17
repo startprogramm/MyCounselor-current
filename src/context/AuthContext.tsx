@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 
@@ -115,33 +115,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [schoolUsers, setSchoolUsers] = useState<User[]>([]);
+  const schoolUsersLoadIdRef = useRef(0);
 
-  const fetchProfile = async (userId: string): Promise<User | null> => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+  const fetchProfile = async (userId: string, attempts = 2): Promise<User | null> => {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error || !data) {
-      return null;
+      if (!error && data) {
+        return mapProfileToUser(data);
+      }
+
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
     }
 
-    return mapProfileToUser(data);
+    return null;
   };
 
   const loadSchoolUsers = async (schoolId: string) => {
+    const requestId = schoolUsersLoadIdRef.current + 1;
+    schoolUsersLoadIdRef.current = requestId;
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('school_id', schoolId);
 
     if (error || !data) {
-      setSchoolUsers([]);
+      if (schoolUsersLoadIdRef.current === requestId) {
+        setSchoolUsers([]);
+      }
       return;
     }
 
-    setSchoolUsers(data.map(mapProfileToUser));
+    if (schoolUsersLoadIdRef.current === requestId) {
+      setSchoolUsers(data.map(mapProfileToUser));
+    }
   };
 
   const refreshSchoolUsers = async () => {
@@ -302,6 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    schoolUsersLoadIdRef.current += 1;
     setUser(null);
     setSchoolUsers([]);
   };

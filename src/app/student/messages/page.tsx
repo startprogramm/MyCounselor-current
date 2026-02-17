@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
+import { startVisibilityAwarePolling } from '@/lib/polling';
 
 interface Message {
   id: number;
@@ -153,6 +154,7 @@ function generateAutoReply(message: string): string | null {
 export default function StudentMessagesPage() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedConvId, setSelectedConvId] = useState<number>(0);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -204,6 +206,7 @@ export default function StudentMessagesPage() {
     if (!user?.schoolId || !user?.id) {
       setConversations([]);
       setSelectedConvId(0);
+      setLoadError(null);
       return;
     }
 
@@ -215,6 +218,7 @@ export default function StudentMessagesPage() {
       .eq('approved', true);
 
     if (counselorsError) {
+      setLoadError('Unable to load counselor list. Please refresh and try again.');
       return;
     }
 
@@ -223,6 +227,7 @@ export default function StudentMessagesPage() {
     if (counselors.length === 0) {
       setConversations([]);
       setSelectedConvId(0);
+      setLoadError(null);
       return;
     }
 
@@ -242,6 +247,7 @@ export default function StudentMessagesPage() {
     ]);
 
     if (messageError) {
+      setLoadError('Unable to load messages right now. Please try again.');
       return;
     }
 
@@ -256,6 +262,7 @@ export default function StudentMessagesPage() {
       readByConversation,
       user
     );
+    setLoadError(null);
     setConversations(merged);
     setSelectedConvId((prev) =>
       merged.some((conversation) => conversation.id === prev) ? prev : merged[0]?.id || 0
@@ -268,12 +275,7 @@ export default function StudentMessagesPage() {
 
   useEffect(() => {
     if (!user?.id) return;
-
-    const interval = setInterval(() => {
-      loadConversations();
-    }, 5000);
-
-    return () => clearInterval(interval);
+    return startVisibilityAwarePolling(() => loadConversations(), 8000);
   }, [user?.id, loadConversations]);
 
   useEffect(() => {
@@ -373,6 +375,19 @@ export default function StudentMessagesPage() {
           {conversations.length} active conversation{conversations.length === 1 ? '' : 's'}
         </div>
       </div>
+
+      {loadError && (
+        <div className="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground flex items-center justify-between gap-3">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => void loadConversations()}
+            className="px-3 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {conversations.length === 0 ? (
         <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">

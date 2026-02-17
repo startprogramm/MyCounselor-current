@@ -27,6 +27,11 @@ export default function ParentMeetingsPage() {
     const loadMeetings = async () => {
       const allStudents = getSchoolStudents(user.schoolId);
       const childIds: string[] = [];
+      const studentNameById = new Map<string, string>();
+
+      allStudents.forEach((student) => {
+        studentNameById.set(student.id, `${student.firstName} ${student.lastName}`);
+      });
 
       if (user.childrenNames) {
         for (const name of user.childrenNames) {
@@ -54,7 +59,7 @@ export default function ParentMeetingsPage() {
           type: row.type,
           status: row.status,
           counselorName: row.counselor_name,
-          studentName: row.student_name || '',
+          studentName: studentNameById.get(row.student_id) || '',
         }))
       );
     };

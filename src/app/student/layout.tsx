@@ -6,6 +6,7 @@ import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { getDashboardRouteForRole } from '@/lib/role-routes';
+import { startVisibilityAwarePolling } from '@/lib/polling';
 
 const studentNavItems: SidebarItem[] = [
   {
@@ -174,11 +175,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     computeBadges();
-    const interval = setInterval(() => {
-      computeBadges();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [computeBadges]);
+    if (!user?.id || !isApproved) return;
+    return startVisibilityAwarePolling(() => computeBadges(), 12000);
+  }, [user?.id, isApproved, computeBadges]);
 
   if (isLoading) {
     return (

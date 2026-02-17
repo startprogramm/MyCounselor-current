@@ -12,6 +12,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isSlowNetwork, setIsSlowNetwork] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -52,23 +53,15 @@ export default function LoginPage() {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setIsSlowNetwork(false);
     setErrors({});
 
+    const slowTimer = window.setTimeout(() => {
+      setIsSlowNetwork(true);
+    }, 8000);
+
     try {
-      const loginResult = await Promise.race([
-        login(formData.email, formData.password),
-        new Promise<{ user: null; error: string }>((resolve) =>
-          setTimeout(
-            () =>
-              resolve({
-                user: null,
-                error:
-                  'Sign in is taking too long. Please check your internet and try again.',
-              }),
-            15000
-          )
-        ),
-      ]);
+      const loginResult = await login(formData.email, formData.password);
 
       if (!loginResult.user || loginResult.error) {
         setErrors({
@@ -81,6 +74,8 @@ export default function LoginPage() {
     } catch {
       setErrors({ email: 'Unexpected sign-in error. Please try again.' });
     } finally {
+      window.clearTimeout(slowTimer);
+      setIsSlowNetwork(false);
       setIsLoading(false);
     }
   };
@@ -218,6 +213,12 @@ export default function LoginPage() {
             <Button type="submit" fullWidth isLoading={isLoading}>
               Sign in
             </Button>
+
+            {isLoading && isSlowNetwork && (
+              <p className="text-xs text-muted-foreground text-center">
+                Network is slow. Still signing you in, please wait...
+              </p>
+            )}
           </form>
 
           {/* Sign up link */}

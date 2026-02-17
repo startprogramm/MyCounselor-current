@@ -6,6 +6,7 @@ import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { getDashboardRouteForRole } from '@/lib/role-routes';
+import { startVisibilityAwarePolling } from '@/lib/polling';
 
 const counselorNavItems: SidebarItem[] = [
   {
@@ -231,11 +232,9 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     computeBadges();
-    const interval = setInterval(() => {
-      computeBadges();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [computeBadges]);
+    if (!user?.id) return;
+    return startVisibilityAwarePolling(() => computeBadges(), 12000);
+  }, [user?.id, computeBadges]);
 
   if (isLoading) {
     return (
