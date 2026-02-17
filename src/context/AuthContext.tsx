@@ -17,6 +17,7 @@ export interface User {
   department?: string;
   profileImage?: string;
   approved?: boolean;
+  studentConfirmed?: boolean;
   subject?: string;
   childrenIds?: string[];
   childrenNames?: string[];
@@ -56,6 +57,7 @@ interface AuthContextType {
   findRegisteredUser: (email: string) => Promise<User | null>;
   getSchoolCounselors: (schoolId: string) => User[];
   getSchoolStudents: (schoolId: string) => User[];
+  getSchoolParents: (schoolId: string) => User[];
   updateRegisteredUser: (userId: string, updates: Partial<User>) => Promise<void>;
   removeRegisteredUser: (userId: string) => Promise<void>;
   refreshSchoolUsers: () => Promise<void>;
@@ -80,6 +82,7 @@ function mapProfileToUser(profile: ProfileRow): User {
     department: profile.department || undefined,
     profileImage: profile.profile_image || undefined,
     approved: profile.approved,
+    studentConfirmed: profile.student_confirmed,
     subject: profile.subject || undefined,
     childrenNames: profile.children_names || undefined,
     relationship: profile.relationship || undefined,
@@ -100,6 +103,7 @@ function toProfileUpdate(updates: Partial<User>): ProfileUpdate {
   if (updates.department !== undefined) payload.department = updates.department;
   if (updates.profileImage !== undefined) payload.profile_image = updates.profileImage;
   if (updates.approved !== undefined) payload.approved = updates.approved;
+  if (updates.studentConfirmed !== undefined) payload.student_confirmed = updates.studentConfirmed;
   if (updates.subject !== undefined) payload.subject = updates.subject;
   if (updates.childrenNames !== undefined) payload.children_names = updates.childrenNames;
   if (updates.relationship !== undefined) payload.relationship = updates.relationship;
@@ -339,6 +343,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return schoolUsers.filter((profile) => profile.role === 'student' && profile.schoolId === schoolId);
   };
 
+  const getSchoolParents = (schoolId: string): User[] => {
+    return schoolUsers.filter((profile) => profile.role === 'parent' && profile.schoolId === schoolId);
+  };
+
   const updateRegisteredUser = async (userId: string, updates: Partial<User>) => {
     const payload = toProfileUpdate(updates);
     if (Object.keys(payload).length === 0) return;
@@ -377,6 +385,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       findRegisteredUser,
       getSchoolCounselors,
       getSchoolStudents,
+      getSchoolParents,
       updateRegisteredUser,
       removeRegisteredUser,
       refreshSchoolUsers,

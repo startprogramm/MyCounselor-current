@@ -110,6 +110,7 @@ function mapProfileToUser(profile: ProfileRow): User {
     department: profile.department || undefined,
     profileImage: profile.profile_image || undefined,
     approved: profile.approved,
+    studentConfirmed: profile.student_confirmed,
     subject: profile.subject || undefined,
     childrenNames: profile.children_names || undefined,
     relationship: profile.relationship || undefined,
@@ -261,7 +262,7 @@ export default function StudentDashboardPage() {
     };
 
     loadDashboardData();
-  }, [user?.id, user?.schoolId]);
+  }, [user?.approved, user?.firstName, user?.id, user?.lastName, user?.schoolId]);
 
   // Computed stats from real data
   const upcomingMeetings = meetings.filter(
@@ -383,12 +384,17 @@ export default function StudentDashboardPage() {
   };
 
   const handleConfirmParent = async (parentId: string) => {
-    await supabase.from('profiles').update({ student_confirmed: true }).eq('id', parentId);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ student_confirmed: true })
+      .eq('id', parentId);
+    if (error) return;
     setPendingParents(prev => prev.filter(p => p.id !== parentId));
   };
 
   const handleRejectParent = async (parentId: string) => {
-    await supabase.from('profiles').delete().eq('id', parentId);
+    const { error } = await supabase.from('profiles').delete().eq('id', parentId);
+    if (error) return;
     setPendingParents(prev => prev.filter(p => p.id !== parentId));
   };
 
@@ -577,7 +583,7 @@ export default function StudentDashboardPage() {
                       {parent.firstName} {parent.lastName}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {parent.relationship.charAt(0).toUpperCase() + parent.relationship.slice(1)} — wants to link as your parent
+                      {parent.relationship.charAt(0).toUpperCase() + parent.relationship.slice(1)} - wants to link as your parent
                     </p>
                   </div>
                 </div>

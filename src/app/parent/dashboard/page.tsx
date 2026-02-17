@@ -159,6 +159,8 @@ export default function ParentDashboardPage() {
     loadData();
   }, [user?.id, user?.schoolId, user?.childrenNames, getSchoolCounselors, getSchoolStudents]);
 
+  const isFullyApproved = user?.studentConfirmed === true && user?.approved === true;
+
   const getProgressColor = (progress: number) => {
     if (progress >= 70) return 'bg-success';
     if (progress >= 40) return 'bg-amber-500';
@@ -207,6 +209,169 @@ export default function ParentDashboardPage() {
       accent: 'warning' as const,
     },
   ];
+
+  // Pending dual-approval view
+  if (!isFullyApproved) {
+    return (
+      <div className="space-y-6">
+        {/* Welcome Header */}
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
+            Welcome, {user?.firstName || 'Parent'}!
+          </h1>
+          {user?.childrenNames && user.childrenNames.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {user.relationship ? `${user.relationship.charAt(0).toUpperCase() + user.relationship.slice(1)} of ` : 'Parent of '}
+              {user.childrenNames.join(', ')}
+            </p>
+          )}
+        </div>
+
+        {/* Dual-Approval Status Card */}
+        <Card className="p-0 overflow-hidden border-warning/30">
+          <div className="h-1 bg-warning" />
+          <div className="p-6 sm:p-8">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-foreground">Account Pending Approval</h2>
+                <p className="text-muted-foreground mt-1">
+                  Your parent account requires a two-step verification before you can access all features.
+                </p>
+
+                {/* Step indicators */}
+                <div className="mt-6 space-y-4">
+                  {/* Step 1: Student confirmation */}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      user?.studentConfirmed === true
+                        ? 'bg-success/10 text-success'
+                        : 'bg-warning/10 text-warning'
+                    }`}>
+                      {user?.studentConfirmed === true ? (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <span className="text-sm font-bold">1</span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-medium ${user?.studentConfirmed === true ? 'text-success' : 'text-foreground'}`}>
+                        {user?.studentConfirmed === true ? 'Child confirmed your identity' : 'Waiting for your child to confirm'}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {user?.studentConfirmed === true
+                          ? 'Your child has verified that you are their parent.'
+                          : `Your child (${user?.childrenNames?.join(', ') || 'linked student'}) needs to confirm you are their parent from their dashboard.`}
+                      </p>
+                      {user?.studentConfirmed !== true && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-warning font-medium">
+                          <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                          Awaiting student confirmation
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Step 2: Counselor approval */}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      user?.approved === true
+                        ? 'bg-success/10 text-success'
+                        : user?.studentConfirmed === true
+                          ? 'bg-warning/10 text-warning'
+                          : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {user?.approved === true ? (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : (
+                        <span className="text-sm font-bold">2</span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-medium ${
+                        user?.approved === true
+                          ? 'text-success'
+                          : user?.studentConfirmed === true
+                            ? 'text-foreground'
+                            : 'text-muted-foreground'
+                      }`}>
+                        {user?.approved === true
+                          ? 'Counselor approved your account'
+                          : 'Waiting for counselor approval'}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {user?.studentConfirmed === true && user?.approved !== true
+                          ? 'Your child confirmed you. A school counselor will review and approve your account shortly.'
+                          : 'After your child confirms, a counselor will review and approve your account.'}
+                      </p>
+                      {user?.studentConfirmed === true && user?.approved !== true && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-warning font-medium">
+                          <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                          Awaiting counselor approval
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Counselor Info (read-only) */}
+        {counselors.length > 0 && (
+          <ContentCard
+            title="Your School Counselor(s)"
+            description="These counselors will review your account."
+          >
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {counselors.map((c, index) => (
+                <Card key={c.id} className="p-0 overflow-hidden">
+                  <div className={`h-1 ${index % 3 === 0 ? 'bg-primary' : index % 3 === 1 ? 'bg-secondary' : 'bg-accent'}`} />
+                  <div className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-12 h-12 rounded-full border border-border bg-muted/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        {c.profileImage ? (
+                          <img
+                            src={c.profileImage}
+                            alt={`${c.firstName} ${c.lastName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className={`font-bold text-sm ${index % 3 === 0 ? 'text-primary' : index % 3 === 1 ? 'text-secondary' : 'text-accent'}`}>
+                            {c.firstName[0]}{c.lastName[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-foreground truncate">
+                          {c.firstName} {c.lastName}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {c.title || 'School Counselor'}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {c.department || 'General'} Department
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </ContentCard>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -340,7 +505,7 @@ export default function ParentDashboardPage() {
             <p className="font-medium text-foreground">No children linked yet</p>
             <p className="text-sm text-muted-foreground mt-1">
               {user?.childrenNames && user.childrenNames.length > 0
-                ? `Looking for ${user.childrenNames.join(', ')} — they haven't registered at this school yet.`
+                ? `Looking for ${user.childrenNames.join(', ')} - they haven't registered at this school yet.`
                 : 'Your children will appear here once they register at your school.'}
             </p>
           </div>
@@ -459,7 +624,7 @@ export default function ParentDashboardPage() {
                       {c.firstName} {c.lastName}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {c.title || 'School Counselor'} {c.department ? `• ${c.department}` : ''}
+                      {c.title || 'School Counselor'} {c.department ? `| ${c.department}` : ''}
                     </p>
                   </div>
                   <Link

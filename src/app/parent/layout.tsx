@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 
@@ -81,12 +81,22 @@ const parentNavItems: SidebarItem[] = [
 export default function ParentLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isFullyApproved = user?.studentConfirmed === true && user?.approved === true;
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'parent')) {
       router.push('/auth/login');
     }
   }, [user, isLoading, router]);
+
+  // Restrict unapproved parents to dashboard only
+  useEffect(() => {
+    if (!isLoading && user && user.role === 'parent' && !isFullyApproved && pathname !== '/parent/dashboard') {
+      router.push('/parent/dashboard');
+    }
+  }, [isLoading, user, isFullyApproved, pathname, router]);
 
   if (isLoading) {
     return (
@@ -103,10 +113,14 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
     return null;
   }
 
+  const visibleNavItems = isFullyApproved
+    ? parentNavItems
+    : parentNavItems.filter(item => item.href === '/parent/dashboard');
+
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
-        items={parentNavItems}
+        items={visibleNavItems}
         userType="parent"
         userName={`${user.firstName} ${user.lastName}`}
         userEmail={user.email}

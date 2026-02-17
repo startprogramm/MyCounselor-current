@@ -23,6 +23,7 @@ export type Database = {
           department: string | null;
           profile_image: string | null;
           approved: boolean;
+          student_confirmed: boolean;
           subject: string | null;
           children_names: string[] | null;
           relationship: string | null;
@@ -41,6 +42,7 @@ export type Database = {
           department?: string | null;
           profile_image?: string | null;
           approved?: boolean;
+          student_confirmed?: boolean;
           subject?: string | null;
           children_names?: string[] | null;
           relationship?: string | null;
@@ -59,6 +61,7 @@ export type Database = {
           department?: string | null;
           profile_image?: string | null;
           approved?: boolean;
+          student_confirmed?: boolean;
           subject?: string | null;
           children_names?: string[] | null;
           relationship?: string | null;
