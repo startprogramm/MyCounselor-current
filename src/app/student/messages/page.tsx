@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/database.types';
 
 interface Message {
   id: number;
@@ -20,6 +21,8 @@ interface MessageRow {
   content: string;
   created_at: string;
 }
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 interface Conversation {
   id: number;
@@ -105,6 +108,26 @@ function buildConversationsFromCounselors(
   });
 }
 
+function mapProfileToUser(profile: ProfileRow): User {
+  return {
+    id: profile.id,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    email: profile.email,
+    role: profile.role,
+    schoolId: profile.school_id,
+    schoolName: profile.school_name || undefined,
+    gradeLevel: profile.grade_level || undefined,
+    title: profile.title || undefined,
+    department: profile.department || undefined,
+    profileImage: profile.profile_image || undefined,
+    approved: profile.approved,
+    subject: profile.subject || undefined,
+    childrenNames: profile.children_names || undefined,
+    relationship: profile.relationship || undefined,
+  };
+}
+
 function generateAutoReply(message: string): string | null {
   const lower = message.toLowerCase();
 
@@ -128,7 +151,7 @@ function generateAutoReply(message: string): string | null {
 }
 
 export default function StudentMessagesPage() {
-  const { user, getSchoolCounselors } = useAuth();
+  const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConvId, setSelectedConvId] = useState<number>(0);
   const [newMessage, setNewMessage] = useState('');
@@ -184,7 +207,18 @@ export default function StudentMessagesPage() {
       return;
     }
 
-    const counselors = getSchoolCounselors(user.schoolId).filter((c) => c.approved === true);
+    const { data: counselorRows, error: counselorsError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('school_id', user.schoolId)
+      .eq('role', 'counselor')
+      .eq('approved', true);
+
+    if (counselorsError) {
+      return;
+    }
+
+    const counselors = (counselorRows || []).map(mapProfileToUser);
 
     if (counselors.length === 0) {
       setConversations([]);
@@ -208,8 +242,6 @@ export default function StudentMessagesPage() {
     ]);
 
     if (messageError) {
-      setConversations([]);
-      setSelectedConvId(0);
       return;
     }
 
@@ -228,7 +260,7 @@ export default function StudentMessagesPage() {
     setSelectedConvId((prev) =>
       merged.some((conversation) => conversation.id === prev) ? prev : merged[0]?.id || 0
     );
-  }, [user, getSchoolCounselors]);
+  }, [user]);
 
   useEffect(() => {
     loadConversations();

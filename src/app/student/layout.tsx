@@ -80,7 +80,7 @@ const studentNavItems: SidebarItem[] = [
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, getSchoolCounselors } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
@@ -117,9 +117,21 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       counts['/student/requests'] = responseRequests!.length;
     }
 
-    const counselors = getSchoolCounselors(user.schoolId).filter((counselor) => counselor.approved === true);
-    if (counselors.length > 0) {
-      const keys = counselors.map((counselor) => [user.id, counselor.id].sort().join('__'));
+    const { data: counselorRows, error: counselorsError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('school_id', user.schoolId)
+      .eq('role', 'counselor')
+      .eq('approved', true);
+
+    if (counselorsError) {
+      setBadgeCounts(counts);
+      return;
+    }
+
+    const counselorIds = (counselorRows || []).map((row) => row.id);
+    if (counselorIds.length > 0) {
+      const keys = counselorIds.map((counselorId) => [user.id, counselorId].sort().join('__'));
       const [{ data: messageRows }, { data: readRows }] = await Promise.all([
         supabase
           .from('messages')
@@ -150,7 +162,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
     }
 
     setBadgeCounts(counts);
-  }, [user, isApproved, getSchoolCounselors]);
+  }, [user, isApproved]);
 
   useEffect(() => {
     computeBadges();

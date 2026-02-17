@@ -108,7 +108,7 @@ const counselorNavItems: SidebarItem[] = [
 ];
 
 export default function CounselorLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, getSchoolStudents } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
@@ -139,9 +139,23 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     }
 
     if (user.schoolId) {
-      const students = getSchoolStudents(user.schoolId).filter((student) => student.approved === true);
-      if (students.length > 0) {
-        const keys = students.map((student) => [student.id, user.id].sort().join('__'));
+      const { data: studentRows, error: studentsError } = await supabase
+        .from('profiles')
+        .select('id,approved')
+        .eq('school_id', user.schoolId)
+        .eq('role', 'student');
+
+      if (studentsError) {
+        setBadgeCounts(counts);
+        return;
+      }
+
+      const approvedStudentIds = (studentRows || [])
+        .filter((student) => student.approved === true)
+        .map((student) => student.id);
+
+      if (approvedStudentIds.length > 0) {
+        const keys = approvedStudentIds.map((studentId) => [studentId, user.id].sort().join('__'));
         const [{ data: messageRows }, { data: readRows }] = await Promise.all([
           supabase
             .from('messages')
@@ -170,19 +184,13 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
 
         if (totalUnread > 0) counts['/counselor/messages'] = totalUnread;
       }
+
+      const pendingStudents = (studentRows || []).filter((student) => student.approved !== true).length;
+      if (pendingStudents > 0) counts['/counselor/students'] = pendingStudents;
     }
 
-    // Pending student approvals
-    try {
-      if (user.schoolId) {
-        const students = getSchoolStudents(user.schoolId);
-        const pendingStudents = students.filter(s => s.approved !== true).length;
-        if (pendingStudents > 0) counts['/counselor/students'] = pendingStudents;
-      }
-    } catch { /* skip */ }
-
     setBadgeCounts(counts);
-  }, [user, getSchoolStudents]);
+  }, [user]);
 
   useEffect(() => {
     computeBadges();

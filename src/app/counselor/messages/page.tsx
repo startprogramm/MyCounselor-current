@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/database.types';
 
 interface Message {
   id: number;
@@ -20,6 +21,8 @@ interface MessageRow {
   content: string;
   created_at: string;
 }
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 interface StudentChat {
   student: User;
@@ -42,8 +45,28 @@ function formatMessageTime(value: string) {
   });
 }
 
+function mapProfileToUser(profile: ProfileRow): User {
+  return {
+    id: profile.id,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    email: profile.email,
+    role: profile.role,
+    schoolId: profile.school_id,
+    schoolName: profile.school_name || undefined,
+    gradeLevel: profile.grade_level || undefined,
+    title: profile.title || undefined,
+    department: profile.department || undefined,
+    profileImage: profile.profile_image || undefined,
+    approved: profile.approved,
+    subject: profile.subject || undefined,
+    childrenNames: profile.children_names || undefined,
+    relationship: profile.relationship || undefined,
+  };
+}
+
 export default function CounselorMessagesPage() {
-  const { user, getSchoolStudents } = useAuth();
+  const { user } = useAuth();
   const [studentChats, setStudentChats] = useState<StudentChat[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -83,7 +106,18 @@ export default function CounselorMessagesPage() {
       return;
     }
 
-    const schoolStudents = getSchoolStudents(user.schoolId).filter((student) => student.approved === true);
+    const { data: studentRows, error: studentsError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('school_id', user.schoolId)
+      .eq('role', 'student')
+      .eq('approved', true);
+
+    if (studentsError) {
+      return;
+    }
+
+    const schoolStudents = (studentRows || []).map(mapProfileToUser);
 
     if (schoolStudents.length === 0) {
       setStudentChats([]);
@@ -105,7 +139,6 @@ export default function CounselorMessagesPage() {
     ]);
 
     if (messageError) {
-      setStudentChats([]);
       return;
     }
 
@@ -169,7 +202,7 @@ export default function CounselorMessagesPage() {
     if (!selectedStudentId && chats.length > 0) {
       setSelectedStudentId(chats[0].student.id);
     }
-  }, [user, getSchoolStudents, selectedStudentId]);
+  }, [user, selectedStudentId]);
 
   useEffect(() => {
     loadStudentChats();
