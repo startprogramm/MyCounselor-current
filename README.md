@@ -81,3 +81,21 @@ To learn more about Next.js, take a look at the following resources:
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial
 
 You can check out the [Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Supabase CLI Workflow
+
+Use the helper script to link this repo with your Supabase project and push migrations:
+
+```powershell
+.\scripts\supabase-link-and-push.ps1 -Push
+```
+
+Notes:
+- The script auto-detects the project ref from `NEXT_PUBLIC_SUPABASE_URL` in `.env`.
+- If needed, pass values explicitly:
+
+```powershell
+.\scripts\supabase-link-and-push.ps1 -ProjectRef yourprojectref -DbPassword "your-db-password" -Push
+```
+
+- Current schema migration is stored at:
+  `supabase/migrations/20260217150000_initial_schema.sql`
