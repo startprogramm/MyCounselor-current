@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 
@@ -46,7 +47,6 @@ const parentNavItems: SidebarItem[] = [
         />
       </svg>
     ),
-    badge: 2,
   },
   {
     label: 'Meetings',
@@ -58,20 +58,6 @@ const parentNavItems: SidebarItem[] = [
           strokeLinejoin="round"
           strokeWidth={2}
           d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: 'Progress Reports',
-    href: '/parent/progress',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
         />
       </svg>
     ),
@@ -93,16 +79,39 @@ const parentNavItems: SidebarItem[] = [
 ];
 
 export default function ParentLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== 'parent')) {
+      router.push('/auth/login');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'parent') {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
         items={parentNavItems}
         userType="parent"
-        userName={user ? `${user.firstName} ${user.lastName}` : 'Parent'}
-        userEmail={user?.email || 'parent@example.com'}
-        userAvatar={user?.profileImage}
+        userName={`${user.firstName} ${user.lastName}`}
+        userEmail={user.email}
+        userAvatar={user.profileImage}
+        userSchool={user.schoolName}
       />
       <main className="lg:pl-64 min-h-screen">
         <div className="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">{children}</div>

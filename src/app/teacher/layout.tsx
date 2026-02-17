@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 
@@ -32,7 +33,6 @@ const teacherNavItems: SidebarItem[] = [
         />
       </svg>
     ),
-    badge: 32,
   },
   {
     label: 'Referrals',
@@ -47,7 +47,6 @@ const teacherNavItems: SidebarItem[] = [
         />
       </svg>
     ),
-    badge: 3,
   },
   {
     label: 'Messages',
@@ -62,7 +61,6 @@ const teacherNavItems: SidebarItem[] = [
         />
       </svg>
     ),
-    badge: 5,
   },
   {
     label: 'Resources',
@@ -95,16 +93,39 @@ const teacherNavItems: SidebarItem[] = [
 ];
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== 'teacher')) {
+      router.push('/auth/login');
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== 'teacher') {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
         items={teacherNavItems}
         userType="teacher"
-        userName={user ? `${user.firstName} ${user.lastName}` : 'Teacher'}
-        userEmail={user?.email || 'teacher@school.edu'}
-        userAvatar={user?.profileImage}
+        userName={`${user.firstName} ${user.lastName}`}
+        userEmail={user.email}
+        userAvatar={user.profileImage}
+        userSchool={user.schoolName}
       />
       <main className="lg:pl-64 min-h-screen">
         <div className="p-4 sm:p-6 lg:p-8 pt-20 lg:pt-8">{children}</div>

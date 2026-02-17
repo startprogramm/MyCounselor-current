@@ -1,59 +1,212 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { StatsCard, ContentCard } from '@/components/ui/Card';
-import { useAuth } from '@/context/AuthContext';
+import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
-const stats = [
-  { title: 'Counselor Meetings', value: 2, subtitle: 'This semester' },
-  { title: 'New Messages', value: 2, subtitle: 'Unread' },
-  { title: 'Goals Progress', value: '75%', subtitle: 'On track' },
-  { title: 'Resources Viewed', value: 8, subtitle: 'This month' },
-];
+interface ChildProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  gradeLevel: string;
+  profileImage?: string;
+  approved: boolean;
+}
 
-const childProgress = {
-  name: 'Alex Smith',
-  grade: '10th Grade',
-  counselor: 'Ms. Sarah Martinez',
-  goals: [
-    { name: 'Improve Math grade', progress: 80, status: 'on-track' },
-    { name: 'Join 2 extracurriculars', progress: 50, status: 'in-progress' },
-    { name: 'Complete SAT prep', progress: 30, status: 'in-progress' },
-  ],
-  recentUpdates: [
-    { date: 'Jan 23', update: 'Attended college planning workshop' },
-    { date: 'Jan 20', update: 'Met with counselor for goal review' },
-    { date: 'Jan 15', update: 'Joined robotics club' },
-  ],
-};
+interface ChildGoal {
+  id: number;
+  title: string;
+  progress: number;
+  deadline: string;
+  priority: 'high' | 'medium' | 'low';
+  studentId: string;
+}
 
-const recentMessages = [
-  { id: 1, from: 'Ms. Martinez (Counselor)', subject: 'Monthly progress update', time: '2 hours ago', unread: true },
-  { id: 2, from: 'Mr. Johnson (Teacher)', subject: 'Math improvement noticed', time: 'Yesterday', unread: true },
-  { id: 3, from: 'School Admin', subject: 'Parent-teacher conference reminder', time: '2 days ago', unread: false },
-];
+interface ChildRequest {
+  id: number;
+  title: string;
+  status: string;
+  category: string;
+  createdAt: string;
+  counselorName: string;
+  studentName: string;
+}
 
-const upcomingEvents = [
-  { id: 1, title: 'Parent-Teacher Conference', date: 'Jan 28, 3:00 PM', type: 'meeting' },
-  { id: 2, title: 'College Fair', date: 'Feb 5, 6:00 PM', type: 'event' },
-  { id: 3, title: 'Counselor Check-in', date: 'Feb 10, 2:30 PM', type: 'meeting' },
-];
+interface ChildMeeting {
+  id: number;
+  title: string;
+  date: string;
+  time: string;
+  type: string;
+  status: string;
+  counselorName: string;
+}
 
-const recommendedResources = [
-  { id: 1, title: 'Supporting Your Teen Through High School', type: 'article' },
-  { id: 2, title: 'College Application Timeline', type: 'guide' },
-  { id: 3, title: 'Understanding SAT/ACT Scores', type: 'video' },
-];
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 export default function ParentDashboardPage() {
-  const { user } = useAuth();
+  const { user, getSchoolCounselors, getSchoolStudents } = useAuth();
+  const [children, setChildren] = useState<ChildProfile[]>([]);
+  const [counselors, setCounselors] = useState<User[]>([]);
+  const [goals, setGoals] = useState<ChildGoal[]>([]);
+  const [requests, setRequests] = useState<ChildRequest[]>([]);
+  const [meetings, setMeetings] = useState<ChildMeeting[]>([]);
+
+  useEffect(() => {
+    if (!user?.id || !user?.schoolId) return;
+
+    const loadData = async () => {
+      // Get school counselors
+      const schoolCounselors = getSchoolCounselors(user.schoolId).filter(c => c.approved === true);
+      setCounselors(schoolCounselors);
+
+      // Find linked children by matching childrenNames against school students
+      const allStudents = getSchoolStudents(user.schoolId);
+      const linkedChildren: ChildProfile[] = [];
+
+      if (user.childrenNames && user.childrenNames.length > 0) {
+        for (const childName of user.childrenNames) {
+          const nameLower = childName.toLowerCase().trim();
+          const match = allStudents.find(s => {
+            const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+            return fullName === nameLower;
+          });
+          if (match) {
+            linkedChildren.push({
+              id: match.id,
+              firstName: match.firstName,
+              lastName: match.lastName,
+              gradeLevel: match.gradeLevel || 'N/A',
+              profileImage: match.profileImage,
+              approved: match.approved === true,
+            });
+          }
+        }
+      }
+
+      setChildren(linkedChildren);
+
+      if (linkedChildren.length === 0) return;
+
+      const childIds = linkedChildren.map(c => c.id);
+
+      // Load goals, requests, meetings for all linked children
+      const [goalsResult, requestsResult, meetingsResult] = await Promise.all([
+        supabase
+          .from('goals')
+          .select('*')
+          .in('student_id', childIds)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('requests')
+          .select('*')
+          .in('student_id', childIds)
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('meetings')
+          .select('*')
+          .in('student_id', childIds)
+          .order('created_at', { ascending: false })
+          .limit(10),
+      ]);
+
+      setGoals(
+        (goalsResult.data || []).map(row => ({
+          id: row.id,
+          title: row.title,
+          progress: row.progress,
+          deadline: row.deadline,
+          priority: row.priority as ChildGoal['priority'],
+          studentId: row.student_id,
+        }))
+      );
+
+      setRequests(
+        (requestsResult.data || []).map(row => ({
+          id: row.id,
+          title: row.title,
+          status: row.status,
+          category: row.category,
+          createdAt: formatDate(row.created_at),
+          counselorName: row.counselor_name,
+          studentName: row.student_name,
+        }))
+      );
+
+      setMeetings(
+        (meetingsResult.data || []).map(row => ({
+          id: row.id,
+          title: row.title,
+          date: row.date,
+          time: row.time,
+          type: row.type,
+          status: row.status,
+          counselorName: row.counselor_name,
+        }))
+      );
+    };
+
+    loadData();
+  }, [user?.id, user?.schoolId, user?.childrenNames, getSchoolCounselors, getSchoolStudents]);
 
   const getProgressColor = (progress: number) => {
     if (progress >= 70) return 'bg-success';
     if (progress >= 40) return 'bg-amber-500';
     return 'bg-destructive';
   };
+
+  const upcomingMeetings = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');
+  const pendingRequests = requests.filter(r => r.status === 'pending');
+  const goalsOnTrack = goals.filter(g => g.progress >= 50).length;
+  const avgProgress = goals.length > 0
+    ? Math.round(goals.reduce((sum, g) => sum + g.progress, 0) / goals.length)
+    : 0;
+
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const stats = [
+    {
+      title: 'Children Linked',
+      value: children.length,
+      subtitle: user?.childrenNames?.length
+        ? `${user.childrenNames.length} registered`
+        : 'None yet',
+      accent: 'primary' as const,
+    },
+    {
+      title: 'Goals Progress',
+      value: `${avgProgress}%`,
+      subtitle: `${goalsOnTrack} of ${goals.length} on track`,
+      accent: 'success' as const,
+    },
+    {
+      title: 'Upcoming Meetings',
+      value: upcomingMeetings.length,
+      subtitle: 'Scheduled',
+      accent: 'accent' as const,
+    },
+    {
+      title: 'Pending Requests',
+      value: pendingRequests.length,
+      subtitle: `${requests.length} total`,
+      accent: 'warning' as const,
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -68,13 +221,12 @@ export default function ParentDashboardPage() {
           </p>
           {user?.childrenNames && user.childrenNames.length > 0 && (
             <p className="text-sm text-muted-foreground mt-1">
-              Parent of {user.childrenNames.join(', ')}
+              {user.relationship ? `${user.relationship.charAt(0).toUpperCase() + user.relationship.slice(1)} of ` : 'Parent of '}
+              {user.childrenNames.join(', ')}
             </p>
           )}
         </div>
-        <div className="text-sm text-muted-foreground">
-          Friday, January 24, 2026
-        </div>
+        <div className="text-sm text-muted-foreground">{today}</div>
       </div>
 
       {/* Stats */}
@@ -85,22 +237,23 @@ export default function ParentDashboardPage() {
             title={stat.title}
             value={stat.value}
             subtitle={stat.subtitle}
+            accentColor={stat.accent}
             icon={
               index === 0 ? (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               ) : index === 1 ? (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               ) : index === 2 ? (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               ) : (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               )
             }
@@ -108,119 +261,226 @@ export default function ParentDashboardPage() {
         ))}
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Child Progress */}
+      {/* Children Cards */}
+      {children.length > 0 ? (
         <ContentCard
-          title={`${childProgress.name}'s Progress`}
-          description={`${childProgress.grade} • Counselor: ${childProgress.counselor}`}
+          title="My Children"
+          description="Your linked children at this school"
           action={
-            <Link href="/parent/progress" className="text-sm text-rose-500 hover:text-rose-600">
-              Full report
+            <Link href="/parent/children" className="text-sm text-rose-500 hover:text-rose-600">
+              View details
             </Link>
           }
+        >
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {children.map((child) => {
+              const childGoals = goals.filter(g => g.studentId === child.id);
+              const childAvgProgress = childGoals.length > 0
+                ? Math.round(childGoals.reduce((sum, g) => sum + g.progress, 0) / childGoals.length)
+                : 0;
+
+              return (
+                <Card key={child.id} className="p-0 overflow-hidden" hover>
+                  <div className="h-1 bg-rose-500" />
+                  <div className="p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 rounded-full border border-border bg-muted/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                        {child.profileImage ? (
+                          <img
+                            src={child.profileImage}
+                            alt={`${child.firstName} ${child.lastName}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="font-bold text-sm text-rose-500">
+                            {child.firstName[0]}{child.lastName[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {child.firstName} {child.lastName}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Grade {child.gradeLevel}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Goals Progress</span>
+                      <span className="font-medium text-foreground">{childAvgProgress}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden mb-3">
+                      <div
+                        className={`h-full ${getProgressColor(childAvgProgress)} transition-all`}
+                        style={{ width: `${childAvgProgress}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Badge variant={child.approved ? 'success' : 'warning'} size="sm">
+                        {child.approved ? 'Active' : 'Pending'}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {childGoals.length} goal{childGoals.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </ContentCard>
+      ) : (
+        <Card className="p-0 overflow-hidden border-rose-500/20">
+          <div className="h-1 bg-rose-500" />
+          <div className="p-6 text-center">
+            <svg className="w-12 h-12 mx-auto text-muted-foreground mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p className="font-medium text-foreground">No children linked yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {user?.childrenNames && user.childrenNames.length > 0
+                ? `Looking for ${user.childrenNames.join(', ')} — they haven't registered at this school yet.`
+                : 'Your children will appear here once they register at your school.'}
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Main Content Grid */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Recent Requests */}
+        <ContentCard
+          title="Recent Requests"
+          description="Your children's counseling requests"
           className="lg:col-span-2"
         >
-          <div className="space-y-4">
+          {requests.length > 0 ? (
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-foreground">Current Goals</h4>
-              {childProgress.goals.map((goal, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-foreground">{goal.name}</span>
-                    <span className="text-muted-foreground">{goal.progress}%</span>
+              {requests.slice(0, 5).map((request) => (
+                <div
+                  key={request.id}
+                  className="flex items-center justify-between p-4 bg-muted/30 rounded-lg"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{request.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {request.studentName} &bull; {request.counselorName} &bull; {request.createdAt}
+                    </p>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${getProgressColor(goal.progress)} transition-all`}
-                      style={{ width: `${goal.progress}%` }}
-                    />
-                  </div>
+                  <Badge
+                    variant={
+                      request.status === 'pending'
+                        ? 'warning'
+                        : request.status === 'in_progress'
+                          ? 'primary'
+                          : request.status === 'completed'
+                            ? 'success'
+                            : 'default'
+                    }
+                  >
+                    {request.status === 'in_progress' ? 'In Progress' : request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                  </Badge>
                 </div>
               ))}
             </div>
-
-            <div className="pt-4 border-t border-border">
-              <h4 className="text-sm font-medium text-foreground mb-3">Recent Updates</h4>
-              <div className="space-y-2">
-                {childProgress.recentUpdates.map((update, index) => (
-                  <div key={index} className="flex items-start gap-3 text-sm">
-                    <span className="text-muted-foreground w-16 flex-shrink-0">{update.date}</span>
-                    <span className="text-foreground">{update.update}</span>
-                  </div>
-                ))}
-              </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="font-medium">No requests yet</p>
+              <p className="text-sm mt-1">
+                Your children&apos;s counseling requests will appear here
+              </p>
             </div>
-          </div>
+          )}
         </ContentCard>
 
-        {/* Upcoming Events */}
-        <ContentCard
-          title="Upcoming Events"
-          action={
-            <Link href="/parent/meetings" className="text-sm text-rose-500 hover:text-rose-600">
-              View calendar
-            </Link>
-          }
-        >
-          <div className="space-y-3">
-            {upcomingEvents.map((event) => (
-              <div
-                key={event.id}
-                className="p-3 rounded-lg border bg-rose-500/5 border-rose-500/20"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  {event.type === 'meeting' ? (
-                    <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  ) : (
+        {/* Upcoming Meetings */}
+        <ContentCard title="Upcoming Meetings">
+          {upcomingMeetings.length > 0 ? (
+            <div className="space-y-3">
+              {upcomingMeetings.slice(0, 5).map((meeting) => (
+                <div
+                  key={meeting.id}
+                  className="p-3 rounded-lg border bg-rose-500/5 border-rose-500/20"
+                >
+                  <div className="flex items-center gap-2 mb-1">
                     <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                  )}
-                  <span className="font-medium text-sm text-foreground">{event.title}</span>
+                    <span className="font-medium text-sm text-foreground">{meeting.title}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-6">
+                    {meeting.date} at {meeting.time}
+                  </p>
+                  <p className="text-xs text-muted-foreground ml-6">
+                    with {meeting.counselorName}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground ml-6">{event.date}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p className="font-medium">No upcoming meetings</p>
+              <p className="text-sm mt-1">Meetings will appear here</p>
+            </div>
+          )}
         </ContentCard>
       </div>
 
-      {/* Bottom Row */}
+      {/* School Counselors & Quick Actions */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Messages */}
+        {/* School Counselors */}
         <ContentCard
-          title="Recent Messages"
-          action={
-            <Link href="/parent/messages" className="text-sm text-rose-500 hover:text-rose-600">
-              View all
-            </Link>
-          }
+          title="School Counselors"
+          description="Your child's counseling team"
         >
-          <div className="space-y-3">
-            {recentMessages.map((message) => (
-              <div
-                key={message.id}
-                className={`p-3 rounded-lg border ${message.unread ? 'bg-rose-500/5 border-rose-500/20' : 'bg-muted/30 border-border'}`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-sm ${message.unread ? 'font-semibold text-foreground' : 'font-medium text-foreground'}`}>
-                    {message.from}
-                  </span>
-                  {message.unread && <span className="w-2 h-2 rounded-full bg-rose-500" />}
+          {counselors.length > 0 ? (
+            <div className="space-y-3">
+              {counselors.map((c) => (
+                <div key={c.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+                  <div className="w-10 h-10 rounded-full border border-border bg-muted/40 overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {c.profileImage ? (
+                      <img
+                        src={c.profileImage}
+                        alt={`${c.firstName} ${c.lastName}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-bold text-xs text-rose-500">
+                        {c.firstName[0]}{c.lastName[0]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">
+                      {c.firstName} {c.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {c.title || 'School Counselor'} {c.department ? `• ${c.department}` : ''}
+                    </p>
+                  </div>
+                  <Link
+                    href="/parent/messages"
+                    className="px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    Message
+                  </Link>
                 </div>
-                <p className="text-sm text-muted-foreground truncate">{message.subject}</p>
-                <p className="text-xs text-muted-foreground mt-1">{message.time}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <p>No counselors registered at your school yet.</p>
+            </div>
+          )}
         </ContentCard>
 
-        {/* Quick Actions & Resources */}
+        {/* Quick Actions */}
         <ContentCard title="Quick Actions">
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3">
             <Link
               href="/parent/messages"
               className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors text-center"
@@ -231,54 +491,81 @@ export default function ParentDashboardPage() {
               <span className="text-sm font-medium text-foreground">Message Counselor</span>
             </Link>
             <Link
-              href="/parent/meetings"
+              href="/parent/children"
               className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors text-center"
             >
               <svg className="w-8 h-8 mx-auto text-secondary mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span className="text-sm font-medium text-foreground">View Children</span>
+            </Link>
+            <Link
+              href="/parent/meetings"
+              className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors text-center"
+            >
+              <svg className="w-8 h-8 mx-auto text-accent mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span className="text-sm font-medium text-foreground">Book Meeting</span>
+              <span className="text-sm font-medium text-foreground">Meetings</span>
             </Link>
-          </div>
-
-          <div className="border-t border-border pt-4">
-            <h4 className="text-sm font-medium text-foreground mb-3">Recommended for You</h4>
-            <div className="space-y-2">
-              {recommendedResources.map((resource) => (
-                <Link
-                  key={resource.id}
-                  href="/parent/resources"
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded bg-rose-500/10 flex items-center justify-center">
-                    {resource.type === 'article' ? (
-                      <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    ) : resource.type === 'video' ? (
-                      <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground truncate">{resource.title}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{resource.type}</p>
-                  </div>
-                  <svg className="w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              ))}
-            </div>
+            <Link
+              href="/parent/resources"
+              className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors text-center"
+            >
+              <svg className="w-8 h-8 mx-auto text-primary mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              <span className="text-sm font-medium text-foreground">Resources</span>
+            </Link>
           </div>
         </ContentCard>
       </div>
+
+      {/* Goals Overview */}
+      {goals.length > 0 && (
+        <ContentCard
+          title="Children's Goals"
+          description="Track your children's academic and personal goals"
+        >
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {goals.slice(0, 8).map((goal) => {
+              const child = children.find(c => c.id === goal.studentId);
+              return (
+                <Card key={goal.id} className="p-4" hover>
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge
+                      variant={
+                        goal.priority === 'high'
+                          ? 'destructive'
+                          : goal.priority === 'medium'
+                            ? 'warning'
+                            : 'default'
+                      }
+                      size="sm"
+                    >
+                      {goal.priority}
+                    </Badge>
+                    <span className="text-sm font-semibold text-rose-500">{goal.progress}%</span>
+                  </div>
+                  <p className="font-medium text-foreground text-sm mb-1">{goal.title}</p>
+                  {child && (
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {child.firstName} {child.lastName}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mb-3">Due: {goal.deadline}</p>
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getProgressColor(goal.progress)}`}
+                      style={{ width: `${goal.progress}%` }}
+                    />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </ContentCard>
+      )}
     </div>
   );
 }

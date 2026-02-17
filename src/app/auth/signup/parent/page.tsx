@@ -94,6 +94,7 @@ export default function ParentSignupPage() {
       schoolName: school?.name || '',
       relationship: formData.relationship,
       childrenNames: [`${formData.childFirstName} ${formData.childLastName}`],
+      approved: false,
     });
 
     if (error) {

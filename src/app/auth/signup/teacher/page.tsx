@@ -89,6 +89,7 @@ export default function TeacherSignupPage() {
       schoolName: school?.name || '',
       subject: formData.subject,
       department: formData.department,
+      approved: false,
     });
 
     if (error) {
