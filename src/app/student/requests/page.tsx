@@ -123,6 +123,7 @@ export default function StudentRequestsPage() {
   useEffect(() => {
     if (!user?.id) {
       setRequests([]);
+      setIsLoadingRequests(false);
       return;
     }
 

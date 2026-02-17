@@ -115,6 +115,7 @@ export default function CounselorTasksPage() {
   useEffect(() => {
     if (!user?.id) {
       setRequests([]);
+      setIsLoadingRequests(false);
       return;
     }
 

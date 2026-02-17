@@ -4,6 +4,9 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState,
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 
+const PROFILE_FETCH_MAX_ATTEMPTS = 6;
+const PROFILE_FETCH_RETRY_DELAY_MS = 350;
+
 export interface User {
   id: string;
   firstName: string;
@@ -116,8 +119,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [schoolUsers, setSchoolUsers] = useState<User[]>([]);
   const schoolUsersLoadIdRef = useRef(0);
+  const userRef = useRef<User | null>(null);
 
-  const fetchProfile = async (userId: string, attempts = 2): Promise<User | null> => {
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  const fetchProfile = async (
+    userId: string,
+    attempts = PROFILE_FETCH_MAX_ATTEMPTS
+  ): Promise<User | null> => {
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       const { data, error } = await supabase
         .from('profiles')
@@ -130,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (attempt < attempts) {
-        await new Promise((resolve) => setTimeout(resolve, 250));
+        await new Promise((resolve) => setTimeout(resolve, attempt * PROFILE_FETCH_RETRY_DELAY_MS));
       }
     }
 
@@ -158,6 +169,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearAuthState = () => {
+    schoolUsersLoadIdRef.current += 1;
+    setUser(null);
+    setSchoolUsers([]);
+  };
+
+  const hydrateUserFromSession = async (
+    authUserId: string,
+    preserveCurrentUserOnFailure: boolean
+  ) => {
+    const profile = await fetchProfile(authUserId);
+    if (profile) {
+      setUser(profile);
+      void loadSchoolUsers(profile.schoolId);
+      return true;
+    }
+
+    if (!preserveCurrentUserOnFailure || userRef.current?.id !== authUserId) {
+      clearAuthState();
+    }
+
+    return false;
+  };
+
   const refreshSchoolUsers = async () => {
     if (!user?.schoolId) return;
     await loadSchoolUsers(user.schoolId);
@@ -174,17 +209,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
 
       if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
-        if (profile) {
-          setUser(profile);
-          void loadSchoolUsers(profile.schoolId);
-        } else {
-          setUser(null);
-          setSchoolUsers([]);
+        const hydrated = await hydrateUserFromSession(session.user.id, false);
+        if (!hydrated && isMounted) {
+          // One delayed retry helps on slower connections/session restoration.
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          if (isMounted) {
+            await hydrateUserFromSession(session.user.id, false);
+          }
         }
       } else {
-        setUser(null);
-        setSchoolUsers([]);
+        clearAuthState();
       }
 
       if (isMounted) {
@@ -196,24 +230,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
 
       if (event === 'TOKEN_REFRESHED') {
         return;
       }
 
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
-        if (profile) {
-          setUser(profile);
-          void loadSchoolUsers(profile.schoolId);
+      window.setTimeout(() => {
+        if (!isMounted) return;
+
+        if (session?.user) {
+          const preserveCurrent =
+            event === 'SIGNED_IN' || userRef.current?.id === session.user.id;
+          void hydrateUserFromSession(session.user.id, preserveCurrent);
           return;
         }
-      }
 
-      setUser(null);
-      setSchoolUsers([]);
+        clearAuthState();
+      }, 0);
     });
 
     return () => {
@@ -223,18 +258,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<AuthResult> => {
+    setIsLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      setIsLoading(false);
       return { user: null, error: error.message };
     }
 
     if (!data.user) {
+      setIsLoading(false);
       return { user: null, error: 'No user returned from authentication.' };
     }
 
     const profile = await fetchProfile(data.user.id);
     if (!profile) {
+      setIsLoading(false);
       return {
         user: null,
         error: 'Account profile was not found. Please contact support.',
@@ -243,6 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(profile);
     void loadSchoolUsers(profile.schoolId);
+    setIsLoading(false);
 
     return { user: profile, error: null };
   };
@@ -315,10 +355,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    setIsLoading(true);
     await supabase.auth.signOut();
-    schoolUsersLoadIdRef.current += 1;
-    setUser(null);
-    setSchoolUsers([]);
+    clearAuthState();
+    setIsLoading(false);
   };
 
   const updateUser = async (updates: Partial<User>) => {
