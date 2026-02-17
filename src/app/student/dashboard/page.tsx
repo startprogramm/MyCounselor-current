@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/database.types';
 
 interface CounselingRequest {
   id: number;
@@ -86,23 +87,52 @@ const quickActions = [
   },
 ];
 
+interface PendingParent {
+  id: string;
+  firstName: string;
+  lastName: string;
+  relationship: string;
+}
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+
+function mapProfileToUser(profile: ProfileRow): User {
+  return {
+    id: profile.id,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    email: profile.email,
+    role: profile.role,
+    schoolId: profile.school_id,
+    schoolName: profile.school_name || undefined,
+    gradeLevel: profile.grade_level || undefined,
+    title: profile.title || undefined,
+    department: profile.department || undefined,
+    profileImage: profile.profile_image || undefined,
+    approved: profile.approved,
+    subject: profile.subject || undefined,
+    childrenNames: profile.children_names || undefined,
+    relationship: profile.relationship || undefined,
+  };
+}
+
 export default function StudentDashboardPage() {
-  const { user, getSchoolCounselors } = useAuth();
+  const { user } = useAuth();
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [editingGoal, setEditingGoal] = useState<number | null>(null);
   const [counselors, setCounselors] = useState<User[]>([]);
+  const [teachers, setTeachers] = useState<User[]>([]);
+  const [parents, setParents] = useState<User[]>([]);
+  const [pendingParents, setPendingParents] = useState<PendingParent[]>([]);
 
   useEffect(() => {
     if (!user?.id) return;
 
     const loadDashboardData = async () => {
-      const activeCounselors = getSchoolCounselors(user.schoolId).filter((c) => c.approved === true);
-      setCounselors(activeCounselors);
-
-      const [requestsResult, meetingsResult, goalsResult] = await Promise.all([
+      const [requestsResult, meetingsResult, goalsResult, supportUsersResult] = await Promise.all([
         supabase
           .from('requests')
           .select('*')
@@ -118,7 +148,21 @@ export default function StudentDashboardPage() {
           .select('*')
           .eq('student_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('school_id', user.schoolId)
+          .in('role', ['counselor', 'teacher', 'parent']),
       ]);
+
+      const supportUsers = (supportUsersResult.data || []).map(mapProfileToUser);
+      const schoolCounselors = supportUsers.filter((member) => member.role === 'counselor');
+      const schoolTeachers = supportUsers.filter((member) => member.role === 'teacher');
+      const schoolParents = supportUsers.filter((member) => member.role === 'parent');
+
+      setCounselors(schoolCounselors);
+      setTeachers(schoolTeachers);
+      setParents(schoolParents);
 
       setRequests(
         (requestsResult.data || []).map((row) => ({
@@ -154,45 +198,70 @@ export default function StudentDashboardPage() {
         }))
       );
 
+      const activeCounselors = schoolCounselors.filter((c) => c.approved === true);
       if (activeCounselors.length === 0) {
         setConversations([]);
-        return;
+      } else {
+        const keys = activeCounselors.map((c) => buildConversationKey(user.id, c.id));
+        const { data: messageRows } = await supabase
+          .from('messages')
+          .select('*')
+          .in('conversation_key', keys)
+          .order('created_at', { ascending: true });
+
+        const nextConversations: Conversation[] = activeCounselors.map((counselor, index) => {
+          const key = buildConversationKey(user.id, counselor.id);
+          const rows = (messageRows || []).filter((row) => row.conversation_key === key);
+          const lastStudentIdx = [...rows]
+            .reverse()
+            .findIndex((row) => row.sender_role === 'student');
+
+          let unread = 0;
+          if (lastStudentIdx === -1) {
+            unread = rows.filter((row) => row.sender_role === 'counselor').length;
+          } else {
+            unread = lastStudentIdx;
+          }
+
+          return {
+            id: index + 1,
+            counselor: `${counselor.firstName} ${counselor.lastName}`,
+            unread,
+            messages: rows.map((row) => ({ id: row.id })),
+          };
+        });
+
+        setConversations(nextConversations);
       }
 
-      const keys = activeCounselors.map((c) => buildConversationKey(user.id, c.id));
-      const { data: messageRows } = await supabase
-        .from('messages')
-        .select('*')
-        .in('conversation_key', keys)
-        .order('created_at', { ascending: true });
+      // Load pending parents who want to link to this student
+      if (user.approved === true) {
+        const studentFullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+        const { data: parentRows } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('school_id', user.schoolId)
+          .eq('role', 'parent')
+          .eq('student_confirmed', false);
 
-      const nextConversations: Conversation[] = activeCounselors.map((counselor, index) => {
-        const key = buildConversationKey(user.id, counselor.id);
-        const rows = (messageRows || []).filter((row) => row.conversation_key === key);
-        const lastStudentIdx = [...rows]
-          .reverse()
-          .findIndex((row) => row.sender_role === 'student');
+        const pending = (parentRows || [])
+          .filter(p => {
+            const names = p.children_names || [];
+            return names.some(n => n.toLowerCase().trim() === studentFullName);
+          })
+          .map(p => ({
+            id: p.id,
+            firstName: p.first_name,
+            lastName: p.last_name,
+            relationship: p.relationship || 'Parent',
+          }));
 
-        let unread = 0;
-        if (lastStudentIdx === -1) {
-          unread = rows.filter((row) => row.sender_role === 'counselor').length;
-        } else {
-          unread = lastStudentIdx;
-        }
-
-        return {
-          id: index + 1,
-          counselor: `${counselor.firstName} ${counselor.lastName}`,
-          unread,
-          messages: rows.map((row) => ({ id: row.id })),
-        };
-      });
-
-      setConversations(nextConversations);
+        setPendingParents(pending);
+      }
     };
 
     loadDashboardData();
-  }, [user?.id, user?.schoolId, getSchoolCounselors]);
+  }, [user?.id, user?.schoolId]);
 
   // Computed stats from real data
   const upcomingMeetings = meetings.filter(
@@ -311,6 +380,16 @@ export default function StudentDashboardPage() {
       default:
         return null;
     }
+  };
+
+  const handleConfirmParent = async (parentId: string) => {
+    await supabase.from('profiles').update({ student_confirmed: true }).eq('id', parentId);
+    setPendingParents(prev => prev.filter(p => p.id !== parentId));
+  };
+
+  const handleRejectParent = async (parentId: string) => {
+    await supabase.from('profiles').delete().eq('id', parentId);
+    setPendingParents(prev => prev.filter(p => p.id !== parentId));
   };
 
   // Pending approval view for unapproved students
@@ -475,6 +554,56 @@ export default function StudentDashboardPage() {
         ))}
       </div>
 
+      {/* Pending Parent Confirmations */}
+      {pendingParents.length > 0 && (
+        <ContentCard
+          title="Parent Confirmation Requests"
+          description="These people want to link as your parent"
+        >
+          <div className="space-y-3">
+            {pendingParents.map(parent => (
+              <div
+                key={parent.id}
+                className="flex items-center justify-between p-4 bg-warning/5 border border-warning/20 rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0">
+                    <span className="font-bold text-sm text-warning">
+                      {parent.firstName[0]}{parent.lastName[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">
+                      {parent.firstName} {parent.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {parent.relationship.charAt(0).toUpperCase() + parent.relationship.slice(1)} — wants to link as your parent
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => handleConfirmParent(parent.id)}
+                    className="bg-success hover:bg-success/90 text-white"
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRejectParent(parent.id)}
+                    className="border-destructive/30 text-destructive hover:bg-destructive/10"
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ContentCard>
+      )}
+
       {/* Your School Counselor(s) */}
       {counselors.length > 0 && (
         <ContentCard
@@ -554,6 +683,84 @@ export default function StudentDashboardPage() {
                 </div>
               </Card>
             ))}
+          </div>
+        </ContentCard>
+      )}
+
+      {(counselors.length > 0 || teachers.length > 0 || parents.length > 0) && (
+        <ContentCard
+          title="Registered School Contacts"
+          description="Everyone registered at your school by role."
+        >
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-semibold text-foreground">Counselors</p>
+                <Badge variant="primary" size="sm">{counselors.length}</Badge>
+              </div>
+              {counselors.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No counselors registered yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {counselors.map((member) => (
+                    <div key={member.id} className="p-2.5 rounded-lg bg-card border border-border">
+                      <p className="text-sm font-medium text-foreground">
+                        {member.firstName} {member.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {member.title || 'School Counselor'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-semibold text-foreground">Teachers</p>
+                <Badge variant="accent" size="sm">{teachers.length}</Badge>
+              </div>
+              {teachers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No teachers registered yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {teachers.map((member) => (
+                    <div key={member.id} className="p-2.5 rounded-lg bg-card border border-border">
+                      <p className="text-sm font-medium text-foreground">
+                        {member.firstName} {member.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {member.subject || 'Teacher'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="font-semibold text-foreground">Parents</p>
+                <Badge variant="warning" size="sm">{parents.length}</Badge>
+              </div>
+              {parents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No parents registered yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {parents.map((member) => (
+                    <div key={member.id} className="p-2.5 rounded-lg bg-card border border-border">
+                      <p className="text-sm font-medium text-foreground">
+                        {member.firstName} {member.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {member.relationship || 'Parent'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </ContentCard>
       )}

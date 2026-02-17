@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import type { Database } from '@/lib/database.types';
 
 interface AttachedDocument {
   name: string;
@@ -27,6 +28,8 @@ interface CounselingRequest {
   response?: string;
   documents?: AttachedDocument[];
 }
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
 function formatCreatedAt(value: string) {
   return new Date(value).toLocaleDateString('en-US', {
@@ -64,8 +67,28 @@ function mapRequest(row: {
   };
 }
 
+function mapProfileToUser(profile: ProfileRow): User {
+  return {
+    id: profile.id,
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    email: profile.email,
+    role: profile.role,
+    schoolId: profile.school_id,
+    schoolName: profile.school_name || undefined,
+    gradeLevel: profile.grade_level || undefined,
+    title: profile.title || undefined,
+    department: profile.department || undefined,
+    profileImage: profile.profile_image || undefined,
+    approved: profile.approved,
+    subject: profile.subject || undefined,
+    childrenNames: profile.children_names || undefined,
+    relationship: profile.relationship || undefined,
+  };
+}
+
 export default function StudentRequestsPage() {
-  const { user, getSchoolCounselors } = useAuth();
+  const { user } = useAuth();
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [schoolCounselors, setSchoolCounselors] = useState<User[]>([]);
   const [showNewRequest, setShowNewRequest] = useState(false);
@@ -75,6 +98,8 @@ export default function StudentRequestsPage() {
   const [newDescription, setNewDescription] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -97,15 +122,35 @@ export default function StudentRequestsPage() {
     loadRequests();
   }, [user?.id]);
 
-  // Load school counselors
+  // Load school counselors directly from DB
   useEffect(() => {
-    if (user?.schoolId) {
-      setSchoolCounselors(getSchoolCounselors(user.schoolId));
+    if (!user?.schoolId) {
+      setSchoolCounselors([]);
+      return;
     }
-  }, [user?.schoolId, getSchoolCounselors]);
+
+    const loadCounselors = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .eq('role', 'counselor');
+
+      if (error || !data) {
+        setSchoolCounselors([]);
+        return;
+      }
+
+      setSchoolCounselors(data.map(mapProfileToUser));
+    };
+
+    loadCounselors();
+  }, [user?.schoolId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setSubmitError('');
 
     const errors: Record<string, string> = {};
     if (!newTitle.trim()) errors.title = 'Title is required';
@@ -119,10 +164,13 @@ export default function StudentRequestsPage() {
 
     if (!user) return;
 
+    setIsSubmitting(true);
+
     const availableCounselors = schoolCounselors.filter((c) => c.approved === true);
+    const counselorPool = availableCounselors.length > 0 ? availableCounselors : schoolCounselors;
     const assignedCounselor =
-      availableCounselors.length > 0
-        ? availableCounselors[Math.floor(Math.random() * availableCounselors.length)]
+      counselorPool.length > 0
+        ? counselorPool[Math.floor(Math.random() * counselorPool.length)]
         : null;
 
     const { data, error } = await supabase
@@ -143,7 +191,11 @@ export default function StudentRequestsPage() {
       .select('*')
       .single();
 
-    if (error || !data) return;
+    if (error || !data) {
+      setSubmitError(error?.message || 'Unable to submit request. Please try again.');
+      setIsSubmitting(false);
+      return;
+    }
 
     setRequests((prev) => [mapRequest(data), ...prev]);
 
@@ -153,8 +205,13 @@ export default function StudentRequestsPage() {
     setNewDescription('');
     setFormErrors({});
     setShowNewRequest(false);
-    setSuccessMessage('Request submitted successfully! Your counselor will review it shortly.');
+    setSuccessMessage(
+      assignedCounselor
+        ? 'Request submitted successfully! Your counselor will review it shortly.'
+        : 'Request submitted successfully! A counselor will be assigned soon.'
+    );
     setTimeout(() => setSuccessMessage(''), 4000);
+    setIsSubmitting(false);
   };
 
   const handleDelete = async (id: number) => {
@@ -272,24 +329,29 @@ export default function StudentRequestsPage() {
         </div>
       )}
 
+      {submitError && (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <svg className="w-5 h-5 text-destructive flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z" />
+          </svg>
+          <p className="text-sm text-destructive font-medium">{submitError}</p>
+          <button onClick={() => setSubmitError('')} className="ml-auto text-destructive hover:text-destructive/80">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* New Request Form */}
       {showNewRequest && (
         <ContentCard title="Create New Request">
-          {schoolCounselors.length === 0 ? (
-            <div className="text-center py-8">
-              <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <p className="font-medium text-foreground">No counselors available</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                No counselors have registered at your school yet. Please check back later.
-              </p>
-              <Button variant="outline" className="mt-4" onClick={() => setShowNewRequest(false)}>
-                Close
-              </Button>
-            </div>
-          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {schoolCounselors.length === 0 && (
+              <div className="p-3 rounded-lg border border-warning/30 bg-warning/10 text-sm text-warning">
+                No counselors registered yet. Your request will be saved and marked as unassigned.
+              </div>
+            )}
             <Input
               label="Request Title"
               placeholder="Brief description of your request"
@@ -325,13 +387,13 @@ export default function StudentRequestsPage() {
                 setNewCategory('');
                 setNewDescription('');
                 setFormErrors({});
+                setSubmitError('');
               }}>
                 Cancel
               </Button>
-              <Button type="submit">Submit Request</Button>
+              <Button type="submit" isLoading={isSubmitting}>Submit Request</Button>
             </div>
           </form>
-          )}
         </ContentCard>
       )}
 
