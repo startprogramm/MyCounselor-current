@@ -70,10 +70,13 @@ export default function CounselorMessagesPage() {
   const { user } = useAuth();
   const [studentChats, setStudentChats] = useState<StudentChat[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoadingChats, setIsLoadingChats] = useState(true);
+  const [hasLoadedChats, setHasLoadedChats] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
+  const loadRequestIdRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const markConversationAsRead = useCallback(
@@ -102,10 +105,28 @@ export default function CounselorMessagesPage() {
     [user?.id]
   );
 
-  const loadStudentChats = useCallback(async () => {
+  const loadStudentChats = useCallback(async (options?: { silent?: boolean }) => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
+    const silent = options?.silent === true;
+    if (!silent) {
+      setIsLoadingChats(true);
+    }
+
+    const finishLoad = () => {
+      if (loadRequestIdRef.current !== requestId) return;
+      setIsLoadingChats(false);
+      setHasLoadedChats(true);
+    };
+
     if (!user?.schoolId || !user?.id) {
-      setStudentChats([]);
-      setLoadError(null);
+      if (loadRequestIdRef.current === requestId) {
+        setStudentChats([]);
+        setSelectedStudentId(null);
+        setLoadError(null);
+      }
+      finishLoad();
       return;
     }
 
@@ -116,7 +137,10 @@ export default function CounselorMessagesPage() {
       .eq('role', 'student');
 
     if (studentsError) {
-      setLoadError('Unable to load students right now. Please refresh and try again.');
+      if (loadRequestIdRef.current === requestId) {
+        setLoadError('Unable to load students right now. Please refresh and try again.');
+      }
+      finishLoad();
       return;
     }
 
@@ -131,8 +155,11 @@ export default function CounselorMessagesPage() {
         .order('created_at', { ascending: true });
 
       if (fallbackMessagesError || !fallbackMessages || fallbackMessages.length === 0) {
-        setStudentChats([]);
-        setLoadError(null);
+        if (loadRequestIdRef.current === requestId) {
+          setStudentChats([]);
+          setLoadError(null);
+        }
+        finishLoad();
         return;
       }
 
@@ -146,8 +173,11 @@ export default function CounselorMessagesPage() {
       );
 
       if (fallbackStudentIds.length === 0) {
-        setStudentChats([]);
-        setLoadError(null);
+        if (loadRequestIdRef.current === requestId) {
+          setStudentChats([]);
+          setLoadError(null);
+        }
+        finishLoad();
         return;
       }
 
@@ -158,8 +188,11 @@ export default function CounselorMessagesPage() {
         .in('id', fallbackStudentIds);
 
       if (fallbackStudentsError || !fallbackStudents || fallbackStudents.length === 0) {
-        setStudentChats([]);
-        setLoadError('Unable to load related student profiles. Please try again.');
+        if (loadRequestIdRef.current === requestId) {
+          setStudentChats([]);
+          setLoadError('Unable to load related student profiles. Please try again.');
+        }
+        finishLoad();
         return;
       }
 
@@ -188,7 +221,10 @@ export default function CounselorMessagesPage() {
       .in('conversation_key', keys);
 
     if (hasMessageError) {
-      setLoadError('Unable to load chat messages right now. Please try again.');
+      if (loadRequestIdRef.current === requestId) {
+        setLoadError('Unable to load chat messages right now. Please try again.');
+      }
+      finishLoad();
       return;
     }
 
@@ -247,13 +283,19 @@ export default function CounselorMessagesPage() {
       return a.student.firstName.localeCompare(b.student.firstName);
     });
 
-    setStudentChats(chats);
-    setLoadError(null);
-
-    if (!selectedStudentId && chats.length > 0) {
-      setSelectedStudentId(chats[0].student.id);
+    if (loadRequestIdRef.current === requestId) {
+      setStudentChats(chats);
+      setLoadError(null);
+      setSelectedStudentId((prev) => {
+        if (prev && chats.some((chat) => chat.student.id === prev)) {
+          return prev;
+        }
+        return chats[0]?.student.id || null;
+      });
     }
-  }, [user, selectedStudentId]);
+
+    finishLoad();
+  }, [user]);
 
   useEffect(() => {
     loadStudentChats();
@@ -261,7 +303,7 @@ export default function CounselorMessagesPage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    return startVisibilityAwarePolling(() => loadStudentChats(), 8000);
+    return startVisibilityAwarePolling(() => loadStudentChats({ silent: true }), 8000);
   }, [user?.id, loadStudentChats]);
 
   useEffect(() => {
@@ -385,7 +427,17 @@ export default function CounselorMessagesPage() {
         </div>
       )}
 
-      {studentChats.length === 0 ? (
+      {isLoadingChats && !hasLoadedChats ? (
+        <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
+          <div className="text-center py-12 px-4">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-medium text-foreground text-lg">Loading student chats...</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
+              Fetching your conversations.
+            </p>
+          </div>
+        </div>
+      ) : studentChats.length === 0 ? (
         <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
           <div className="text-center py-12 px-4">
             <svg

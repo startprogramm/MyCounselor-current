@@ -155,10 +155,13 @@ export default function StudentMessagesPage() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [selectedConvId, setSelectedConvId] = useState<number>(0);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
+  const loadRequestIdRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const selectedConversation =
@@ -202,72 +205,152 @@ export default function StudentMessagesPage() {
     [user?.id]
   );
 
-  const loadConversations = useCallback(async () => {
-    if (!user?.schoolId || !user?.id) {
-      setConversations([]);
-      setSelectedConvId(0);
-      setLoadError(null);
-      return;
-    }
+  const loadConversations = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const requestId = loadRequestIdRef.current + 1;
+      loadRequestIdRef.current = requestId;
 
-    const { data: counselorRows, error: counselorsError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('school_id', user.schoolId)
-      .eq('role', 'counselor')
-      .eq('approved', true);
+      const silent = options?.silent === true;
+      if (!silent) {
+        setIsLoadingConversations(true);
+      }
 
-    if (counselorsError) {
-      setLoadError('Unable to load counselor list. Please refresh and try again.');
-      return;
-    }
+      const finishLoad = () => {
+        if (loadRequestIdRef.current !== requestId) return;
+        setIsLoadingConversations(false);
+        setHasLoadedConversations(true);
+      };
 
-    const counselors = (counselorRows || []).map(mapProfileToUser);
+      if (!user?.schoolId || !user?.id) {
+        if (loadRequestIdRef.current === requestId) {
+          setConversations([]);
+          setSelectedConvId(0);
+          setLoadError(null);
+        }
+        finishLoad();
+        return;
+      }
 
-    if (counselors.length === 0) {
-      setConversations([]);
-      setSelectedConvId(0);
-      setLoadError(null);
-      return;
-    }
+      let counselors: User[] = [];
+      let prefetchedMessageRows: MessageRow[] | null = null;
 
-    const keys = counselors.map((c) => buildConversationKey(user.id, c.id));
-
-    const [{ data: messageRows, error: messageError }, { data: readRows }] = await Promise.all([
-      supabase
-        .from('messages')
+      const { data: counselorRows, error: counselorsError } = await supabase
+        .from('profiles')
         .select('*')
-        .in('conversation_key', keys)
-        .order('created_at', { ascending: true }),
-      supabase
+        .eq('school_id', user.schoolId)
+        .eq('role', 'counselor')
+        .eq('approved', true);
+
+      if (counselorsError) {
+        if (loadRequestIdRef.current === requestId) {
+          setLoadError('Unable to load counselor list. Please refresh and try again.');
+        }
+        finishLoad();
+        return;
+      }
+
+      counselors = (counselorRows || []).map(mapProfileToUser);
+
+      if (counselors.length === 0) {
+        const { data: fallbackRows, error: fallbackRowsError } = await supabase
+          .from('messages')
+          .select('*')
+          .ilike('conversation_key', `%${user.id}%`)
+          .order('created_at', { ascending: true });
+
+        if (!fallbackRowsError && fallbackRows && fallbackRows.length > 0) {
+          const fallbackCounselorIds = Array.from(
+            new Set(
+              fallbackRows
+                .map((row) => row.conversation_key.split('__'))
+                .flat()
+                .filter((id) => id !== user.id)
+            )
+          );
+
+          if (fallbackCounselorIds.length > 0) {
+            const { data: fallbackCounselorRows, error: fallbackCounselorsError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('school_id', user.schoolId)
+              .eq('role', 'counselor')
+              .eq('approved', true)
+              .in('id', fallbackCounselorIds);
+
+            if (!fallbackCounselorsError && fallbackCounselorRows && fallbackCounselorRows.length > 0) {
+              counselors = fallbackCounselorRows.map(mapProfileToUser);
+              prefetchedMessageRows = fallbackRows as MessageRow[];
+            }
+          }
+        }
+      }
+
+      if (counselors.length === 0) {
+        if (loadRequestIdRef.current === requestId) {
+          setConversations([]);
+          setSelectedConvId(0);
+          setLoadError(null);
+        }
+        finishLoad();
+        return;
+      }
+
+      const keys = counselors.map((c) => buildConversationKey(user.id, c.id));
+
+      let messageRows = prefetchedMessageRows;
+      let messageError: string | null = null;
+
+      if (!messageRows) {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .in('conversation_key', keys)
+          .order('created_at', { ascending: true });
+
+        messageRows = (data || []) as MessageRow[];
+        if (error) {
+          messageError = error.message || 'Unable to load messages right now. Please try again.';
+        }
+      }
+
+      const { data: readRows } = await supabase
         .from('message_reads')
         .select('conversation_key,last_read_at')
         .eq('reader_id', user.id)
-        .in('conversation_key', keys),
-    ]);
+        .in('conversation_key', keys);
 
-    if (messageError) {
-      setLoadError('Unable to load messages right now. Please try again.');
-      return;
-    }
+      if (messageError) {
+        if (loadRequestIdRef.current === requestId) {
+          setLoadError(messageError);
+        }
+        finishLoad();
+        return;
+      }
 
-    const readByConversation = new Map<string, string>();
-    (readRows || []).forEach((row) => {
-      readByConversation.set(row.conversation_key, row.last_read_at);
-    });
+      const readByConversation = new Map<string, string>();
+      (readRows || []).forEach((row) => {
+        readByConversation.set(row.conversation_key, row.last_read_at);
+      });
 
-    const merged = buildConversationsFromCounselors(
-      counselors,
-      messageRows || [],
-      readByConversation,
-      user
-    );
-    setLoadError(null);
-    setConversations(merged);
-    setSelectedConvId((prev) =>
-      merged.some((conversation) => conversation.id === prev) ? prev : merged[0]?.id || 0
-    );
-  }, [user]);
+      const merged = buildConversationsFromCounselors(
+        counselors,
+        messageRows || [],
+        readByConversation,
+        user
+      );
+
+      if (loadRequestIdRef.current === requestId) {
+        setLoadError(null);
+        setConversations(merged);
+        setSelectedConvId((prev) =>
+          merged.some((conversation) => conversation.id === prev) ? prev : merged[0]?.id || 0
+        );
+      }
+
+      finishLoad();
+    },
+    [user]
+  );
 
   useEffect(() => {
     loadConversations();
@@ -275,7 +358,7 @@ export default function StudentMessagesPage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    return startVisibilityAwarePolling(() => loadConversations(), 8000);
+    return startVisibilityAwarePolling(() => loadConversations({ silent: true }), 8000);
   }, [user?.id, loadConversations]);
 
   useEffect(() => {
@@ -389,7 +472,17 @@ export default function StudentMessagesPage() {
         </div>
       )}
 
-      {conversations.length === 0 ? (
+      {isLoadingConversations && !hasLoadedConversations ? (
+        <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
+          <div className="text-center py-12 px-4">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-medium text-foreground text-lg">Loading conversations...</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
+              Fetching your counselor chats.
+            </p>
+          </div>
+        </div>
+      ) : conversations.length === 0 ? (
         <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
           <div className="text-center py-12 px-4">
             <svg
