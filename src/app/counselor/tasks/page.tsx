@@ -97,11 +97,17 @@ export default function CounselorTasksPage() {
   const [hasWarmCache, setHasWarmCache] = useState(false);
   const [isCacheHydrated, setIsCacheHydrated] = useState(false);
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const loadRequestIdRef = useRef(0);
+  const requestsRef = useRef<CounselingRequest[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('counselor-tasks', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
   );
+
+  useEffect(() => {
+    requestsRef.current = requests;
+  }, [requests]);
 
   useEffect(() => {
     setIsCacheHydrated(false);
@@ -139,26 +145,50 @@ export default function CounselorTasksPage() {
   }, [cacheKey, requests, isCacheHydrated, hasWarmCache, hasLoadedFromServer]);
 
   const loadRequests = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
     if (!user?.id) {
-      setRequests([]);
-      setLoadError('');
+      if (loadRequestIdRef.current === requestId) {
+        setRequests([]);
+        setLoadError('');
+      }
       return;
     }
 
-    const { data, error } = await supabase
-      .from('requests')
-      .select('*')
-      .eq('counselor_id', user.id)
-      .order('created_at', { ascending: false });
+    const fetchRows = async () =>
+      supabase
+        .from('requests')
+        .select('*')
+        .eq('counselor_id', user.id)
+        .order('created_at', { ascending: false });
+
+    const { data, error } = await fetchRows();
+
+    if (loadRequestIdRef.current !== requestId) return;
 
     if (error || !data) {
       setLoadError(error?.message || 'Unable to load tasks. Please refresh.');
       return;
     }
 
+    let mappedRequests = data.map(mapRequest);
+
+    // Guard against transient empty results during auth/session refresh.
+    if (mappedRequests.length === 0 && requestsRef.current.length > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const { data: retryData, error: retryError } = await fetchRows();
+
+      if (loadRequestIdRef.current !== requestId) return;
+
+      if (!retryError && retryData) {
+        mappedRequests = retryData.map(mapRequest);
+      }
+    }
+
     setLoadError('');
     setHasLoadedFromServer(true);
-    setRequests(data.map(mapRequest));
+    setRequests(mappedRequests);
   }, [user?.id]);
 
   useEffect(() => {

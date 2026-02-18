@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
@@ -108,10 +108,16 @@ export default function StudentRequestsPage() {
   const [hasWarmCache, setHasWarmCache] = useState(false);
   const [isCacheHydrated, setIsCacheHydrated] = useState(false);
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const loadRequestIdRef = useRef(0);
+  const requestsRef = useRef<CounselingRequest[]>([]);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('student-requests', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
   );
+
+  useEffect(() => {
+    requestsRef.current = requests;
+  }, [requests]);
 
   useEffect(() => {
     setIsCacheHydrated(false);
@@ -154,26 +160,50 @@ export default function StudentRequestsPage() {
   }, [cacheKey, requests, schoolCounselors, isCacheHydrated, hasWarmCache, hasLoadedFromServer]);
 
   const loadRequests = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
     if (!user?.id) {
-      setRequests([]);
-      setLoadRequestsError('');
+      if (loadRequestIdRef.current === requestId) {
+        setRequests([]);
+        setLoadRequestsError('');
+      }
       return;
     }
 
-    const { data, error } = await supabase
-      .from('requests')
-      .select('*')
-      .eq('student_id', user.id)
-      .order('created_at', { ascending: false });
+    const fetchRows = async () =>
+      supabase
+        .from('requests')
+        .select('*')
+        .eq('student_id', user.id)
+        .order('created_at', { ascending: false });
+
+    const { data, error } = await fetchRows();
+
+    if (loadRequestIdRef.current !== requestId) return;
 
     if (error || !data) {
       setLoadRequestsError(error?.message || 'Unable to load your requests. Please retry.');
       return;
     }
 
+    let mappedRequests = data.map(mapRequest);
+
+    // Guard against transient empty results during auth/session refresh.
+    if (mappedRequests.length === 0 && requestsRef.current.length > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const { data: retryData, error: retryError } = await fetchRows();
+
+      if (loadRequestIdRef.current !== requestId) return;
+
+      if (!retryError && retryData) {
+        mappedRequests = retryData.map(mapRequest);
+      }
+    }
+
     setLoadRequestsError('');
     setHasLoadedFromServer(true);
-    setRequests(data.map(mapRequest));
+    setRequests(mappedRequests);
   }, [user?.id]);
 
   useEffect(() => {
