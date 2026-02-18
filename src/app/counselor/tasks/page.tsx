@@ -95,6 +95,8 @@ export default function CounselorTasksPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [pendingUploadCount, setPendingUploadCount] = useState(0);
   const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('counselor-tasks', user.id, user.schoolId) : null),
@@ -102,9 +104,13 @@ export default function CounselorTasksPage() {
   );
 
   useEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
     if (!cacheKey) {
       setRequests([]);
       setHasWarmCache(false);
+      setIsCacheHydrated(true);
       return;
     }
 
@@ -117,17 +123,20 @@ export default function CounselorTasksPage() {
       setRequests(cached.data.requests || []);
       setIsLoadingRequests(false);
       setHasWarmCache(true);
+      setIsCacheHydrated(true);
       return;
     }
 
     setHasWarmCache(false);
+    setIsCacheHydrated(true);
   }, [cacheKey]);
 
   useEffect(() => {
-    if (!cacheKey) return;
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
 
     writeCachedData<CounselorTasksCachePayload>(cacheKey, { requests });
-  }, [cacheKey, requests]);
+  }, [cacheKey, requests, isCacheHydrated, hasWarmCache, hasLoadedFromServer]);
 
   const loadRequests = useCallback(async () => {
     if (!user?.id) {
@@ -148,6 +157,7 @@ export default function CounselorTasksPage() {
     }
 
     setLoadError('');
+    setHasLoadedFromServer(true);
     setRequests(data.map(mapRequest));
   }, [user?.id]);
 
@@ -188,6 +198,7 @@ export default function CounselorTasksPage() {
     }
 
     const mappedRequest = mapRequest(data);
+    setHasLoadedFromServer(true);
     setRequests((prev) =>
       prev.map((request) => (request.id === id ? mappedRequest : request))
     );

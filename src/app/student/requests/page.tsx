@@ -106,16 +106,22 @@ export default function StudentRequestsPage() {
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [loadRequestsError, setLoadRequestsError] = useState('');
   const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('student-requests', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
   );
 
   useEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
     if (!cacheKey) {
       setRequests([]);
       setSchoolCounselors([]);
       setHasWarmCache(false);
+      setIsCacheHydrated(true);
       return;
     }
 
@@ -129,20 +135,23 @@ export default function StudentRequestsPage() {
       setSchoolCounselors(cached.data.schoolCounselors || []);
       setIsLoadingRequests(false);
       setHasWarmCache(true);
+      setIsCacheHydrated(true);
       return;
     }
 
     setHasWarmCache(false);
+    setIsCacheHydrated(true);
   }, [cacheKey]);
 
   useEffect(() => {
-    if (!cacheKey) return;
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
 
     writeCachedData<StudentRequestsCachePayload>(cacheKey, {
       requests,
       schoolCounselors,
     });
-  }, [cacheKey, requests, schoolCounselors]);
+  }, [cacheKey, requests, schoolCounselors, isCacheHydrated, hasWarmCache, hasLoadedFromServer]);
 
   const loadRequests = useCallback(async () => {
     if (!user?.id) {
@@ -163,6 +172,7 @@ export default function StudentRequestsPage() {
     }
 
     setLoadRequestsError('');
+    setHasLoadedFromServer(true);
     setRequests(data.map(mapRequest));
   }, [user?.id]);
 
@@ -253,6 +263,7 @@ export default function StudentRequestsPage() {
       return;
     }
 
+    setHasLoadedFromServer(true);
     setRequests((prev) => [mapRequest(data), ...prev]);
 
     // Reset form
@@ -280,6 +291,7 @@ export default function StudentRequestsPage() {
       .eq('student_id', user.id);
 
     if (error) return;
+    setHasLoadedFromServer(true);
     setRequests((prev) => prev.filter((request) => request.id !== id));
   };
 
