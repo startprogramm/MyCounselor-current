@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+import { startVisibilityAwarePolling } from '@/lib/polling';
 
 const categories = [
   { id: 'all', label: 'All Resources' },
@@ -23,6 +25,12 @@ interface GuidanceResource {
   readTime: string;
   featured: boolean;
 }
+
+interface StudentGuidanceCachePayload {
+  resources: GuidanceResource[];
+}
+
+const STUDENT_GUIDANCE_CACHE_TTL_MS = 3 * 60 * 1000;
 
 const categoryStyleMap: Record<
   string,
@@ -83,38 +91,141 @@ export default function StudentGuidancePage() {
   const [resources, setResources] = useState<GuidanceResource[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
+  const [loadResourcesError, setLoadResourcesError] = useState('');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const loadRequestIdRef = useRef(0);
+  const resourcesRef = useRef<GuidanceResource[]>([]);
+  const hasWarmCacheRef = useRef(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('student-guidance', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
 
   useEffect(() => {
-    if (!user?.schoolId) return;
+    resourcesRef.current = resources;
+  }, [resources]);
 
-    const loadResources = async () => {
-      const { data, error } = await supabase
+  useEffect(() => {
+    hasWarmCacheRef.current = hasWarmCache;
+  }, [hasWarmCache]);
+
+  useEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+    setLoadResourcesError('');
+
+    if (!cacheKey) {
+      setResources([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<StudentGuidanceCachePayload>(
+      cacheKey,
+      STUDENT_GUIDANCE_CACHE_TTL_MS
+    );
+
+    if (cached.found && cached.data) {
+      setResources(cached.data.resources || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<StudentGuidanceCachePayload>(cacheKey, {
+      resources,
+    });
+  }, [cacheKey, isCacheHydrated, hasLoadedFromServer, hasWarmCache, resources]);
+
+  const loadResources = useCallback(async () => {
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+
+    if (!user?.schoolId) {
+      if (loadRequestIdRef.current === requestId) {
+        setResources([]);
+        setLoadResourcesError('');
+      }
+      return;
+    }
+
+    const fetchRows = async () =>
+      supabase
         .from('resources')
         .select('id,title,description,category,type,content,created_at')
         .eq('school_id', user.schoolId)
         .eq('status', 'published')
         .order('created_at', { ascending: false });
 
-      if (error || !data) {
-        setResources([]);
-        return;
+    const { data, error } = await fetchRows();
+
+    if (loadRequestIdRef.current !== requestId) return;
+
+    if (error || !data) {
+      setLoadResourcesError(error?.message || 'Unable to load guidance resources. Please retry.');
+      return;
+    }
+
+    let mapped = data.map((row, index) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      category: row.category,
+      type: formatType(row.type),
+      readTime: estimateReadTime(row.content || row.description),
+      featured: index < 2,
+    }));
+
+    // Prevent transient empty flashes caused by session refresh race.
+    if (mapped.length === 0 && resourcesRef.current.length > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 450));
+      const { data: retryData, error: retryError } = await fetchRows();
+
+      if (loadRequestIdRef.current !== requestId) return;
+
+      if (!retryError && retryData) {
+        mapped = retryData.map((row, index) => ({
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          category: row.category,
+          type: formatType(row.type),
+          readTime: estimateReadTime(row.content || row.description),
+          featured: index < 2,
+        }));
       }
+    }
 
-      const mapped = data.map((row, index) => ({
-        id: row.id,
-        title: row.title,
-        description: row.description,
-        category: row.category,
-        type: formatType(row.type),
-        readTime: estimateReadTime(row.content || row.description),
-        featured: index < 2,
-      }));
-
-      setResources(mapped);
-    };
-
-    loadResources();
+    setLoadResourcesError('');
+    setHasLoadedFromServer(true);
+    setResources(mapped);
   }, [user?.schoolId]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setResources([]);
+      setIsLoadingResources(false);
+      return;
+    }
+
+    if (!isCacheHydrated) return;
+
+    setIsLoadingResources(!hasWarmCacheRef.current);
+    void loadResources().finally(() => setIsLoadingResources(false));
+    return startVisibilityAwarePolling(() => loadResources(), 15000);
+  }, [user?.id, loadResources, isCacheHydrated]);
 
   const filteredResources = resources.filter((resource) => {
     const matchesCategory = selectedCategory === 'all' || resource.category === selectedCategory;
@@ -125,6 +236,8 @@ export default function StudentGuidancePage() {
   });
 
   const featuredResources = resources.filter((resource) => resource.featured);
+  const isInitializing = !isCacheHydrated && !!user?.id;
+  const showLoadingState = (isLoadingResources || isInitializing) && resources.length === 0;
 
   const getCategoryStyles = (category: string) => {
     return (
@@ -234,8 +347,39 @@ export default function StudentGuidancePage() {
         />
       </div>
 
+      {loadResourcesError && (
+        <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+          <svg
+            className="w-5 h-5 text-destructive flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z"
+            />
+          </svg>
+          <p className="text-sm text-destructive font-medium">{loadResourcesError}</p>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => void loadResources()}>
+            Retry
+          </Button>
+        </div>
+      )}
+
+      {showLoadingState && (
+        <div className="text-center py-12 bg-card rounded-xl border border-border">
+          <p className="text-muted-foreground">Loading resources...</p>
+        </div>
+      )}
+
       {/* Featured Resources */}
-      {selectedCategory === 'all' && !searchQuery && featuredResources.length > 0 && (
+      {selectedCategory === 'all' &&
+        !searchQuery &&
+        featuredResources.length > 0 &&
+        !showLoadingState && (
         <ContentCard
           title="Featured Resources"
           description="Recommended starting points picked for students."
@@ -309,7 +453,7 @@ export default function StudentGuidancePage() {
       </div>
 
       {/* Resources Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {!showLoadingState && <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredResources.map((resource) => {
           const styles = getCategoryStyles(resource.category);
 
@@ -381,9 +525,9 @@ export default function StudentGuidancePage() {
             </Card>
           );
         })}
-      </div>
+      </div>}
 
-      {filteredResources.length === 0 && (
+      {filteredResources.length === 0 && !showLoadingState && (
         <div className="text-center py-12">
           <svg
             className="w-12 h-12 mx-auto text-muted-foreground mb-4"
@@ -398,7 +542,16 @@ export default function StudentGuidancePage() {
               d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
             />
           </svg>
-          <p className="text-muted-foreground">No resources found matching your criteria</p>
+          <p className="text-muted-foreground">
+            {searchQuery || selectedCategory !== 'all'
+              ? 'No resources found matching your criteria'
+              : 'No published resources yet'}
+          </p>
+          {!searchQuery && selectedCategory === 'all' && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Your counselor can publish resources and they will appear here.
+            </p>
+          )}
         </div>
       )}
     </div>

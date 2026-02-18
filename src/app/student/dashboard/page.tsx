@@ -44,6 +44,15 @@ interface Goal {
   priority: 'high' | 'medium' | 'low';
 }
 
+interface GuidanceResourceSummary {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  type: string;
+  createdAt: string;
+}
+
 function buildConversationKey(studentId: string, counselorId: string) {
   return [studentId, counselorId].sort().join('__');
 }
@@ -54,6 +63,29 @@ function formatDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   });
+}
+
+function formatGuidanceType(value: string) {
+  if (!value) return 'Guide';
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function getGuidanceCategoryLabel(category: string) {
+  switch (category) {
+    case 'college':
+      return 'College Prep';
+    case 'career':
+      return 'Career Planning';
+    case 'academic':
+      return 'Academic Success';
+    case 'wellness':
+      return 'Wellness';
+    default:
+      return 'General';
+  }
 }
 
 const quickActions = [
@@ -123,6 +155,7 @@ export default function StudentDashboardPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [guidanceResources, setGuidanceResources] = useState<GuidanceResourceSummary[]>([]);
   const [editingGoal, setEditingGoal] = useState<number | null>(null);
   const [counselors, setCounselors] = useState<User[]>([]);
   const [teachers, setTeachers] = useState<User[]>([]);
@@ -133,7 +166,8 @@ export default function StudentDashboardPage() {
     if (!user?.id) return;
 
     const loadDashboardData = async () => {
-      const [requestsResult, meetingsResult, goalsResult, supportUsersResult] = await Promise.all([
+      const [requestsResult, meetingsResult, goalsResult, supportUsersResult, resourcesResult] =
+        await Promise.all([
         supabase
           .from('requests')
           .select('*')
@@ -154,7 +188,27 @@ export default function StudentDashboardPage() {
           .select('*')
           .eq('school_id', user.schoolId)
           .in('role', ['counselor', 'teacher', 'parent']),
+        supabase
+          .from('resources')
+          .select('id,title,description,category,type,created_at')
+          .eq('school_id', user.schoolId)
+          .eq('status', 'published')
+          .order('created_at', { ascending: false })
+          .limit(4),
       ]);
+
+      if (!resourcesResult.error && resourcesResult.data) {
+        setGuidanceResources(
+          resourcesResult.data.map((row) => ({
+            id: row.id,
+            title: row.title,
+            description: row.description,
+            category: row.category,
+            type: formatGuidanceType(row.type),
+            createdAt: formatDate(row.created_at),
+          }))
+        );
+      }
 
       const supportUsers = (supportUsersResult.data || []).map(mapProfileToUser);
       const schoolCounselors = supportUsers.filter((member) => member.role === 'counselor');
@@ -913,6 +967,58 @@ export default function StudentDashboardPage() {
           )}
         </ContentCard>
       </div>
+
+      <ContentCard
+        title="Latest Guidance"
+        description="Fresh resources published for students at your school."
+        action={
+          <Link href="/student/guidance" className="text-sm text-primary hover:text-primary/80">
+            Open guidance
+          </Link>
+        }
+      >
+        {guidanceResources.length > 0 ? (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {guidanceResources.map((resource) => (
+              <div
+                key={resource.id}
+                className="rounded-xl border border-border bg-muted/20 p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                      {getGuidanceCategoryLabel(resource.category)}
+                    </p>
+                    <h3 className="font-semibold text-foreground mt-1 line-clamp-2">
+                      {resource.title}
+                    </h3>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                    {resource.type}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground line-clamp-2">{resource.description}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{resource.createdAt}</span>
+                  <Link
+                    href="/student/guidance"
+                    className="text-xs font-medium text-primary hover:text-primary/80"
+                  >
+                    View
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-muted-foreground">
+            <p>No published guidance resources yet.</p>
+            <p className="text-sm mt-1">
+              Ask your counselor to publish resources, then they will appear here.
+            </p>
+          </div>
+        )}
+      </ContentCard>
 
       {/* Goals Progress */}
       <ContentCard
