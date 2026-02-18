@@ -16,6 +16,11 @@ interface AccessCard {
   accentBar: string;
   userType: string;
   ctaLabel: string;
+  badgeCls: string;
+  ctaCls: string;
+  hoverBorder: string;
+  glowCls: string;
+  cardAccentBg: string;
 }
 
 interface QuickAccessCardsProps {
@@ -33,11 +38,16 @@ const QuickAccessCards = ({ className = '' }: QuickAccessCardsProps) => {
         'Track goals, view recommendations, and keep every appointment in one personalized space.',
       icon: 'AcademicCapIcon',
       href: '/student-portal-dashboard',
-      iconShell: 'bg-[#35658f]/15 dark:bg-[#35658f]/30',
-      iconColor: 'text-[#35658f] dark:text-[#8AB4F8]',
-      accentBar: 'from-[#35658f] to-[#5f8fbf]',
+      iconShell: 'bg-[#1A73E8]',
+      iconColor: 'text-white',
+      accentBar: 'from-[#1A73E8] to-[#4285F4]',
       userType: 'For Students',
       ctaLabel: 'Open Student View',
+      badgeCls: 'text-[#1A73E8] bg-[#1A73E8]/10 border-[#1A73E8]/25',
+      ctaCls: 'text-[#1A73E8] bg-[#1A73E8]/10 border-[#1A73E8]/25 group-hover:bg-[#1A73E8]/20',
+      hoverBorder: 'hover:border-[#1A73E8]/70',
+      glowCls: 'from-[#1A73E8]/8 to-[#4285F4]/5',
+      cardAccentBg: 'group-hover:bg-[#1A73E8]/4',
     },
     {
       id: 2,
@@ -46,11 +56,16 @@ const QuickAccessCards = ({ className = '' }: QuickAccessCardsProps) => {
         'Coordinate caseloads, prioritize outreach, and move quickly between messaging and planning.',
       icon: 'UserGroupIcon',
       href: '/counselor-command-center',
-      iconShell: 'bg-[#2f5b84]/15 dark:bg-[#2f5b84]/30',
-      iconColor: 'text-[#2f5b84] dark:text-[#9fc0de]',
-      accentBar: 'from-[#2f5b84] to-[#6ca6cb]',
+      iconShell: 'bg-[#1E8E3E]',
+      iconColor: 'text-white',
+      accentBar: 'from-[#1E8E3E] to-[#34A853]',
       userType: 'For Counselors',
       ctaLabel: 'Open Counselor View',
+      badgeCls: 'text-[#1E8E3E] bg-[#1E8E3E]/10 border-[#1E8E3E]/25',
+      ctaCls: 'text-[#1E8E3E] bg-[#1E8E3E]/10 border-[#1E8E3E]/25 group-hover:bg-[#1E8E3E]/20',
+      hoverBorder: 'hover:border-[#1E8E3E]/70',
+      glowCls: 'from-[#1E8E3E]/8 to-[#34A853]/5',
+      cardAccentBg: 'group-hover:bg-[#1E8E3E]/4',
     },
     {
       id: 3,
@@ -59,11 +74,16 @@ const QuickAccessCards = ({ className = '' }: QuickAccessCardsProps) => {
         'Access trusted guidance materials and stay aligned with school plans and student milestones.',
       icon: 'HomeIcon',
       href: '/resource-discovery-center',
-      iconShell: 'bg-[#466f96]/15 dark:bg-[#466f96]/30',
-      iconColor: 'text-[#466f96] dark:text-[#9cc3e6]',
-      accentBar: 'from-[#466f96] to-[#7eb1d5]',
+      iconShell: 'bg-rose-500',
+      iconColor: 'text-white',
+      accentBar: 'from-rose-500 to-rose-400',
       userType: 'For Families',
       ctaLabel: 'Explore Family Resources',
+      badgeCls: 'text-rose-600 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/25',
+      ctaCls: 'text-rose-600 bg-rose-50 border-rose-200 group-hover:bg-rose-100 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/25 dark:group-hover:bg-rose-500/20',
+      hoverBorder: 'hover:border-rose-400/70',
+      glowCls: 'from-rose-500/8 to-rose-400/5',
+      cardAccentBg: 'group-hover:bg-rose-500/4',
     },
     {
       id: 4,
@@ -72,11 +92,16 @@ const QuickAccessCards = ({ className = '' }: QuickAccessCardsProps) => {
         'Use secure FERPA-aligned messaging to keep important conversations organized and actionable.',
       icon: 'ChatBubbleLeftEllipsisIcon',
       href: '/secure-communication-hub',
-      iconShell: 'bg-[#264f74]/15 dark:bg-[#264f74]/35',
-      iconColor: 'text-[#264f74] dark:text-[#8AB4F8]',
-      accentBar: 'from-[#264f74] to-[#5f8fbf]',
+      iconShell: 'bg-[#EA8600]',
+      iconColor: 'text-white',
+      accentBar: 'from-[#EA8600] to-[#FBBC04]',
       userType: 'For Everyone',
       ctaLabel: 'Enter Communication Hub',
+      badgeCls: 'text-[#EA8600] bg-[#EA8600]/10 border-[#EA8600]/25',
+      ctaCls: 'text-[#EA8600] bg-[#EA8600]/10 border-[#EA8600]/25 group-hover:bg-[#EA8600]/20',
+      hoverBorder: 'hover:border-[#EA8600]/70',
+      glowCls: 'from-[#EA8600]/8 to-[#FBBC04]/5',
+      cardAccentBg: 'group-hover:bg-[#EA8600]/4',
     },
   ];
 
@@ -112,22 +137,23 @@ const QuickAccessCards = ({ className = '' }: QuickAccessCardsProps) => {
             <Link
               key={card.id}
               href={card.href}
-              className={`group relative overflow-hidden rounded-[1.4rem] border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#5f89b5]/60 hover:shadow-brand focus-ring dark:border-slate-700 dark:bg-slate-800/70 dark:hover:border-primary/50 animate-on-scroll-scale stagger-${Math.min(index + 1, 6)} ${isVisible ? 'animate-visible' : ''}`}
+              className={`group relative overflow-hidden rounded-[1.4rem] border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl focus-ring dark:border-slate-700 dark:bg-slate-800/70 ${card.hoverBorder} animate-on-scroll-scale stagger-${Math.min(index + 1, 6)} ${isVisible ? 'animate-visible' : ''}`}
             >
+              {/* Accent bar — thicker and fully opaque */}
               <div
-                className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r opacity-75 ${card.accentBar}`}
+                className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${card.accentBar}`}
               />
 
               {/* Badge */}
               <div className="absolute top-4 right-4">
-                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200">
+                <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${card.badgeCls}`}>
                   {card.userType}
                 </span>
               </div>
 
-              {/* Icon */}
+              {/* Icon — solid colored background, white icon */}
               <div
-                className={`mb-4 flex h-16 w-16 items-center justify-center rounded-xl ${card.iconShell} shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}
+                className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${card.iconShell} shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}
               >
                 <Icon
                   name={card.icon as any}
@@ -138,23 +164,23 @@ const QuickAccessCards = ({ className = '' }: QuickAccessCardsProps) => {
               </div>
 
               {/* Title */}
-              <h3 className="text-xl font-heading font-bold text-foreground mb-2 group-hover:text-primary transition-colors">
+              <h3 className="text-xl font-heading font-bold text-foreground mb-2 transition-colors">
                 {card.title}
               </h3>
 
               {/* Description */}
-              <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              <p className="text-sm text-muted-foreground leading-relaxed mb-5">
                 {card.description}
               </p>
 
               {/* CTA */}
-              <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary transition-colors duration-300 group-hover:bg-primary/10">
+              <div className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-semibold transition-colors duration-300 ${card.ctaCls}`}>
                 <span>{card.ctaLabel}</span>
-                <Icon name="ArrowRightIcon" size={16} variant="outline" className="ml-2" />
+                <Icon name="ArrowRightIcon" size={16} variant="outline" className="ml-2 group-hover:translate-x-0.5 transition-transform" />
               </div>
 
               {/* Hover Glow Effect */}
-              <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 dark:from-primary/15" />
+              <div className={`pointer-events-none absolute inset-0 rounded-[1.4rem] bg-gradient-to-br ${card.glowCls} to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
             </Link>
           ))}
         </div>
