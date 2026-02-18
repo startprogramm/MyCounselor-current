@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface Message {
   id: number;
@@ -41,6 +42,13 @@ interface Conversation {
   studentName?: string;
   studentId?: string;
 }
+
+interface StudentMessagesCachePayload {
+  conversations: Conversation[];
+  selectedConvId: number;
+}
+
+const STUDENT_MESSAGES_CACHE_TTL_MS = 2 * 60 * 1000;
 
 function buildConversationKey(studentId: string, counselorId: string) {
   return [studentId, counselorId].sort().join('__');
@@ -162,7 +170,58 @@ export default function StudentMessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
   const loadRequestIdRef = useRef(0);
+  const selectedConvIdRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('student-messages', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useEffect(() => {
+    selectedConvIdRef.current = selectedConvId;
+  }, [selectedConvId]);
+
+  useEffect(() => {
+    if (!cacheKey) {
+      setConversations([]);
+      setSelectedConvId(0);
+      setIsLoadingConversations(true);
+      setHasLoadedConversations(false);
+      return;
+    }
+
+    setConversations([]);
+    setSelectedConvId(0);
+    setIsLoadingConversations(true);
+    setHasLoadedConversations(false);
+
+    const cached = readCachedData<StudentMessagesCachePayload>(
+      cacheKey,
+      STUDENT_MESSAGES_CACHE_TTL_MS
+    );
+
+    if (!cached.found || !cached.data) return;
+
+    const cachedConversations = cached.data.conversations || [];
+    const cachedSelectedConvId = cached.data.selectedConvId || 0;
+    const hasSelectedConversation = cachedConversations.some(
+      (conversation) => conversation.id === cachedSelectedConvId
+    );
+
+    setConversations(cachedConversations);
+    setSelectedConvId(hasSelectedConversation ? cachedSelectedConvId : cachedConversations[0]?.id || 0);
+    setIsLoadingConversations(false);
+    setHasLoadedConversations(true);
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (!cacheKey || !hasLoadedConversations) return;
+
+    writeCachedData<StudentMessagesCachePayload>(cacheKey, {
+      conversations,
+      selectedConvId,
+    });
+  }, [cacheKey, conversations, selectedConvId, hasLoadedConversations]);
 
   const selectedConversation =
     conversations.find((conversation) => conversation.id === selectedConvId) || conversations[0];
@@ -342,9 +401,12 @@ export default function StudentMessagesPage() {
       if (loadRequestIdRef.current === requestId) {
         setLoadError(null);
         setConversations(merged);
-        setSelectedConvId((prev) =>
-          merged.some((conversation) => conversation.id === prev) ? prev : merged[0]?.id || 0
-        );
+        const nextSelectedConvId = merged.some(
+          (conversation) => conversation.id === selectedConvIdRef.current
+        )
+          ? selectedConvIdRef.current
+          : merged[0]?.id || 0;
+        setSelectedConvId(nextSelectedConvId);
       }
 
       finishLoad();

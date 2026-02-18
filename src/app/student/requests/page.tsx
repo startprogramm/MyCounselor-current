@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
 import { parseRequestDocuments, type RequestDocument } from '@/lib/request-documents';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface CounselingRequest {
   id: number;
@@ -23,6 +24,13 @@ interface CounselingRequest {
   response?: string;
   documents?: RequestDocument[];
 }
+
+interface StudentRequestsCachePayload {
+  requests: CounselingRequest[];
+  schoolCounselors: User[];
+}
+
+const STUDENT_REQUESTS_CACHE_TTL_MS = 3 * 60 * 1000;
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
@@ -97,6 +105,44 @@ export default function StudentRequestsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingRequests, setIsLoadingRequests] = useState(false);
   const [loadRequestsError, setLoadRequestsError] = useState('');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('student-requests', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useEffect(() => {
+    if (!cacheKey) {
+      setRequests([]);
+      setSchoolCounselors([]);
+      setHasWarmCache(false);
+      return;
+    }
+
+    const cached = readCachedData<StudentRequestsCachePayload>(
+      cacheKey,
+      STUDENT_REQUESTS_CACHE_TTL_MS
+    );
+
+    if (cached.found && cached.data) {
+      setRequests(cached.data.requests || []);
+      setSchoolCounselors(cached.data.schoolCounselors || []);
+      setIsLoadingRequests(false);
+      setHasWarmCache(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (!cacheKey) return;
+
+    writeCachedData<StudentRequestsCachePayload>(cacheKey, {
+      requests,
+      schoolCounselors,
+    });
+  }, [cacheKey, requests, schoolCounselors]);
 
   const loadRequests = useCallback(async () => {
     if (!user?.id) {
@@ -127,10 +173,10 @@ export default function StudentRequestsPage() {
       return;
     }
 
-    setIsLoadingRequests(true);
+    setIsLoadingRequests(!hasWarmCache);
     void loadRequests().finally(() => setIsLoadingRequests(false));
     return startVisibilityAwarePolling(() => loadRequests(), 10000);
-  }, [user?.id, loadRequests]);
+  }, [user?.id, loadRequests, hasWarmCache]);
 
   // Load school counselors directly from DB
   useEffect(() => {

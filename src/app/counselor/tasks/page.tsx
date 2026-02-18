@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -11,6 +11,7 @@ import {
   toRequestDocumentsJson,
   type RequestDocument,
 } from '@/lib/request-documents';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface CounselingRequest {
   id: number;
@@ -26,8 +27,13 @@ interface CounselingRequest {
   documents?: RequestDocument[];
 }
 
+interface CounselorTasksCachePayload {
+  requests: CounselingRequest[];
+}
+
 const MAX_ATTACHMENT_SIZE_BYTES = 2 * 1024 * 1024;
 const MAX_ATTACHMENT_COUNT = 6;
+const COUNSELOR_TASKS_CACHE_TTL_MS = 3 * 60 * 1000;
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('en-US', {
@@ -88,7 +94,40 @@ export default function CounselorTasksPage() {
   const [uploadError, setUploadError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [pendingUploadCount, setPendingUploadCount] = useState(0);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('counselor-tasks', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useEffect(() => {
+    if (!cacheKey) {
+      setRequests([]);
+      setHasWarmCache(false);
+      return;
+    }
+
+    const cached = readCachedData<CounselorTasksCachePayload>(
+      cacheKey,
+      COUNSELOR_TASKS_CACHE_TTL_MS
+    );
+
+    if (cached.found && cached.data) {
+      setRequests(cached.data.requests || []);
+      setIsLoadingRequests(false);
+      setHasWarmCache(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (!cacheKey) return;
+
+    writeCachedData<CounselorTasksCachePayload>(cacheKey, { requests });
+  }, [cacheKey, requests]);
 
   const loadRequests = useCallback(async () => {
     if (!user?.id) {
@@ -119,10 +158,10 @@ export default function CounselorTasksPage() {
       return;
     }
 
-    setIsLoadingRequests(true);
+    setIsLoadingRequests(!hasWarmCache);
     void loadRequests().finally(() => setIsLoadingRequests(false));
     return startVisibilityAwarePolling(() => loadRequests(), 10000);
-  }, [user?.id, loadRequests]);
+  }, [user?.id, loadRequests, hasWarmCache]);
 
   const updateRequest = async (
     id: number,

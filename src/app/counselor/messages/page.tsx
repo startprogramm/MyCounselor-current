@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface Message {
   id: number;
@@ -33,6 +34,13 @@ interface StudentChat {
   unread: number;
   messages: Message[];
 }
+
+interface CounselorMessagesCachePayload {
+  studentChats: StudentChat[];
+  selectedStudentId: string | null;
+}
+
+const COUNSELOR_MESSAGES_CACHE_TTL_MS = 2 * 60 * 1000;
 
 function buildConversationKey(studentId: string, counselorId: string) {
   return [studentId, counselorId].sort().join('__');
@@ -78,6 +86,54 @@ export default function CounselorMessagesPage() {
   const [showMobileList, setShowMobileList] = useState(true);
   const loadRequestIdRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('counselor-messages', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useEffect(() => {
+    if (!cacheKey) {
+      setStudentChats([]);
+      setSelectedStudentId(null);
+      setIsLoadingChats(true);
+      setHasLoadedChats(false);
+      return;
+    }
+
+    setStudentChats([]);
+    setSelectedStudentId(null);
+    setIsLoadingChats(true);
+    setHasLoadedChats(false);
+
+    const cached = readCachedData<CounselorMessagesCachePayload>(
+      cacheKey,
+      COUNSELOR_MESSAGES_CACHE_TTL_MS
+    );
+
+    if (!cached.found || !cached.data) return;
+
+    const cachedChats = cached.data.studentChats || [];
+    const cachedSelectedStudentId = cached.data.selectedStudentId || null;
+    const selectedStudentExists = cachedSelectedStudentId
+      ? cachedChats.some((chat) => chat.student.id === cachedSelectedStudentId)
+      : false;
+
+    setStudentChats(cachedChats);
+    setSelectedStudentId(
+      selectedStudentExists ? cachedSelectedStudentId : cachedChats[0]?.student.id || null
+    );
+    setIsLoadingChats(false);
+    setHasLoadedChats(true);
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (!cacheKey || !hasLoadedChats) return;
+
+    writeCachedData<CounselorMessagesCachePayload>(cacheKey, {
+      studentChats,
+      selectedStudentId,
+    });
+  }, [cacheKey, studentChats, selectedStudentId, hasLoadedChats]);
 
   const markConversationAsRead = useCallback(
     async (conversationKey?: string) => {
