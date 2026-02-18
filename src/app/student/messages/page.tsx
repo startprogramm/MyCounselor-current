@@ -171,6 +171,8 @@ export default function StudentMessagesPage() {
   const [showMobileList, setShowMobileList] = useState(true);
   const loadRequestIdRef = useRef(0);
   const selectedConvIdRef = useRef(0);
+  const conversationsRef = useRef<Conversation[]>([]);
+  const emptyConversationsStreakRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('student-messages', user.id, user.schoolId) : null),
@@ -180,6 +182,16 @@ export default function StudentMessagesPage() {
   useEffect(() => {
     selectedConvIdRef.current = selectedConvId;
   }, [selectedConvId]);
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  const shouldPreserveConversations = useCallback(() => {
+    if (conversationsRef.current.length === 0) return false;
+    emptyConversationsStreakRef.current += 1;
+    return emptyConversationsStreakRef.current < 2;
+  }, []);
 
   useEffect(() => {
     if (!cacheKey) {
@@ -345,6 +357,14 @@ export default function StudentMessagesPage() {
       }
 
       if (counselors.length === 0) {
+        if (shouldPreserveConversations()) {
+          if (loadRequestIdRef.current === requestId) {
+            setLoadError(null);
+          }
+          finishLoad();
+          return;
+        }
+
         if (loadRequestIdRef.current === requestId) {
           setConversations([]);
           setSelectedConvId(0);
@@ -353,6 +373,8 @@ export default function StudentMessagesPage() {
         finishLoad();
         return;
       }
+
+      emptyConversationsStreakRef.current = 0;
 
       const keys = counselors.map((c) => buildConversationKey(user.id, c.id));
 
@@ -411,7 +433,7 @@ export default function StudentMessagesPage() {
 
       finishLoad();
     },
-    [user]
+    [user, shouldPreserveConversations]
   );
 
   useEffect(() => {

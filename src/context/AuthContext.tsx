@@ -6,6 +6,8 @@ import type { Database } from '@/lib/database.types';
 
 const PROFILE_FETCH_MAX_ATTEMPTS = 6;
 const PROFILE_FETCH_RETRY_DELAY_MS = 350;
+const SESSION_RESTORE_MAX_ATTEMPTS = 5;
+const SESSION_RESTORE_RETRY_DELAY_MS = 300;
 
 export interface User {
   id: string;
@@ -178,6 +180,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
+  const fetchSessionUserId = async (
+    attempts = SESSION_RESTORE_MAX_ATTEMPTS
+  ): Promise<string | null> => {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user?.id) {
+        return session.user.id;
+      }
+
+      if (attempt < attempts) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, attempt * SESSION_RESTORE_RETRY_DELAY_MS)
+        );
+      }
+    }
+
+    return null;
+  };
+
   const loadSchoolUsers = async (schoolId: string) => {
     const requestId = schoolUsersLoadIdRef.current + 1;
     schoolUsersLoadIdRef.current = requestId;
@@ -245,29 +269,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Step 2: Verify the session is still valid in the background.
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const sessionUserId = await fetchSessionUserId(
+        cachedProfile ? SESSION_RESTORE_MAX_ATTEMPTS : 1
+      );
 
       if (!isMounted) return;
 
-      if (session?.user) {
+      if (sessionUserId) {
         // Refresh profile from DB (picks up any server-side changes).
         // preserveCurrentUserOnFailure=true so a transient network error
         // doesn't log the user out when we already have a cached profile.
-        const hydrated = await hydrateUserFromSession(
-          session.user.id,
-          !!cachedProfile
-        );
+        const hydrated = await hydrateUserFromSession(sessionUserId, !!cachedProfile);
         if (!hydrated && isMounted) {
           // One delayed retry helps on slower connections/session restoration.
           await new Promise((resolve) => setTimeout(resolve, 500));
           if (isMounted) {
-            await hydrateUserFromSession(session.user.id, !!cachedProfile);
+            await hydrateUserFromSession(sessionUserId, !!cachedProfile);
           }
         }
-      } else {
-        // No valid session — make sure we don't keep a stale cached user.
+      } else if (!cachedProfile) {
+        // No valid session - make sure we do not keep a stale cached user.
         clearAuthState();
       }
 
@@ -297,7 +318,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        clearAuthState();
+        // Ignore null INITIAL_SESSION when a cached profile is already shown.
+        if (event === 'INITIAL_SESSION' && userRef.current) {
+          return;
+        }
+
+        if (event === 'SIGNED_OUT') {
+          clearAuthState();
+          return;
+        }
+
+        if (!userRef.current) {
+          clearAuthState();
+        }
       }, 0);
     });
 
@@ -331,6 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setUser(profile);
+    persistCachedProfile(profile);
     void loadSchoolUsers(profile.schoolId);
     setIsLoading(false);
 
@@ -398,6 +432,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (signUpData.session) {
       setUser(profile);
+      persistCachedProfile(profile);
       void loadSchoolUsers(profile.schoolId);
     }
 
@@ -465,7 +500,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     if (user?.id === userId) {
-      setUser((prev) => (prev ? { ...prev, ...updates } : prev));
+      setUser((prev) => {
+        if (!prev) return prev;
+        const nextUser = { ...prev, ...updates };
+        persistCachedProfile(nextUser);
+        return nextUser;
+      });
     }
   };
 

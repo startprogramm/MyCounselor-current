@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -161,11 +161,30 @@ export default function StudentDashboardPage() {
   const [teachers, setTeachers] = useState<User[]>([]);
   const [parents, setParents] = useState<User[]>([]);
   const [pendingParents, setPendingParents] = useState<PendingParent[]>([]);
+  const dashboardLoadIdRef = useRef(0);
+  const guidanceResourcesRef = useRef<GuidanceResourceSummary[]>([]);
+  const guidanceEmptyStreakRef = useRef(0);
+
+  useEffect(() => {
+    guidanceResourcesRef.current = guidanceResources;
+  }, [guidanceResources]);
 
   useEffect(() => {
     if (!user?.id) return;
 
     const loadDashboardData = async () => {
+      const requestId = dashboardLoadIdRef.current + 1;
+      dashboardLoadIdRef.current = requestId;
+
+      const fetchResources = async () =>
+        supabase
+          .from('resources')
+          .select('id,title,description,category,type,created_at')
+          .eq('school_id', user.schoolId)
+          .eq('status', 'published')
+          .order('created_at', { ascending: false })
+          .limit(4);
+
       const [requestsResult, meetingsResult, goalsResult, supportUsersResult, resourcesResult] =
         await Promise.all([
         supabase
@@ -188,26 +207,47 @@ export default function StudentDashboardPage() {
           .select('*')
           .eq('school_id', user.schoolId)
           .in('role', ['counselor', 'teacher', 'parent']),
-        supabase
-          .from('resources')
-          .select('id,title,description,category,type,created_at')
-          .eq('school_id', user.schoolId)
-          .eq('status', 'published')
-          .order('created_at', { ascending: false })
-          .limit(4),
+        fetchResources(),
       ]);
 
+      if (dashboardLoadIdRef.current !== requestId) return;
+
       if (!resourcesResult.error && resourcesResult.data) {
-        setGuidanceResources(
-          resourcesResult.data.map((row) => ({
+        let mappedGuidance = resourcesResult.data.map((row) => ({
             id: row.id,
             title: row.title,
             description: row.description,
             category: row.category,
             type: formatGuidanceType(row.type),
             createdAt: formatDate(row.created_at),
-          }))
-        );
+          }));
+
+        if (mappedGuidance.length === 0 && guidanceResourcesRef.current.length > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const { data: retryData, error: retryError } = await fetchResources();
+          if (dashboardLoadIdRef.current !== requestId) return;
+
+          if (!retryError && retryData) {
+            mappedGuidance = retryData.map((row) => ({
+              id: row.id,
+              title: row.title,
+              description: row.description,
+              category: row.category,
+              type: formatGuidanceType(row.type),
+              createdAt: formatDate(row.created_at),
+            }));
+          }
+        }
+
+        if (mappedGuidance.length === 0 && guidanceResourcesRef.current.length > 0) {
+          guidanceEmptyStreakRef.current += 1;
+          if (guidanceEmptyStreakRef.current >= 2) {
+            setGuidanceResources([]);
+          }
+        } else {
+          guidanceEmptyStreakRef.current = 0;
+          setGuidanceResources(mappedGuidance);
+        }
       }
 
       const supportUsers = (supportUsersResult.data || []).map(mapProfileToUser);

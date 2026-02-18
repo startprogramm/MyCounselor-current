@@ -99,6 +99,7 @@ export default function StudentGuidancePage() {
   const loadRequestIdRef = useRef(0);
   const resourcesRef = useRef<GuidanceResource[]>([]);
   const hasWarmCacheRef = useRef(false);
+  const emptyFetchStreakRef = useRef(0);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('student-guidance', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
@@ -206,6 +207,17 @@ export default function StudentGuidancePage() {
           featured: index < 2,
         }));
       }
+    }
+
+    if (mapped.length === 0 && resourcesRef.current.length > 0) {
+      emptyFetchStreakRef.current += 1;
+      if (emptyFetchStreakRef.current < 2) {
+        setLoadResourcesError('');
+        setHasLoadedFromServer(true);
+        return;
+      }
+    } else {
+      emptyFetchStreakRef.current = 0;
     }
 
     setLoadResourcesError('');

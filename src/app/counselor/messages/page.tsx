@@ -85,6 +85,8 @@ export default function CounselorMessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
   const loadRequestIdRef = useRef(0);
+  const studentChatsRef = useRef<StudentChat[]>([]);
+  const emptyChatsStreakRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('counselor-messages', user.id, user.schoolId) : null),
@@ -125,6 +127,16 @@ export default function CounselorMessagesPage() {
     setIsLoadingChats(false);
     setHasLoadedChats(true);
   }, [cacheKey]);
+
+  useEffect(() => {
+    studentChatsRef.current = studentChats;
+  }, [studentChats]);
+
+  const shouldPreserveStudentChats = useCallback(() => {
+    if (studentChatsRef.current.length === 0) return false;
+    emptyChatsStreakRef.current += 1;
+    return emptyChatsStreakRef.current < 2;
+  }, []);
 
   useEffect(() => {
     if (!cacheKey || !hasLoadedChats) return;
@@ -211,6 +223,14 @@ export default function CounselorMessagesPage() {
         .order('created_at', { ascending: true });
 
       if (fallbackMessagesError || !fallbackMessages || fallbackMessages.length === 0) {
+        if (shouldPreserveStudentChats()) {
+          if (loadRequestIdRef.current === requestId) {
+            setLoadError(null);
+          }
+          finishLoad();
+          return;
+        }
+
         if (loadRequestIdRef.current === requestId) {
           setStudentChats([]);
           setLoadError(null);
@@ -229,6 +249,14 @@ export default function CounselorMessagesPage() {
       );
 
       if (fallbackStudentIds.length === 0) {
+        if (shouldPreserveStudentChats()) {
+          if (loadRequestIdRef.current === requestId) {
+            setLoadError(null);
+          }
+          finishLoad();
+          return;
+        }
+
         if (loadRequestIdRef.current === requestId) {
           setStudentChats([]);
           setLoadError(null);
@@ -255,6 +283,8 @@ export default function CounselorMessagesPage() {
       schoolStudents = fallbackStudents.map(mapProfileToUser);
       messageRows = fallbackMessages;
     }
+
+    emptyChatsStreakRef.current = 0;
 
     const keys = schoolStudents.map((student) => buildConversationKey(student.id, user.id));
 
@@ -351,7 +381,7 @@ export default function CounselorMessagesPage() {
     }
 
     finishLoad();
-  }, [user]);
+  }, [user, shouldPreserveStudentChats]);
 
   useEffect(() => {
     loadStudentChats();
