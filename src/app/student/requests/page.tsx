@@ -110,6 +110,7 @@ export default function StudentRequestsPage() {
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
   const loadRequestIdRef = useRef(0);
   const requestsRef = useRef<CounselingRequest[]>([]);
+  const hasWarmCacheRef = useRef(false);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('student-requests', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
@@ -118,6 +119,10 @@ export default function StudentRequestsPage() {
   useEffect(() => {
     requestsRef.current = requests;
   }, [requests]);
+
+  useEffect(() => {
+    hasWarmCacheRef.current = hasWarmCache;
+  }, [hasWarmCache]);
 
   useEffect(() => {
     setIsCacheHydrated(false);
@@ -213,10 +218,19 @@ export default function StudentRequestsPage() {
       return;
     }
 
-    setIsLoadingRequests(!hasWarmCache);
+    // Wait until we know whether there is cached data before starting the
+    // network fetch.  This prevents Effect from double-firing: once with the
+    // stale hasWarmCache=false value and again after cache hydration sets it
+    // to true, which previously triggered two Supabase queries and briefly
+    // showed the loading spinner even when cached data was available.
+    if (!isCacheHydrated) return;
+
+    // Read via ref so this effect doesn't re-run just because hasWarmCache
+    // changed (which would start a second fetch and reset the polling timer).
+    setIsLoadingRequests(!hasWarmCacheRef.current);
     void loadRequests().finally(() => setIsLoadingRequests(false));
     return startVisibilityAwarePolling(() => loadRequests(), 10000);
-  }, [user?.id, loadRequests, hasWarmCache]);
+  }, [user?.id, loadRequests, isCacheHydrated]);
 
   // Load school counselors directly from DB
   useEffect(() => {
@@ -384,6 +398,12 @@ export default function StudentRequestsPage() {
     ? requests
     : requests.filter(r => r.status === filter);
 
+  // True while we haven't yet checked the cache or started the first fetch.
+  // Prevents the "No requests found" empty state from flashing on the very
+  // first render before any effect has had a chance to run.
+  const isInitializing = !isCacheHydrated && !!user?.id;
+  const showLoadingState = (isLoadingRequests || isInitializing) && requests.length === 0;
+
   const filterCounts = {
     all: requests.length,
     pending: requests.filter(r => r.status === 'pending').length,
@@ -527,13 +547,13 @@ export default function StudentRequestsPage() {
 
       {/* Requests List */}
       <div className="space-y-4">
-        {isLoadingRequests && requests.length === 0 && (
+        {showLoadingState && (
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <p className="text-muted-foreground">Loading requests...</p>
           </div>
         )}
 
-        {filteredRequests.length === 0 && !isLoadingRequests ? (
+        {filteredRequests.length === 0 && !showLoadingState ? (
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -543,7 +563,7 @@ export default function StudentRequestsPage() {
               Create your first request
             </Button>
           </div>
-        ) : !isLoadingRequests ? (
+        ) : !showLoadingState ? (
           filteredRequests.map((request) => (
             <div
               key={request.id}

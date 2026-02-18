@@ -68,6 +68,36 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ---------------------------------------------------------------------------
+// Profile localStorage cache
+// Persisting the profile means user.id is available synchronously on the
+// very first render, so child pages can compute their own cache keys and
+// check their own caches without waiting for two Supabase round-trips
+// (getSession + fetchProfile) to complete.
+// ---------------------------------------------------------------------------
+const AUTH_PROFILE_KEY = 'mycounselor::auth_profile';
+
+function readCachedProfile(): User | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(AUTH_PROFILE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistCachedProfile(profile: User | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (profile) {
+      localStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(profile));
+    } else {
+      localStorage.removeItem(AUTH_PROFILE_KEY);
+    }
+  } catch {}
+}
+
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
 
@@ -173,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     schoolUsersLoadIdRef.current += 1;
     setUser(null);
     setSchoolUsers([]);
+    persistCachedProfile(null);
   };
 
   const hydrateUserFromSession = async (
@@ -182,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profile = await fetchProfile(authUserId);
     if (profile) {
       setUser(profile);
+      persistCachedProfile(profile);
       void loadSchoolUsers(profile.schoolId);
       return true;
     }
@@ -202,6 +234,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isMounted = true;
 
     const init = async () => {
+      // Step 1: Restore profile from localStorage synchronously so that
+      // child pages have user.id on the very first render.  This lets them
+      // compute their own cache keys and show cached data immediately,
+      // without waiting for the two Supabase round-trips below.
+      const cachedProfile = readCachedProfile();
+      if (cachedProfile && isMounted) {
+        setUser(cachedProfile);
+        setIsLoading(false);
+      }
+
+      // Step 2: Verify the session is still valid in the background.
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -209,15 +252,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!isMounted) return;
 
       if (session?.user) {
-        const hydrated = await hydrateUserFromSession(session.user.id, false);
+        // Refresh profile from DB (picks up any server-side changes).
+        // preserveCurrentUserOnFailure=true so a transient network error
+        // doesn't log the user out when we already have a cached profile.
+        const hydrated = await hydrateUserFromSession(
+          session.user.id,
+          !!cachedProfile
+        );
         if (!hydrated && isMounted) {
           // One delayed retry helps on slower connections/session restoration.
           await new Promise((resolve) => setTimeout(resolve, 500));
           if (isMounted) {
-            await hydrateUserFromSession(session.user.id, false);
+            await hydrateUserFromSession(session.user.id, !!cachedProfile);
           }
         }
       } else {
+        // No valid session — make sure we don't keep a stale cached user.
         clearAuthState();
       }
 
@@ -376,6 +426,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
+    persistCachedProfile(updatedUser);
     setSchoolUsers((prev) => prev.map((item) => (item.id === user.id ? updatedUser : item)));
   };
 
