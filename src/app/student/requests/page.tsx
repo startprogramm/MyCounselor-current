@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
@@ -9,12 +9,13 @@ import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
 import { parseRequestDocuments, type RequestDocument } from '@/lib/request-documents';
-import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 import {
   getRequestStatusLabel,
   normalizeRequestStatus,
   type RequestStatus,
 } from '@/lib/request-status';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CounselingRequest {
   id: number;
@@ -30,14 +31,34 @@ interface CounselingRequest {
   documents?: RequestDocument[];
 }
 
-interface StudentRequestsCachePayload {
-  requests: CounselingRequest[];
-  schoolCounselors: User[];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+
+// ─── localStorage helpers ─────────────────────────────────────────────────────
+
+function cacheKey(userId: string) {
+  return `mycounselor_requests_${userId}`;
 }
 
-const STUDENT_REQUESTS_CACHE_TTL_MS = 3 * 60 * 1000;
+function readCache(userId: string): { requests: CounselingRequest[]; counselors: User[] } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(cacheKey(userId));
+    return raw ? (JSON.parse(raw) as { requests: CounselingRequest[]; counselors: User[] }) : null;
+  } catch {
+    return null;
+  }
+}
 
-type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+function writeCache(userId: string, requests: CounselingRequest[], counselors: User[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(cacheKey(userId), JSON.stringify({ requests, counselors }));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+// ─── Mappers ──────────────────────────────────────────────────────────────────
 
 function formatCreatedAt(value: string) {
   return new Date(value).toLocaleDateString('en-US', {
@@ -95,10 +116,21 @@ function mapProfileToUser(profile: ProfileRow): User {
   };
 }
 
+// ─── Page component ───────────────────────────────────────────────────────────
+
 export default function StudentRequestsPage() {
   const { user } = useAuth();
+
+  // Data
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [schoolCounselors, setSchoolCounselors] = useState<User[]>([]);
+
+  // Loading / error
+  const [initialized, setInitialized] = useState(false); // true after localStorage check
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+
+  // Form
   const [showNewRequest, setShowNewRequest] = useState(false);
   const [filter, setFilter] = useState<'all' | RequestStatus>('all');
   const [newTitle, setNewTitle] = useState('');
@@ -108,193 +140,74 @@ export default function StudentRequestsPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
-  const [loadRequestsError, setLoadRequestsError] = useState('');
-  const [hasWarmCache, setHasWarmCache] = useState(false);
-  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
-  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
-  const loadRequestIdRef = useRef(0);
-  const requestsRef = useRef<CounselingRequest[]>([]);
-  const emptyFetchStreakRef = useRef(0);
-  const hasWarmCacheRef = useRef(false);
-  const cacheKey = useMemo(
-    () => (user?.id ? makeUserCacheKey('student-requests', user.id, user.schoolId) : null),
-    [user?.id, user?.schoolId]
-  );
-  // Refs so we can access latest values inside loadRequests without adding
-  // them as dependencies (which would restart polling on every data change).
-  const cacheKeyRef = useRef<string | null>(null);
-  const schoolCounselorsRef = useRef<User[]>([]);
 
-  useEffect(() => {
-    requestsRef.current = requests;
-  }, [requests]);
+  // Stale-response guard
+  const fetchIdRef = useRef(0);
 
-  useEffect(() => {
-    hasWarmCacheRef.current = hasWarmCache;
-  }, [hasWarmCache]);
-
-  useEffect(() => {
-    cacheKeyRef.current = cacheKey;
-  }, [cacheKey]);
-
-  useEffect(() => {
-    schoolCounselorsRef.current = schoolCounselors;
-  }, [schoolCounselors]);
-
+  // ── Step 1: Read from localStorage before first paint ──────────────────────
   useLayoutEffect(() => {
-    setIsCacheHydrated(false);
-    setHasLoadedFromServer(false);
+    if (!user?.id) return; // layout already shows spinner until user is ready
 
-    if (!cacheKey) {
-      setRequests([]);
-      setSchoolCounselors([]);
-      setHasWarmCache(false);
-      setIsCacheHydrated(true);
-      return;
+    const cached = readCache(user.id);
+    if (cached) {
+      setRequests(cached.requests || []);
+      setSchoolCounselors(cached.counselors || []);
     }
-
-    const cached = readCachedData<StudentRequestsCachePayload>(
-      cacheKey,
-      STUDENT_REQUESTS_CACHE_TTL_MS
-    );
-
-    if (cached.found && cached.data) {
-      setRequests(cached.data.requests || []);
-      setSchoolCounselors(cached.data.schoolCounselors || []);
-      setIsLoadingRequests(false);
-      setHasWarmCache(true);
-      setIsCacheHydrated(true);
-      return;
-    }
-
-    setHasWarmCache(false);
-    setIsCacheHydrated(true);
-  }, [cacheKey]);
-
-  useEffect(() => {
-    if (!cacheKey || !isCacheHydrated) return;
-    if (!hasWarmCache && !hasLoadedFromServer) return;
-
-    writeCachedData<StudentRequestsCachePayload>(cacheKey, {
-      requests,
-      schoolCounselors,
-    });
-  }, [cacheKey, requests, schoolCounselors, isCacheHydrated, hasWarmCache, hasLoadedFromServer]);
-
-  const loadRequests = useCallback(async () => {
-    const requestId = loadRequestIdRef.current + 1;
-    loadRequestIdRef.current = requestId;
-
-    if (!user?.id) {
-      if (loadRequestIdRef.current === requestId) {
-        setRequests([]);
-        setLoadRequestsError('');
-      }
-      return;
-    }
-
-    const fetchRows = async () =>
-      supabase
-        .from('requests')
-        .select('*')
-        .eq('student_id', user.id)
-        .order('created_at', { ascending: false });
-
-    const { data, error } = await fetchRows();
-
-    if (loadRequestIdRef.current !== requestId) return;
-
-    if (error || !data) {
-      setLoadRequestsError(error?.message || 'Unable to load your requests. Please retry.');
-      return;
-    }
-
-    let mappedRequests = data.map(mapRequest);
-
-    // Guard against transient empty results during auth/session refresh.
-    if (mappedRequests.length === 0 && requestsRef.current.length > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 450));
-      const { data: retryData, error: retryError } = await fetchRows();
-
-      if (loadRequestIdRef.current !== requestId) return;
-
-      if (!retryError && retryData) {
-        mappedRequests = retryData.map(mapRequest);
-      }
-    }
-
-    if (mappedRequests.length === 0 && requestsRef.current.length > 0) {
-      emptyFetchStreakRef.current += 1;
-      if (emptyFetchStreakRef.current < 2) {
-        setLoadRequestsError('');
-        setHasLoadedFromServer(true);
-        return;
-      }
-    } else {
-      emptyFetchStreakRef.current = 0;
-    }
-
-    // Write cache immediately (synchronous localStorage write) so it is
-    // available on the very next page navigation, even if the component
-    // unmounts before the writeCachedData effect has a chance to fire.
-    if (cacheKeyRef.current) {
-      writeCachedData<StudentRequestsCachePayload>(cacheKeyRef.current, {
-        requests: mappedRequests,
-        schoolCounselors: schoolCounselorsRef.current,
-      });
-    }
-
-    setLoadRequestsError('');
-    setHasLoadedFromServer(true);
-    setRequests(mappedRequests);
+    setInitialized(true);
   }, [user?.id]);
 
-  useEffect(() => {
-    if (!user?.id) {
-      setRequests([]);
-      setIsLoadingRequests(false);
+  // ── Step 2: Fetch from Supabase (requests + counselors in parallel) ─────────
+  const fetchData = useCallback(async () => {
+    if (!user?.id || !user?.schoolId) return;
+
+    const fetchId = ++fetchIdRef.current;
+
+    const [{ data: requestData, error: requestError }, { data: counselorData }] =
+      await Promise.all([
+        supabase
+          .from('requests')
+          .select('*')
+          .eq('student_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('school_id', user.schoolId)
+          .eq('role', 'counselor'),
+      ]);
+
+    if (fetchIdRef.current !== fetchId) return; // stale, another fetch started
+
+    if (requestError) {
+      setFetchError(requestError.message || 'Unable to load requests. Please retry.');
       return;
     }
 
-    // Wait until we know whether there is cached data before starting the
-    // network fetch.  This prevents Effect from double-firing: once with the
-    // stale hasWarmCache=false value and again after cache hydration sets it
-    // to true, which previously triggered two Supabase queries and briefly
-    // showed the loading spinner even when cached data was available.
-    if (!isCacheHydrated) return;
+    const mappedRequests = (requestData || []).map(mapRequest);
+    const mappedCounselors = (counselorData || []).map(mapProfileToUser);
 
-    // Read via ref so this effect doesn't re-run just because hasWarmCache
-    // changed (which would start a second fetch and reset the polling timer).
-    setIsLoadingRequests(!hasWarmCacheRef.current);
-    void loadRequests().finally(() => setIsLoadingRequests(false));
-    return startVisibilityAwarePolling(() => loadRequests(), 15000);
-  }, [user?.id, loadRequests, isCacheHydrated]);
+    // Write to localStorage synchronously right here — never miss this write
+    writeCache(user.id, mappedRequests, mappedCounselors);
 
-  // Load school counselors directly from DB
+    setFetchError('');
+    setRequests(mappedRequests);
+    setSchoolCounselors(mappedCounselors);
+  }, [user?.id, user?.schoolId]);
+
+  // ── Step 3: Kick off fetch once initialized, then poll every 30 s ──────────
   useEffect(() => {
-    if (!user?.schoolId) {
-      setSchoolCounselors([]);
-      return;
-    }
+    if (!initialized || !user?.id) return;
 
-    const loadCounselors = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('school_id', user.schoolId)
-        .eq('role', 'counselor');
+    setIsFetching(true);
+    void fetchData().finally(() => setIsFetching(false));
 
-      if (error || !data) {
-        setSchoolCounselors([]);
-        return;
-      }
+    return startVisibilityAwarePolling(() => fetchData(), 30_000);
+  }, [initialized, user?.id, fetchData]);
 
-      setSchoolCounselors(data.map(mapProfileToUser));
-    };
+  // ── Loading state: only show spinner if we have zero data AND fetching ──────
+  const showLoading = !initialized || (isFetching && requests.length === 0);
 
-    loadCounselors();
-  }, [user?.schoolId]);
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -312,7 +225,6 @@ export default function StudentRequestsPage() {
     }
 
     if (!user) return;
-
     setIsSubmitting(true);
 
     const availableCounselors = schoolCounselors.filter((c) => c.approved === true);
@@ -346,10 +258,11 @@ export default function StudentRequestsPage() {
       return;
     }
 
-    setHasLoadedFromServer(true);
-    setRequests((prev) => [mapRequest(data), ...prev]);
+    const newRequest = mapRequest(data);
+    const updated = [newRequest, ...requests];
+    setRequests(updated);
+    writeCache(user.id, updated, schoolCounselors);
 
-    // Reset form
     setNewTitle('');
     setNewCategory('');
     setNewDescription('');
@@ -374,9 +287,27 @@ export default function StudentRequestsPage() {
       .eq('student_id', user.id);
 
     if (error) return;
-    setHasLoadedFromServer(true);
-    setRequests((prev) => prev.filter((request) => request.id !== id));
+
+    const updated = requests.filter((r) => r.id !== id);
+    setRequests(updated);
+    writeCache(user.id, updated, schoolCounselors);
   };
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+
+  const filteredRequests =
+    filter === 'all' ? requests : requests.filter((r) => r.status === filter);
+  const hasAnyRequests = requests.length > 0;
+
+  const filterCounts = {
+    all: requests.length,
+    pending: requests.filter((r) => r.status === 'pending').length,
+    in_progress: requests.filter((r) => r.status === 'in_progress').length,
+    approved: requests.filter((r) => r.status === 'approved').length,
+    completed: requests.filter((r) => r.status === 'completed').length,
+  };
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   const getStatusColor = (status: RequestStatus) => {
     switch (status) {
@@ -423,30 +354,7 @@ export default function StudentRequestsPage() {
     }
   };
 
-  const filteredRequests = filter === 'all'
-    ? requests
-    : requests.filter(r => r.status === filter);
-  const hasAnyRequests = requests.length > 0;
-
-  // Show loading whenever data isn't ready yet:
-  // 1. Cache not checked yet (first render gap)
-  // 2. Actively fetching with no data to show
-  // 3. Cache miss: cache checked, no warm data, server hasn't responded yet
-  //    (covers the gap between isCacheHydrated becoming true and the load
-  //    effect setting isLoadingRequests=true - without this a brief "No
-  //    requests found" flash appeared even when data was on its way)
-  const showLoadingState =
-    (!isCacheHydrated && !!user?.id) ||
-    (isLoadingRequests && requests.length === 0) ||
-    (isCacheHydrated && !hasWarmCache && !hasLoadedFromServer && !!user?.id);
-
-  const filterCounts = {
-    all: requests.length,
-    pending: requests.filter(r => r.status === 'pending').length,
-    in_progress: requests.filter(r => r.status === 'in_progress').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    completed: requests.filter(r => r.status === 'completed').length,
-  };
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -497,13 +405,13 @@ export default function StudentRequestsPage() {
         </div>
       )}
 
-      {loadRequestsError && (
+      {fetchError && (
         <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
           <svg className="w-5 h-5 text-destructive flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z" />
           </svg>
-          <p className="text-sm text-destructive font-medium">{loadRequestsError}</p>
-          <Button size="sm" variant="outline" className="ml-auto" onClick={() => void loadRequests()}>
+          <p className="text-sm text-destructive font-medium">{fetchError}</p>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => void fetchData()}>
             Retry
           </Button>
         </div>
@@ -583,13 +491,13 @@ export default function StudentRequestsPage() {
 
       {/* Requests List */}
       <div className="space-y-4">
-        {showLoadingState && (
+        {showLoading && (
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <p className="text-muted-foreground">Loading requests...</p>
           </div>
         )}
 
-        {filteredRequests.length === 0 && !showLoadingState ? (
+        {!showLoading && filteredRequests.length === 0 ? (
           <div className="text-center py-12 bg-card rounded-xl border border-border">
             <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -619,7 +527,7 @@ export default function StudentRequestsPage() {
               </>
             )}
           </div>
-        ) : !showLoadingState ? (
+        ) : !showLoading ? (
           filteredRequests.map((request) => (
             <div
               key={request.id}
@@ -639,6 +547,7 @@ export default function StudentRequestsPage() {
                       {getRequestStatusLabel(request.status)}
                     </span>
                   </div>
+
                   {/* Counselor Response */}
                   {request.response && (
                     <div className="mt-3 p-3 bg-primary/5 border border-primary/10 rounded-lg">
