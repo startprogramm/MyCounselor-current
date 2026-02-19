@@ -121,6 +121,10 @@ export default function StudentRequestsPage() {
     () => (user?.id ? makeUserCacheKey('student-requests', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
   );
+  // Refs so we can access latest values inside loadRequests without adding
+  // them as dependencies (which would restart polling on every data change).
+  const cacheKeyRef = useRef<string | null>(null);
+  const schoolCounselorsRef = useRef<User[]>([]);
 
   useEffect(() => {
     requestsRef.current = requests;
@@ -129,6 +133,14 @@ export default function StudentRequestsPage() {
   useEffect(() => {
     hasWarmCacheRef.current = hasWarmCache;
   }, [hasWarmCache]);
+
+  useEffect(() => {
+    cacheKeyRef.current = cacheKey;
+  }, [cacheKey]);
+
+  useEffect(() => {
+    schoolCounselorsRef.current = schoolCounselors;
+  }, [schoolCounselors]);
 
   useLayoutEffect(() => {
     setIsCacheHydrated(false);
@@ -221,6 +233,16 @@ export default function StudentRequestsPage() {
       }
     } else {
       emptyFetchStreakRef.current = 0;
+    }
+
+    // Write cache immediately (synchronous localStorage write) so it is
+    // available on the very next page navigation, even if the component
+    // unmounts before the writeCachedData effect has a chance to fire.
+    if (cacheKeyRef.current) {
+      writeCachedData<StudentRequestsCachePayload>(cacheKeyRef.current, {
+        requests: mappedRequests,
+        schoolCounselors: schoolCounselorsRef.current,
+      });
     }
 
     setLoadRequestsError('');
