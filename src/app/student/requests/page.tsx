@@ -406,11 +406,17 @@ export default function StudentRequestsPage() {
     : requests.filter(r => r.status === filter);
   const hasAnyRequests = requests.length > 0;
 
-  // True while we haven't yet checked the cache or started the first fetch.
-  // Prevents the "No requests found" empty state from flashing on the very
-  // first render before any effect has had a chance to run.
-  const isInitializing = !isCacheHydrated && !!user?.id;
-  const showLoadingState = (isLoadingRequests || isInitializing) && requests.length === 0;
+  // Show loading whenever data isn't ready yet:
+  // 1. Cache not checked yet (first render gap)
+  // 2. Actively fetching with no data to show
+  // 3. Cache miss: cache checked, no warm data, server hasn't responded yet
+  //    (covers the gap between isCacheHydrated becoming true and the load
+  //    effect setting isLoadingRequests=true — without this a brief "No
+  //    requests found" flash appeared even when data was on its way)
+  const showLoadingState =
+    (!isCacheHydrated && !!user?.id) ||
+    (isLoadingRequests && requests.length === 0) ||
+    (isCacheHydrated && !hasWarmCache && !hasLoadedFromServer && !!user?.id);
 
   const filterCounts = {
     all: requests.length,
