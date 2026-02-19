@@ -424,14 +424,14 @@ export default function CounselorAvailabilityPage() {
                       type="button"
                       onClick={() => toggleDay(day.id)}
                       aria-pressed={daySchedule.enabled}
-                      className={`w-12 h-6 rounded-full transition-colors relative border ${
+                      className={`relative inline-flex w-12 h-6 items-center overflow-hidden flex-shrink-0 rounded-full transition-colors border ${
                         daySchedule.enabled
                           ? 'bg-primary border-primary/60'
                           : 'bg-muted border-border'
                       }`}
                     >
                       <span
-                        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                        className={`absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
                           daySchedule.enabled ? 'translate-x-6' : 'translate-x-0.5'
                         }`}
                       />
