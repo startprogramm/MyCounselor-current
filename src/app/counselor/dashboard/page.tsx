@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -8,6 +8,8 @@ import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { normalizeRequestStatus, type RequestStatus } from '@/lib/request-status';
+import { startVisibilityAwarePolling } from '@/lib/polling';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface CounselingRequest {
   id: number;
@@ -30,6 +32,16 @@ interface Meeting {
   status: string;
 }
 
+interface CounselorDashboardCachePayload {
+  studentCount: number;
+  pendingApprovals: number;
+  pendingCounselors: User[];
+  requests: CounselingRequest[];
+  meetings: Meeting[];
+}
+
+const COUNSELOR_DASHBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('en-US', {
     month: 'short',
@@ -45,37 +57,106 @@ export default function CounselorDashboardPage() {
   const [pendingCounselors, setPendingCounselors] = useState<User[]>([]);
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('counselor-dashboard', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  const applyDashboardSnapshot = useCallback((snapshot: CounselorDashboardCachePayload) => {
+    setStudentCount(snapshot.studentCount ?? 0);
+    setPendingApprovals(snapshot.pendingApprovals ?? 0);
+    setPendingCounselors(snapshot.pendingCounselors || []);
+    setRequests(snapshot.requests || []);
+    setMeetings(snapshot.meetings || []);
+  }, []);
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setStudentCount(0);
+      setPendingApprovals(0);
+      setPendingCounselors([]);
+      setRequests([]);
+      setMeetings([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<CounselorDashboardCachePayload>(
+      cacheKey,
+      COUNSELOR_DASHBOARD_CACHE_TTL_MS
+    );
+
+    if (cached.found && cached.data) {
+      applyDashboardSnapshot(cached.data);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey, applyDashboardSnapshot]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<CounselorDashboardCachePayload>(cacheKey, {
+      studentCount,
+      pendingApprovals,
+      pendingCounselors,
+      requests,
+      meetings,
+    });
+  }, [
+    cacheKey,
+    isCacheHydrated,
+    hasWarmCache,
+    hasLoadedFromServer,
+    studentCount,
+    pendingApprovals,
+    pendingCounselors,
+    requests,
+    meetings,
+  ]);
+
+  const loadDashboardData = useCallback(async () => {
     if (!user) return;
 
-    const loadDashboardData = async () => {
-      if (user.schoolId) {
-        const allStudents = getSchoolStudents(user.schoolId);
-        setStudentCount(allStudents.length);
-        setPendingApprovals(allStudents.filter(s => s.approved !== true).length);
+    if (user.schoolId) {
+      const allStudents = getSchoolStudents(user.schoolId);
+      setStudentCount(allStudents.length);
+      setPendingApprovals(allStudents.filter((s) => s.approved !== true).length);
 
-        if (user.approved === true) {
-          const allCounselors = getSchoolCounselors(user.schoolId);
-          setPendingCounselors(allCounselors.filter(c => c.approved !== true));
-        }
+      if (user.approved === true) {
+        const allCounselors = getSchoolCounselors(user.schoolId);
+        setPendingCounselors(allCounselors.filter((c) => c.approved !== true));
       }
+    }
 
-      const [requestsResult, meetingsResult] = await Promise.all([
-        supabase
-          .from('requests')
-          .select('*')
-          .eq('counselor_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('meetings')
-          .select('*')
-          .eq('counselor_id', user.id)
-          .order('created_at', { ascending: false }),
-      ]);
+    const [requestsResult, meetingsResult] = await Promise.all([
+      supabase
+        .from('requests')
+        .select('*')
+        .eq('counselor_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('meetings')
+        .select('*')
+        .eq('counselor_id', user.id)
+        .order('created_at', { ascending: false }),
+    ]);
 
+    if (!requestsResult.error && requestsResult.data) {
       setRequests(
-        (requestsResult.data || []).map((row) => ({
+        requestsResult.data.map((row) => ({
           id: row.id,
           title: row.title,
           description: row.description,
@@ -86,9 +167,11 @@ export default function CounselorDashboardPage() {
           studentName: row.student_name,
         }))
       );
+    }
 
+    if (!meetingsResult.error && meetingsResult.data) {
       setMeetings(
-        (meetingsResult.data || []).map((row) => ({
+        meetingsResult.data.map((row) => ({
           id: row.id,
           title: row.title,
           counselor: row.counselor_name,
@@ -98,10 +181,18 @@ export default function CounselorDashboardPage() {
           status: row.status,
         }))
       );
-    };
+    }
 
-    loadDashboardData();
+    setHasLoadedFromServer(true);
   }, [user, getSchoolStudents, getSchoolCounselors]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!isCacheHydrated) return;
+
+    void loadDashboardData();
+    return startVisibilityAwarePolling(() => loadDashboardData(), 15000);
+  }, [user?.id, isCacheHydrated, loadDashboardData]);
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const completedRequests = requests.filter(r => r.status === 'completed');

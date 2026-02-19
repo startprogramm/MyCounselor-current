@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -8,6 +8,8 @@ import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
+import { startVisibilityAwarePolling } from '@/lib/polling';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 import {
   getRequestStatusLabel,
   normalizeRequestStatus,
@@ -57,6 +59,20 @@ interface GuidanceResourceSummary {
   type: string;
   createdAt: string;
 }
+
+interface StudentDashboardCachePayload {
+  requests: CounselingRequest[];
+  meetings: Meeting[];
+  conversations: Conversation[];
+  goals: Goal[];
+  guidanceResources: GuidanceResourceSummary[];
+  counselors: User[];
+  teachers: User[];
+  parents: User[];
+  pendingParents: PendingParent[];
+}
+
+const STUDENT_DASHBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
 
 function buildConversationKey(studentId: string, counselorId: string) {
   return [studentId, counselorId].sort().join('__');
@@ -166,18 +182,102 @@ export default function StudentDashboardPage() {
   const [teachers, setTeachers] = useState<User[]>([]);
   const [parents, setParents] = useState<User[]>([]);
   const [pendingParents, setPendingParents] = useState<PendingParent[]>([]);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
   const dashboardLoadIdRef = useRef(0);
   const guidanceResourcesRef = useRef<GuidanceResourceSummary[]>([]);
   const guidanceEmptyStreakRef = useRef(0);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('student-dashboard', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
 
   useEffect(() => {
     guidanceResourcesRef.current = guidanceResources;
   }, [guidanceResources]);
 
-  useEffect(() => {
-    if (!user?.id) return;
+  const applyDashboardSnapshot = useCallback((snapshot: StudentDashboardCachePayload) => {
+    setRequests(snapshot.requests || []);
+    setMeetings(snapshot.meetings || []);
+    setConversations(snapshot.conversations || []);
+    setGoals(snapshot.goals || []);
+    setGuidanceResources(snapshot.guidanceResources || []);
+    setCounselors(snapshot.counselors || []);
+    setTeachers(snapshot.teachers || []);
+    setParents(snapshot.parents || []);
+    setPendingParents(snapshot.pendingParents || []);
+  }, []);
 
-    const loadDashboardData = async () => {
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setRequests([]);
+      setMeetings([]);
+      setConversations([]);
+      setGoals([]);
+      setGuidanceResources([]);
+      setCounselors([]);
+      setTeachers([]);
+      setParents([]);
+      setPendingParents([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<StudentDashboardCachePayload>(
+      cacheKey,
+      STUDENT_DASHBOARD_CACHE_TTL_MS
+    );
+
+    if (cached.found && cached.data) {
+      applyDashboardSnapshot(cached.data);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey, applyDashboardSnapshot]);
+
+  useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<StudentDashboardCachePayload>(cacheKey, {
+      requests,
+      meetings,
+      conversations,
+      goals,
+      guidanceResources,
+      counselors,
+      teachers,
+      parents,
+      pendingParents,
+    });
+  }, [
+    cacheKey,
+    isCacheHydrated,
+    hasWarmCache,
+    hasLoadedFromServer,
+    requests,
+    meetings,
+    conversations,
+    goals,
+    guidanceResources,
+    counselors,
+    teachers,
+    parents,
+    pendingParents,
+  ]);
+
+  const loadDashboardData = useCallback(async () => {
+      if (!user?.id) return;
+
       const requestId = dashboardLoadIdRef.current + 1;
       dashboardLoadIdRef.current = requestId;
 
@@ -255,53 +355,65 @@ export default function StudentDashboardPage() {
         }
       }
 
-      const supportUsers = (supportUsersResult.data || []).map(mapProfileToUser);
-      const schoolCounselors = supportUsers.filter((member) => member.role === 'counselor');
-      const schoolTeachers = supportUsers.filter((member) => member.role === 'teacher');
-      const schoolParents = supportUsers.filter((member) => member.role === 'parent');
+      const supportUsers =
+        !supportUsersResult.error && supportUsersResult.data
+          ? supportUsersResult.data.map(mapProfileToUser)
+          : null;
+      const schoolCounselors = supportUsers?.filter((member) => member.role === 'counselor') || [];
+      const schoolTeachers = supportUsers?.filter((member) => member.role === 'teacher') || [];
+      const schoolParents = supportUsers?.filter((member) => member.role === 'parent') || [];
 
-      setCounselors(schoolCounselors);
-      setTeachers(schoolTeachers);
-      setParents(schoolParents);
+      if (supportUsers) {
+        setCounselors(schoolCounselors);
+        setTeachers(schoolTeachers);
+        setParents(schoolParents);
+      }
 
-      setRequests(
-        (requestsResult.data || []).map((row) => ({
-          id: row.id,
-          title: row.title,
-          description: row.description,
-          status: normalizeRequestStatus(row.status),
-          createdAt: formatDate(row.created_at),
-          counselor: row.counselor_name,
-          category: row.category,
-        }))
-      );
+      if (!requestsResult.error && requestsResult.data) {
+        setRequests(
+          requestsResult.data.map((row) => ({
+            id: row.id,
+            title: row.title,
+            description: row.description,
+            status: normalizeRequestStatus(row.status),
+            createdAt: formatDate(row.created_at),
+            counselor: row.counselor_name,
+            category: row.category,
+          }))
+        );
+      }
 
-      setMeetings(
-        (meetingsResult.data || []).map((row) => ({
-          id: row.id,
-          title: row.title,
-          counselor: row.counselor_name,
-          date: row.date,
-          time: row.time,
-          type: row.type,
-          status: row.status,
-        }))
-      );
+      if (!meetingsResult.error && meetingsResult.data) {
+        setMeetings(
+          meetingsResult.data.map((row) => ({
+            id: row.id,
+            title: row.title,
+            counselor: row.counselor_name,
+            date: row.date,
+            time: row.time,
+            type: row.type,
+            status: row.status,
+          }))
+        );
+      }
 
-      setGoals(
-        (goalsResult.data || []).map((row) => ({
-          id: row.id,
-          title: row.title,
-          progress: row.progress,
-          deadline: row.deadline,
-          priority: row.priority as Goal['priority'],
-        }))
-      );
+      if (!goalsResult.error && goalsResult.data) {
+        setGoals(
+          goalsResult.data.map((row) => ({
+            id: row.id,
+            title: row.title,
+            progress: row.progress,
+            deadline: row.deadline,
+            priority: row.priority as Goal['priority'],
+          }))
+        );
+      }
 
-      const activeCounselors = schoolCounselors.filter((c) => c.approved === true);
-      if (activeCounselors.length === 0) {
-        setConversations([]);
-      } else {
+      if (supportUsers) {
+        const activeCounselors = schoolCounselors.filter((c) => c.approved === true);
+        if (activeCounselors.length === 0) {
+          setConversations([]);
+        } else {
         const keys = activeCounselors.map((c) => buildConversationKey(user.id, c.id));
         const { data: messageRows } = await supabase
           .from('messages')
@@ -331,37 +443,46 @@ export default function StudentDashboardPage() {
           };
         });
 
-        setConversations(nextConversations);
+          setConversations(nextConversations);
+        }
       }
 
       // Load pending parents who want to link to this student
       if (user.approved === true) {
         const studentFullName = `${user.firstName} ${user.lastName}`.toLowerCase();
-        const { data: parentRows } = await supabase
+        const { data: parentRows, error: parentRowsError } = await supabase
           .from('profiles')
           .select('*')
           .eq('school_id', user.schoolId)
           .eq('role', 'parent')
           .eq('student_confirmed', false);
 
-        const pending = (parentRows || [])
-          .filter(p => {
-            const names = p.children_names || [];
-            return names.some(n => n.toLowerCase().trim() === studentFullName);
-          })
-          .map(p => ({
-            id: p.id,
-            firstName: p.first_name,
-            lastName: p.last_name,
-            relationship: p.relationship || 'Parent',
-          }));
+        if (!parentRowsError && parentRows) {
+          const pending = parentRows
+            .filter((p) => {
+              const names = p.children_names || [];
+              return names.some((n) => n.toLowerCase().trim() === studentFullName);
+            })
+            .map((p) => ({
+              id: p.id,
+              firstName: p.first_name,
+              lastName: p.last_name,
+              relationship: p.relationship || 'Parent',
+            }));
 
-        setPendingParents(pending);
+          setPendingParents(pending);
+        }
       }
-    };
-
-    loadDashboardData();
+      setHasLoadedFromServer(true);
   }, [user?.approved, user?.firstName, user?.id, user?.lastName, user?.schoolId]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!isCacheHydrated) return;
+
+    void loadDashboardData();
+    return startVisibilityAwarePolling(() => loadDashboardData(), 15000);
+  }, [user?.id, isCacheHydrated, loadDashboardData]);
 
   // Computed stats from real data
   const upcomingMeetings = meetings.filter(

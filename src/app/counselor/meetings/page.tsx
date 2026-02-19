@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface Meeting {
   id: number;
@@ -15,6 +16,12 @@ interface Meeting {
   type: string;
   status: string;
 }
+
+interface CounselorMeetingsCachePayload {
+  meetings: Meeting[];
+}
+
+const COUNSELOR_MEETINGS_CACHE_TTL_MS = 2 * 60 * 1000;
 
 function mapMeeting(row: {
   id: number;
@@ -40,27 +47,66 @@ export default function CounselorMeetingsPage() {
   const { user } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [view, setView] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('counselor-meetings', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setMeetings([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<CounselorMeetingsCachePayload>(
+      cacheKey,
+      COUNSELOR_MEETINGS_CACHE_TTL_MS
+    );
+    if (cached.found && cached.data) {
+      setMeetings(cached.data.meetings || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<CounselorMeetingsCachePayload>(cacheKey, { meetings });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, meetings]);
+
+  const loadMeetings = useCallback(async () => {
     if (!user?.id) return;
 
-    const loadMeetings = async () => {
-      const { data, error } = await supabase
-        .from('meetings')
-        .select('*')
-        .eq('counselor_id', user.id)
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .eq('counselor_id', user.id)
+      .order('created_at', { ascending: false });
 
-      if (error || !data) {
-        setMeetings([]);
-        return;
-      }
-
+    if (!error && data) {
       setMeetings(data.map(mapMeeting));
-    };
-
-    loadMeetings();
+      setHasLoadedFromServer(true);
+    }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadMeetings();
+  }, [isCacheHydrated, loadMeetings]);
 
   const updateMeetingStatus = async (id: number, newStatus: string) => {
     const { error } = await supabase.from('meetings').update({ status: newStatus }).eq('id', id);

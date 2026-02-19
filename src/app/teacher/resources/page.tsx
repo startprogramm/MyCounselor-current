@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface Resource {
   id: number;
@@ -15,24 +16,67 @@ interface Resource {
   content: string;
 }
 
+interface TeacherResourcesCachePayload {
+  resources: Resource[];
+}
+
+const TEACHER_RESOURCES_CACHE_TTL_MS = 2 * 60 * 1000;
+
 export default function TeacherResourcesPage() {
   const { user } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('teacher-resources', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setResources([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<TeacherResourcesCachePayload>(cacheKey, TEACHER_RESOURCES_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      setResources(cached.data.resources || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<TeacherResourcesCachePayload>(cacheKey, { resources });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, resources]);
+
+  const loadResources = useCallback(async () => {
     if (!user?.schoolId) return;
 
-    const loadResources = async () => {
-      const { data } = await supabase
-        .from('resources')
-        .select('*')
-        .eq('school_id', user.schoolId)
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('resources')
+      .select('*')
+      .eq('school_id', user.schoolId)
+      .eq('status', 'published')
+      .order('created_at', { ascending: false });
 
+    if (!error && data) {
       setResources(
-        (data || []).map(row => ({
+        data.map((row) => ({
           id: row.id,
           title: row.title,
           description: row.description,
@@ -41,10 +85,14 @@ export default function TeacherResourcesPage() {
           content: row.content,
         }))
       );
-    };
-
-    loadResources();
+      setHasLoadedFromServer(true);
+    }
   }, [user?.schoolId]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadResources();
+  }, [isCacheHydrated, loadResources]);
 
   return (
     <div className="space-y-6">

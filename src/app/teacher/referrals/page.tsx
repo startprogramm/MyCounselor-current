@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface Referral {
   id: number;
@@ -18,6 +19,36 @@ interface Referral {
   category: string;
   response: string | null;
   createdAt: string;
+}
+
+interface TeacherReferralsCachePayload {
+  referrals: Referral[];
+}
+
+const TEACHER_REFERRALS_CACHE_TTL_MS = 2 * 60 * 1000;
+
+function mapRequestRowToReferral(row: {
+  id: number;
+  title: string;
+  description: string;
+  student_name: string;
+  counselor_name: string;
+  status: string;
+  category: string;
+  response: string | null;
+  created_at: string;
+}): Referral {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    studentName: row.student_name || 'Unknown',
+    counselorName: row.counselor_name || '',
+    status: row.status,
+    category: row.category,
+    response: row.response,
+    createdAt: new Date(row.created_at).toLocaleDateString(),
+  };
 }
 
 export default function TeacherReferralsPage() {
@@ -32,85 +63,132 @@ export default function TeacherReferralsPage() {
     counselorId: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitSuccess, setSubmitSuccess] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('teacher-referrals', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
 
   const students = user?.schoolId ? getSchoolStudents(user.schoolId).filter(s => s.approved) : [];
   const counselors = user?.schoolId ? getSchoolCounselors(user.schoolId) : [];
 
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setReferrals([]);
+      setLoadError('');
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<TeacherReferralsCachePayload>(
+      cacheKey,
+      TEACHER_REFERRALS_CACHE_TTL_MS
+    );
+    if (cached.found && cached.data) {
+      setReferrals(cached.data.referrals || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
+
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<TeacherReferralsCachePayload>(cacheKey, { referrals });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, referrals]);
+
+  const loadReferrals = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
-    const loadReferrals = async () => {
-      const { data } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('school_id', user.schoolId)
-        .eq('counselor_id', user.id)
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('requests')
+      .select('*')
+      .eq('school_id', user.schoolId)
+      .or(`teacher_id.eq.${user.id},counselor_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
 
-      setReferrals(
-        (data || []).map(r => ({
-          id: r.id,
-          title: r.title,
-          description: r.description,
-          studentName: r.student_name || 'Unknown',
-          counselorName: r.counselor_name || '',
-          status: r.status,
-          category: r.category,
-          response: r.response,
-          createdAt: new Date(r.created_at).toLocaleDateString(),
-        }))
-      );
-    };
+    if (!error && data) {
+      setReferrals(data.map(mapRequestRowToReferral));
+      setLoadError('');
+      setHasLoadedFromServer(true);
+      return;
+    }
 
-    loadReferrals();
+    setLoadError(error?.message || 'Unable to load referrals. Please refresh.');
   }, [user?.id, user?.schoolId]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadReferrals();
+  }, [isCacheHydrated, loadReferrals]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.id || !formData.title || !formData.studentName) return;
 
     setIsSubmitting(true);
+    setSubmitError('');
+    setSubmitSuccess('');
 
-    const selectedCounselor = counselors.find(c => c.id === formData.counselorId);
-    const selectedStudent = students.find(s => `${s.firstName} ${s.lastName}` === formData.studentName);
+    try {
+      const selectedCounselor = counselors.find((c) => c.id === formData.counselorId);
+      const selectedStudent = students.find(
+        (s) => `${s.firstName} ${s.lastName}` === formData.studentName
+      );
 
-    await supabase.from('requests').insert({
-      title: formData.title,
-      description: formData.description,
-      category: formData.category,
-      status: 'pending',
-      student_name: formData.studentName,
-      student_id: selectedStudent?.id || user.id,
-      counselor_name: selectedCounselor ? `${selectedCounselor.firstName} ${selectedCounselor.lastName}` : 'Unassigned',
-      counselor_id: formData.counselorId || user.id,
-      school_id: user.schoolId,
-    });
+      if (!selectedStudent) {
+        setSubmitError('Please select a valid student from the list.');
+        return;
+      }
 
-    // Reload
-    const { data } = await supabase
-      .from('requests')
-      .select('*')
-      .eq('school_id', user.schoolId)
-      .eq('counselor_id', user.id)
-      .order('created_at', { ascending: false });
+      const { error } = await supabase.from('requests').insert({
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        category: formData.category,
+        status: 'pending',
+        student_name: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
+        student_id: selectedStudent.id,
+        teacher_id: user.id,
+        counselor_name: selectedCounselor
+          ? `${selectedCounselor.firstName} ${selectedCounselor.lastName}`
+          : 'Unassigned',
+        counselor_id: selectedCounselor?.id || null,
+        school_id: user.schoolId,
+      });
 
-    setReferrals(
-      (data || []).map(r => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        studentName: r.student_name || 'Unknown',
-        counselorName: r.counselor_name || '',
-        status: r.status,
-        category: r.category,
-        response: r.response,
-        createdAt: new Date(r.created_at).toLocaleDateString(),
-      }))
-    );
+      if (error) {
+        setSubmitError(error.message || 'Unable to submit referral right now.');
+        return;
+      }
 
-    setFormData({ studentName: '', category: 'academic', title: '', description: '', counselorId: '' });
-    setShowForm(false);
-    setIsSubmitting(false);
+      await loadReferrals();
+      setFormData({
+        studentName: '',
+        category: 'academic',
+        title: '',
+        description: '',
+        counselorId: '',
+      });
+      setShowForm(false);
+      setSubmitSuccess('Referral submitted successfully.');
+      window.setTimeout(() => setSubmitSuccess(''), 3500);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getStatusVariant = (status: string) => {
@@ -137,6 +215,24 @@ export default function TeacherReferralsPage() {
           {showForm ? 'Cancel' : '+ New Referral'}
         </Button>
       </div>
+
+      {loadError && (
+        <Card className="p-4 border-destructive/30 bg-destructive/5">
+          <p className="text-sm text-destructive font-medium">{loadError}</p>
+        </Card>
+      )}
+
+      {submitError && (
+        <Card className="p-4 border-destructive/30 bg-destructive/5">
+          <p className="text-sm text-destructive font-medium">{submitError}</p>
+        </Card>
+      )}
+
+      {submitSuccess && (
+        <Card className="p-4 border-success/30 bg-success/5">
+          <p className="text-sm text-success font-medium">{submitSuccess}</p>
+        </Card>
+      )}
 
       {showForm && (
         <Card className="p-6">

@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface ChildProfile {
   id: string;
@@ -45,6 +46,16 @@ interface ChildMeeting {
   counselorName: string;
 }
 
+interface ParentDashboardCachePayload {
+  children: ChildProfile[];
+  counselors: User[];
+  goals: ChildGoal[];
+  requests: ChildRequest[];
+  meetings: ChildMeeting[];
+}
+
+const PARENT_DASHBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('en-US', {
     month: 'short',
@@ -60,68 +71,139 @@ export default function ParentDashboardPage() {
   const [goals, setGoals] = useState<ChildGoal[]>([]);
   const [requests, setRequests] = useState<ChildRequest[]>([]);
   const [meetings, setMeetings] = useState<ChildMeeting[]>([]);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('parent-dashboard', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  const applySnapshot = useCallback((snapshot: ParentDashboardCachePayload) => {
+    setChildren(snapshot.children || []);
+    setCounselors(snapshot.counselors || []);
+    setGoals(snapshot.goals || []);
+    setRequests(snapshot.requests || []);
+    setMeetings(snapshot.meetings || []);
+  }, []);
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setChildren([]);
+      setCounselors([]);
+      setGoals([]);
+      setRequests([]);
+      setMeetings([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<ParentDashboardCachePayload>(cacheKey, PARENT_DASHBOARD_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      applySnapshot(cached.data);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey, applySnapshot]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<ParentDashboardCachePayload>(cacheKey, {
+      children,
+      counselors,
+      goals,
+      requests,
+      meetings,
+    });
+  }, [
+    cacheKey,
+    isCacheHydrated,
+    hasWarmCache,
+    hasLoadedFromServer,
+    children,
+    counselors,
+    goals,
+    requests,
+    meetings,
+  ]);
+
+  const loadData = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
-    const loadData = async () => {
-      // Get school counselors
-      const schoolCounselors = getSchoolCounselors(user.schoolId).filter(c => c.approved === true);
-      setCounselors(schoolCounselors);
+    // Get school counselors
+    const schoolCounselors = getSchoolCounselors(user.schoolId).filter((c) => c.approved === true);
+    setCounselors(schoolCounselors);
 
-      // Find linked children by matching childrenNames against school students
-      const allStudents = getSchoolStudents(user.schoolId);
-      const linkedChildren: ChildProfile[] = [];
+    // Find linked children by matching childrenNames against school students
+    const allStudents = getSchoolStudents(user.schoolId);
+    const linkedChildren: ChildProfile[] = [];
 
-      if (user.childrenNames && user.childrenNames.length > 0) {
-        for (const childName of user.childrenNames) {
-          const nameLower = childName.toLowerCase().trim();
-          const match = allStudents.find(s => {
-            const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-            return fullName === nameLower;
+    if (user.childrenNames && user.childrenNames.length > 0) {
+      for (const childName of user.childrenNames) {
+        const nameLower = childName.toLowerCase().trim();
+        const match = allStudents.find((s) => {
+          const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+          return fullName === nameLower;
+        });
+        if (match) {
+          linkedChildren.push({
+            id: match.id,
+            firstName: match.firstName,
+            lastName: match.lastName,
+            gradeLevel: match.gradeLevel || 'N/A',
+            profileImage: match.profileImage,
+            approved: match.approved === true,
           });
-          if (match) {
-            linkedChildren.push({
-              id: match.id,
-              firstName: match.firstName,
-              lastName: match.lastName,
-              gradeLevel: match.gradeLevel || 'N/A',
-              profileImage: match.profileImage,
-              approved: match.approved === true,
-            });
-          }
         }
       }
+    }
 
-      setChildren(linkedChildren);
+    setChildren(linkedChildren);
 
-      if (linkedChildren.length === 0) return;
+    if (linkedChildren.length === 0) {
+      setGoals([]);
+      setRequests([]);
+      setMeetings([]);
+      setHasLoadedFromServer(true);
+      return;
+    }
 
-      const childIds = linkedChildren.map(c => c.id);
+    const childIds = linkedChildren.map((c) => c.id);
 
-      // Load goals, requests, meetings for all linked children
-      const [goalsResult, requestsResult, meetingsResult] = await Promise.all([
-        supabase
-          .from('goals')
-          .select('*')
-          .in('student_id', childIds)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('requests')
-          .select('*')
-          .in('student_id', childIds)
-          .order('created_at', { ascending: false })
-          .limit(10),
-        supabase
-          .from('meetings')
-          .select('*')
-          .in('student_id', childIds)
-          .order('created_at', { ascending: false })
-          .limit(10),
-      ]);
+    // Load goals, requests, meetings for all linked children
+    const [goalsResult, requestsResult, meetingsResult] = await Promise.all([
+      supabase
+        .from('goals')
+        .select('*')
+        .in('student_id', childIds)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('requests')
+        .select('*')
+        .in('student_id', childIds)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('meetings')
+        .select('*')
+        .in('student_id', childIds)
+        .order('created_at', { ascending: false })
+        .limit(10),
+    ]);
 
+    if (!goalsResult.error && goalsResult.data) {
       setGoals(
-        (goalsResult.data || []).map(row => ({
+        goalsResult.data.map((row) => ({
           id: row.id,
           title: row.title,
           progress: row.progress,
@@ -130,9 +212,11 @@ export default function ParentDashboardPage() {
           studentId: row.student_id,
         }))
       );
+    }
 
+    if (!requestsResult.error && requestsResult.data) {
       setRequests(
-        (requestsResult.data || []).map(row => ({
+        requestsResult.data.map((row) => ({
           id: row.id,
           title: row.title,
           status: row.status,
@@ -142,9 +226,11 @@ export default function ParentDashboardPage() {
           studentName: row.student_name,
         }))
       );
+    }
 
+    if (!meetingsResult.error && meetingsResult.data) {
       setMeetings(
-        (meetingsResult.data || []).map(row => ({
+        meetingsResult.data.map((row) => ({
           id: row.id,
           title: row.title,
           date: row.date,
@@ -154,10 +240,15 @@ export default function ParentDashboardPage() {
           counselorName: row.counselor_name,
         }))
       );
-    };
+    }
 
-    loadData();
+    setHasLoadedFromServer(true);
   }, [user?.id, user?.schoolId, user?.childrenNames, getSchoolCounselors, getSchoolStudents]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadData();
+  }, [isCacheHydrated, loadData]);
 
   const isFullyApproved = user?.studentConfirmed === true && user?.approved === true;
 

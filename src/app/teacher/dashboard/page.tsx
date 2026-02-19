@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { StatsCard, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface Referral {
   id: number;
@@ -25,6 +26,16 @@ interface Meeting {
   status: string;
 }
 
+interface TeacherDashboardCachePayload {
+  studentCount: number;
+  referrals: Referral[];
+  meetings: Meeting[];
+  resourceCount: number;
+  counselors: { name: string; title: string }[];
+}
+
+const TEACHER_DASHBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
+
 export default function TeacherDashboardPage() {
   const { user, getSchoolStudents, getSchoolCounselors } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
@@ -32,50 +43,117 @@ export default function TeacherDashboardPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
   const [counselors, setCounselors] = useState<{ name: string; title: string }[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('teacher-dashboard', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  const applySnapshot = useCallback((snapshot: TeacherDashboardCachePayload) => {
+    setStudentCount(snapshot.studentCount ?? 0);
+    setReferrals(snapshot.referrals || []);
+    setMeetings(snapshot.meetings || []);
+    setResourceCount(snapshot.resourceCount ?? 0);
+    setCounselors(snapshot.counselors || []);
+  }, []);
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setStudentCount(0);
+      setReferrals([]);
+      setMeetings([]);
+      setResourceCount(0);
+      setCounselors([]);
+      setLoadError('');
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<TeacherDashboardCachePayload>(cacheKey, TEACHER_DASHBOARD_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      applySnapshot(cached.data);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey, applySnapshot]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<TeacherDashboardCachePayload>(cacheKey, {
+      studentCount,
+      referrals,
+      meetings,
+      resourceCount,
+      counselors,
+    });
+  }, [
+    cacheKey,
+    isCacheHydrated,
+    hasWarmCache,
+    hasLoadedFromServer,
+    studentCount,
+    referrals,
+    meetings,
+    resourceCount,
+    counselors,
+  ]);
+
+  const loadData = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
-    const loadData = async () => {
-      // Get students at this school
-      const students = getSchoolStudents(user.schoolId);
-      setStudentCount(students.filter(s => s.approved).length);
+    // Get students at this school
+    const students = getSchoolStudents(user.schoolId);
+    setStudentCount(students.filter((s) => s.approved).length);
 
-      // Get counselors
-      const schoolCounselors = getSchoolCounselors(user.schoolId);
-      setCounselors(
-        schoolCounselors.map(c => ({
-          name: `${c.firstName} ${c.lastName}`,
-          title: c.title || 'School Counselor',
-        }))
-      );
+    // Get counselors
+    const schoolCounselors = getSchoolCounselors(user.schoolId);
+    setCounselors(
+      schoolCounselors.map((c) => ({
+        name: `${c.firstName} ${c.lastName}`,
+        title: c.title || 'School Counselor',
+      }))
+    );
 
-      // Load referrals (requests made by this teacher)
-      const [referralsResult, meetingsResult, resourcesResult] = await Promise.all([
-        supabase
-          .from('requests')
-          .select('*')
-          .eq('school_id', user.schoolId)
-          .eq('counselor_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase
-          .from('meetings')
-          .select('*')
-          .eq('school_id', user.schoolId)
-          .or(`student_id.eq.${user.id},counselor_id.eq.${user.id}`)
-          .in('status', ['pending', 'confirmed'])
-          .order('created_at', { ascending: false })
-          .limit(4),
-        supabase
-          .from('resources')
-          .select('id', { count: 'exact' })
-          .eq('school_id', user.schoolId)
-          .eq('status', 'published'),
-      ]);
+    // Load referrals (requests made by this teacher)
+    const [referralsResult, meetingsResult, resourcesResult] = await Promise.all([
+      supabase
+        .from('requests')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .or(`teacher_id.eq.${user.id},counselor_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+        .limit(5),
+      supabase
+        .from('meetings')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .or(`student_id.eq.${user.id},counselor_id.eq.${user.id}`)
+        .in('status', ['pending', 'confirmed'])
+        .order('created_at', { ascending: false })
+        .limit(4),
+      supabase
+        .from('resources')
+        .select('id', { count: 'exact' })
+        .eq('school_id', user.schoolId)
+        .eq('status', 'published'),
+    ]);
 
+    if (!referralsResult.error && referralsResult.data) {
       setReferrals(
-        (referralsResult.data || []).map(r => ({
+        referralsResult.data.map((r) => ({
           id: r.id,
           studentName: r.student_name || 'Unknown',
           concern: r.title,
@@ -83,9 +161,13 @@ export default function TeacherDashboardPage() {
           priority: r.category === 'urgent' ? 'high' : r.category === 'academic' ? 'medium' : 'low',
         }))
       );
+    } else if (referralsResult.error) {
+      setLoadError(referralsResult.error.message || 'Unable to load referrals.');
+    }
 
+    if (!meetingsResult.error && meetingsResult.data) {
       setMeetings(
-        (meetingsResult.data || []).map(m => ({
+        meetingsResult.data.map((m) => ({
           id: m.id,
           title: m.title,
           counselorName: m.counselor_name,
@@ -94,12 +176,23 @@ export default function TeacherDashboardPage() {
           status: m.status,
         }))
       );
+    } else if (meetingsResult.error) {
+      setLoadError(meetingsResult.error.message || 'Unable to load meetings.');
+    }
 
-      setResourceCount(resourcesResult.count || 0);
-    };
-
-    loadData();
+    setResourceCount(resourcesResult.count || 0);
+    if (resourcesResult.error) {
+      setLoadError(resourcesResult.error.message || 'Unable to load resources.');
+    } else {
+      setLoadError('');
+    }
+    setHasLoadedFromServer(true);
   }, [user?.id, user?.schoolId, getSchoolStudents, getSchoolCounselors]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadData();
+  }, [isCacheHydrated, loadData]);
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -150,6 +243,12 @@ export default function TeacherDashboardPage() {
       </div>
 
       {/* Stats */}
+      {loadError && (
+        <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive font-medium">
+          {loadError}
+        </div>
+      )}
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="School Students"

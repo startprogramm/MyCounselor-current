@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface ChildGoal {
   id: number;
@@ -23,56 +24,124 @@ interface ChildRequest {
   studentId: string;
 }
 
+interface ParentChildrenCachePayload {
+  children: User[];
+  goals: ChildGoal[];
+  requests: ChildRequest[];
+}
+
+const PARENT_CHILDREN_CACHE_TTL_MS = 2 * 60 * 1000;
+
 export default function ParentChildrenPage() {
   const { user, getSchoolStudents } = useAuth();
   const [children, setChildren] = useState<User[]>([]);
   const [goals, setGoals] = useState<ChildGoal[]>([]);
   const [requests, setRequests] = useState<ChildRequest[]>([]);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('parent-children', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setChildren([]);
+      setGoals([]);
+      setRequests([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<ParentChildrenCachePayload>(cacheKey, PARENT_CHILDREN_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      setChildren(cached.data.children || []);
+      setGoals(cached.data.goals || []);
+      setRequests(cached.data.requests || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<ParentChildrenCachePayload>(cacheKey, { children, goals, requests });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, children, goals, requests]);
+
+  const loadData = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
-    const loadData = async () => {
-      const allStudents = getSchoolStudents(user.schoolId);
-      const linked: User[] = [];
+    const allStudents = getSchoolStudents(user.schoolId);
+    const linked: User[] = [];
 
-      if (user.childrenNames && user.childrenNames.length > 0) {
-        for (const childName of user.childrenNames) {
-          const match = allStudents.find(
-            s => `${s.firstName} ${s.lastName}`.toLowerCase() === childName.toLowerCase().trim()
-          );
-          if (match) linked.push(match);
-        }
+    if (user.childrenNames && user.childrenNames.length > 0) {
+      for (const childName of user.childrenNames) {
+        const match = allStudents.find(
+          (s) => `${s.firstName} ${s.lastName}`.toLowerCase() === childName.toLowerCase().trim()
+        );
+        if (match) linked.push(match);
       }
+    }
 
-      setChildren(linked);
+    setChildren(linked);
 
-      if (linked.length === 0) return;
+    if (linked.length === 0) {
+      setGoals([]);
+      setRequests([]);
+      setHasLoadedFromServer(true);
+      return;
+    }
 
-      const childIds = linked.map(c => c.id);
+    const childIds = linked.map((c) => c.id);
 
-      const [goalsResult, requestsResult] = await Promise.all([
-        supabase.from('goals').select('*').in('student_id', childIds).order('created_at', { ascending: false }),
-        supabase.from('requests').select('*').in('student_id', childIds).order('created_at', { ascending: false }),
-      ]);
+    const [goalsResult, requestsResult] = await Promise.all([
+      supabase.from('goals').select('*').in('student_id', childIds).order('created_at', { ascending: false }),
+      supabase.from('requests').select('*').in('student_id', childIds).order('created_at', { ascending: false }),
+    ]);
 
+    if (!goalsResult.error && goalsResult.data) {
       setGoals(
-        (goalsResult.data || []).map(r => ({
-          id: r.id, title: r.title, progress: r.progress, deadline: r.deadline,
-          priority: r.priority, studentId: r.student_id,
+        goalsResult.data.map((r) => ({
+          id: r.id,
+          title: r.title,
+          progress: r.progress,
+          deadline: r.deadline,
+          priority: r.priority,
+          studentId: r.student_id,
         }))
       );
+    }
 
+    if (!requestsResult.error && requestsResult.data) {
       setRequests(
-        (requestsResult.data || []).map(r => ({
-          id: r.id, title: r.title, status: r.status,
-          createdAt: new Date(r.created_at).toLocaleDateString(), studentId: r.student_id,
+        requestsResult.data.map((r) => ({
+          id: r.id,
+          title: r.title,
+          status: r.status,
+          createdAt: new Date(r.created_at).toLocaleDateString(),
+          studentId: r.student_id,
         }))
       );
-    };
+    }
 
-    loadData();
+    setHasLoadedFromServer(true);
   }, [user?.id, user?.schoolId, user?.childrenNames, getSchoolStudents]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadData();
+  }, [isCacheHydrated, loadData]);
 
   return (
     <div className="space-y-6">

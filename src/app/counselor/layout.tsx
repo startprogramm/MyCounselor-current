@@ -130,6 +130,10 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
 
   const isApproved = user?.approved === true;
+  const shouldPauseBadgePolling =
+    pathname.startsWith('/counselor/messages') ||
+    pathname.startsWith('/counselor/tasks') ||
+    pathname.startsWith('/counselor/dashboard');
 
   useEffect(() => {
     if (isLoading) return;
@@ -231,10 +235,13 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
   }, [user]);
 
   useEffect(() => {
-    computeBadges();
     if (!user?.id) return;
-    return startVisibilityAwarePolling(() => computeBadges(), 12000);
-  }, [user?.id, computeBadges]);
+
+    void computeBadges();
+    if (shouldPauseBadgePolling) return;
+
+    return startVisibilityAwarePolling(() => computeBadges(), 20000);
+  }, [user?.id, computeBadges, shouldPauseBadgePolling]);
 
   if (isLoading) {
     return (

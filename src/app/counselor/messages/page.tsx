@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
@@ -93,7 +93,7 @@ export default function CounselorMessagesPage() {
     [user?.id, user?.schoolId]
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!cacheKey) {
       setStudentChats([]);
       setSelectedStudentId(null);
@@ -389,7 +389,7 @@ export default function CounselorMessagesPage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    return startVisibilityAwarePolling(() => loadStudentChats({ silent: true }), 8000);
+    return startVisibilityAwarePolling(() => loadStudentChats({ silent: true }), 12000);
   }, [user?.id, loadStudentChats]);
 
   useEffect(() => {

@@ -212,9 +212,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('school_id', schoolId);
 
     if (error || !data) {
-      if (schoolUsersLoadIdRef.current === requestId) {
-        setSchoolUsers([]);
-      }
+      // Keep previously loaded school users to avoid transient "empty school"
+      // flashes during short network/session hiccups.
       return;
     }
 

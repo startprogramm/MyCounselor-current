@@ -78,6 +78,7 @@ export type Database = {
           category: string;
           counselor_name: string;
           counselor_id: string | null;
+          teacher_id: string | null;
           student_name: string;
           student_id: string;
           school_id: string;
@@ -93,6 +94,7 @@ export type Database = {
           category: string;
           counselor_name?: string;
           counselor_id?: string | null;
+          teacher_id?: string | null;
           student_name: string;
           student_id: string;
           school_id: string;
@@ -108,12 +110,49 @@ export type Database = {
           category?: string;
           counselor_name?: string;
           counselor_id?: string | null;
+          teacher_id?: string | null;
           student_name?: string;
           student_id?: string;
           school_id?: string;
           response?: string | null;
           documents?: Json | null;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      counselor_availability: {
+        Row: {
+          id: number;
+          counselor_id: string;
+          school_id: string;
+          weekly_schedule: Json;
+          blocked_slots: Json;
+          meeting_duration: number;
+          buffer_time: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          counselor_id: string;
+          school_id: string;
+          weekly_schedule?: Json;
+          blocked_slots?: Json;
+          meeting_duration?: number;
+          buffer_time?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          counselor_id?: string;
+          school_id?: string;
+          weekly_schedule?: Json;
+          blocked_slots?: Json;
+          meeting_duration?: number;
+          buffer_time?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

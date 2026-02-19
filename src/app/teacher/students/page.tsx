@@ -1,20 +1,70 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useAuth, User } from '@/context/AuthContext';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+
+interface TeacherStudentsCachePayload {
+  students: User[];
+}
+
+const TEACHER_STUDENTS_CACHE_TTL_MS = 2 * 60 * 1000;
 
 export default function TeacherStudentsPage() {
   const { user, getSchoolStudents } = useAuth();
   const [students, setStudents] = useState<User[]>([]);
   const [search, setSearch] = useState('');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('teacher-students', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setStudents([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<TeacherStudentsCachePayload>(cacheKey, TEACHER_STUDENTS_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      setStudents(cached.data.students || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<TeacherStudentsCachePayload>(cacheKey, { students });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, students]);
+
+  const loadStudents = useCallback(() => {
     if (!user?.schoolId) return;
     const all = getSchoolStudents(user.schoolId);
-    setStudents(all.filter(s => s.approved));
+    setStudents(all.filter((s) => s.approved));
+    setHasLoadedFromServer(true);
   }, [user?.schoolId, getSchoolStudents]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    loadStudents();
+  }, [isCacheHydrated, loadStudents]);
 
   const filtered = students.filter(s =>
     `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) ||

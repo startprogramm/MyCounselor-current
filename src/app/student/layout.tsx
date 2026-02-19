@@ -88,6 +88,10 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
 
   const isApproved = user?.approved === true;
+  const shouldPauseBadgePolling =
+    pathname.startsWith('/student/messages') ||
+    pathname.startsWith('/student/requests') ||
+    pathname.startsWith('/student/dashboard');
 
   useEffect(() => {
     if (isLoading) return;
@@ -174,10 +178,13 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   }, [user, isApproved]);
 
   useEffect(() => {
-    computeBadges();
     if (!user?.id || !isApproved) return;
-    return startVisibilityAwarePolling(() => computeBadges(), 12000);
-  }, [user?.id, isApproved, computeBadges]);
+
+    void computeBadges();
+    if (shouldPauseBadgePolling) return;
+
+    return startVisibilityAwarePolling(() => computeBadges(), 20000);
+  }, [user?.id, isApproved, computeBadges, shouldPauseBadgePolling]);
 
   if (isLoading) {
     return (

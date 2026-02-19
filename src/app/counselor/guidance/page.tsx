@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface GuidanceResource {
   id: number;
@@ -17,6 +18,12 @@ interface GuidanceResource {
   status: 'published' | 'draft';
   createdAt: string;
 }
+
+interface CounselorGuidanceCachePayload {
+  resources: GuidanceResource[];
+}
+
+const COUNSELOR_GUIDANCE_CACHE_TTL_MS = 2 * 60 * 1000;
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString('en-US', {
@@ -60,27 +67,66 @@ export default function CounselorGuidancePage() {
   const [newContent, setNewContent] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('counselor-guidance', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setResources([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<CounselorGuidanceCachePayload>(
+      cacheKey,
+      COUNSELOR_GUIDANCE_CACHE_TTL_MS
+    );
+    if (cached.found && cached.data) {
+      setResources(cached.data.resources || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<CounselorGuidanceCachePayload>(cacheKey, { resources });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, resources]);
+
+  const loadResources = useCallback(async () => {
     if (!user?.schoolId) return;
 
-    const loadResources = async () => {
-      const { data, error } = await supabase
-        .from('resources')
-        .select('*')
-        .eq('school_id', user.schoolId)
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('resources')
+      .select('*')
+      .eq('school_id', user.schoolId)
+      .order('created_at', { ascending: false });
 
-      if (error || !data) {
-        setResources([]);
-        return;
-      }
-
+    if (!error && data) {
       setResources(data.map(mapResource));
-    };
-
-    loadResources();
+      setHasLoadedFromServer(true);
+    }
   }, [user?.schoolId]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadResources();
+  }, [isCacheHydrated, loadResources]);
 
   const handleSubmit = async (status: 'published' | 'draft') => {
     const errors: Record<string, string> = {};

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
@@ -113,7 +113,7 @@ export default function StudentGuidancePage() {
     hasWarmCacheRef.current = hasWarmCache;
   }, [hasWarmCache]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setIsCacheHydrated(false);
     setHasLoadedFromServer(false);
     setLoadResourcesError('');

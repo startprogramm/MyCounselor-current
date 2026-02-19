@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -120,7 +120,7 @@ export default function CounselorTasksPage() {
     hasWarmCacheRef.current = hasWarmCache;
   }, [hasWarmCache]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setIsCacheHydrated(false);
     setHasLoadedFromServer(false);
 
@@ -224,7 +224,7 @@ export default function CounselorTasksPage() {
 
     setIsLoadingRequests(!hasWarmCacheRef.current);
     void loadRequests().finally(() => setIsLoadingRequests(false));
-    return startVisibilityAwarePolling(() => loadRequests(), 10000);
+    return startVisibilityAwarePolling(() => loadRequests(), 15000);
   }, [user?.id, loadRequests, isCacheHydrated]);
 
   const updateRequest = async (

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
@@ -193,7 +193,7 @@ export default function StudentMessagesPage() {
     return emptyConversationsStreakRef.current < 2;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!cacheKey) {
       setConversations([]);
       setSelectedConvId(0);
@@ -442,7 +442,7 @@ export default function StudentMessagesPage() {
 
   useEffect(() => {
     if (!user?.id) return;
-    return startVisibilityAwarePolling(() => loadConversations({ silent: true }), 8000);
+    return startVisibilityAwarePolling(() => loadConversations({ silent: true }), 12000);
   }, [user?.id, loadConversations]);
 
   useEffect(() => {

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface Meeting {
   id: number;
@@ -17,41 +18,88 @@ interface Meeting {
   studentName: string;
 }
 
+interface ParentMeetingsCachePayload {
+  meetings: Meeting[];
+}
+
+const PARENT_MEETINGS_CACHE_TTL_MS = 2 * 60 * 1000;
+
 export default function ParentMeetingsPage() {
   const { user, getSchoolStudents } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('parent-meetings', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setMeetings([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<ParentMeetingsCachePayload>(cacheKey, PARENT_MEETINGS_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      setMeetings(cached.data.meetings || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<ParentMeetingsCachePayload>(cacheKey, { meetings });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, meetings]);
+
+  const loadMeetings = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
-    const loadMeetings = async () => {
-      const allStudents = getSchoolStudents(user.schoolId);
-      const childIds: string[] = [];
-      const studentNameById = new Map<string, string>();
+    const allStudents = getSchoolStudents(user.schoolId);
+    const childIds: string[] = [];
+    const studentNameById = new Map<string, string>();
 
-      allStudents.forEach((student) => {
-        studentNameById.set(student.id, `${student.firstName} ${student.lastName}`);
-      });
+    allStudents.forEach((student) => {
+      studentNameById.set(student.id, `${student.firstName} ${student.lastName}`);
+    });
 
-      if (user.childrenNames) {
-        for (const name of user.childrenNames) {
-          const match = allStudents.find(
-            s => `${s.firstName} ${s.lastName}`.toLowerCase() === name.toLowerCase().trim()
-          );
-          if (match) childIds.push(match.id);
-        }
+    if (user.childrenNames) {
+      for (const name of user.childrenNames) {
+        const match = allStudents.find(
+          (s) => `${s.firstName} ${s.lastName}`.toLowerCase() === name.toLowerCase().trim()
+        );
+        if (match) childIds.push(match.id);
       }
+    }
 
-      if (childIds.length === 0) return;
+    if (childIds.length === 0) {
+      setMeetings([]);
+      setHasLoadedFromServer(true);
+      return;
+    }
 
-      const { data } = await supabase
-        .from('meetings')
-        .select('*')
-        .in('student_id', childIds)
-        .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('meetings')
+      .select('*')
+      .in('student_id', childIds)
+      .order('created_at', { ascending: false });
 
+    if (!error && data) {
       setMeetings(
-        (data || []).map(row => ({
+        data.map((row) => ({
           id: row.id,
           title: row.title,
           date: row.date,
@@ -62,10 +110,14 @@ export default function ParentMeetingsPage() {
           studentName: studentNameById.get(row.student_id) || '',
         }))
       );
-    };
-
-    loadMeetings();
+      setHasLoadedFromServer(true);
+    }
   }, [user?.id, user?.schoolId, user?.childrenNames, getSchoolStudents]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadMeetings();
+  }, [isCacheHydrated, loadMeetings]);
 
   const upcoming = meetings.filter(m => m.status === 'confirmed' || m.status === 'pending');
   const past = meetings.filter(m => m.status === 'completed' || m.status === 'cancelled');

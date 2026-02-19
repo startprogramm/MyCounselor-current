@@ -1,10 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card, StatsCard, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+
+interface TeacherReportsCachePayload {
+  stats: {
+    totalStudents: number;
+    totalReferrals: number;
+    pendingReferrals: number;
+    completedReferrals: number;
+  };
+  recentActivity: { id: number; title: string; status: string; date: string }[];
+}
+
+const TEACHER_REPORTS_CACHE_TTL_MS = 2 * 60 * 1000;
 
 export default function TeacherReportsPage() {
   const { user, getSchoolStudents } = useAuth();
@@ -15,42 +28,96 @@ export default function TeacherReportsPage() {
     completedReferrals: 0,
   });
   const [recentActivity, setRecentActivity] = useState<{ id: number; title: string; status: string; date: string }[]>([]);
+  const [loadError, setLoadError] = useState('');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('teacher-reports', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setStats({
+        totalStudents: 0,
+        totalReferrals: 0,
+        pendingReferrals: 0,
+        completedReferrals: 0,
+      });
+      setRecentActivity([]);
+      setLoadError('');
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<TeacherReportsCachePayload>(cacheKey, TEACHER_REPORTS_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      setStats(cached.data.stats);
+      setRecentActivity(cached.data.recentActivity || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
 
   useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<TeacherReportsCachePayload>(cacheKey, { stats, recentActivity });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, stats, recentActivity]);
+
+  const loadReports = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
-    const loadReports = async () => {
-      const students = getSchoolStudents(user.schoolId);
-      const approvedCount = students.filter(s => s.approved).length;
+    const students = getSchoolStudents(user.schoolId);
+    const approvedCount = students.filter((s) => s.approved).length;
 
-      const { data: requests } = await supabase
-        .from('requests')
-        .select('*')
-        .eq('school_id', user.schoolId)
-        .eq('counselor_id', user.id)
-        .order('created_at', { ascending: false });
+    const { data: requests, error } = await supabase
+      .from('requests')
+      .select('*')
+      .eq('school_id', user.schoolId)
+      .or(`teacher_id.eq.${user.id},counselor_id.eq.${user.id}`)
+      .order('created_at', { ascending: false });
 
-      const allRequests = requests || [];
+    if (!error && requests) {
+      const allRequests = requests;
 
       setStats({
         totalStudents: approvedCount,
         totalReferrals: allRequests.length,
-        pendingReferrals: allRequests.filter(r => r.status === 'pending' || r.status === 'in_progress').length,
-        completedReferrals: allRequests.filter(r => r.status === 'completed' || r.status === 'approved').length,
+        pendingReferrals: allRequests.filter((r) => r.status === 'pending' || r.status === 'in_progress').length,
+        completedReferrals: allRequests.filter((r) => r.status === 'completed' || r.status === 'approved').length,
       });
 
       setRecentActivity(
-        allRequests.slice(0, 10).map(r => ({
+        allRequests.slice(0, 10).map((r) => ({
           id: r.id,
           title: `${r.title} - ${r.student_name}`,
           status: r.status,
           date: new Date(r.created_at).toLocaleDateString(),
         }))
       );
-    };
+      setLoadError('');
+      setHasLoadedFromServer(true);
+      return;
+    }
 
-    loadReports();
+    setLoadError(error?.message || 'Unable to load report data.');
   }, [user?.id, user?.schoolId, getSchoolStudents]);
+
+  useEffect(() => {
+    if (!isCacheHydrated) return;
+    void loadReports();
+  }, [isCacheHydrated, loadReports]);
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -68,6 +135,12 @@ export default function TeacherReportsPage() {
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Reports</h1>
         <p className="text-muted-foreground mt-1">Overview of your activity and referral statistics</p>
       </div>
+
+      {loadError && (
+        <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive font-medium">
+          {loadError}
+        </div>
+      )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard

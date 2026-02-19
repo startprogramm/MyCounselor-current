@@ -1,27 +1,73 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAuth, User } from '@/context/AuthContext';
+import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+
+interface CounselorParentsCachePayload {
+  parents: User[];
+}
+
+const COUNSELOR_PARENTS_CACHE_TTL_MS = 2 * 60 * 1000;
 
 export default function CounselorParentsPage() {
   const { user, getSchoolParents, updateRegisteredUser, removeRegisteredUser, refreshSchoolUsers } = useAuth();
   const [parents, setParents] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'awaiting_student' | 'pending' | 'approved'>('all');
+  const [hasWarmCache, setHasWarmCache] = useState(false);
+  const [isCacheHydrated, setIsCacheHydrated] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const cacheKey = useMemo(
+    () => (user?.id ? makeUserCacheKey('counselor-parents', user.id, user.schoolId) : null),
+    [user?.id, user?.schoolId]
+  );
+
+  useLayoutEffect(() => {
+    setIsCacheHydrated(false);
+    setHasLoadedFromServer(false);
+
+    if (!cacheKey) {
+      setParents([]);
+      setHasWarmCache(false);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    const cached = readCachedData<CounselorParentsCachePayload>(cacheKey, COUNSELOR_PARENTS_CACHE_TTL_MS);
+    if (cached.found && cached.data) {
+      setParents(cached.data.parents || []);
+      setHasWarmCache(true);
+      setIsCacheHydrated(true);
+      return;
+    }
+
+    setHasWarmCache(false);
+    setIsCacheHydrated(true);
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (!cacheKey || !isCacheHydrated) return;
+    if (!hasWarmCache && !hasLoadedFromServer) return;
+
+    writeCachedData<CounselorParentsCachePayload>(cacheKey, { parents });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, parents]);
 
   const loadParents = useCallback(() => {
     if (user?.schoolId) {
       setParents(getSchoolParents(user.schoolId));
+      setHasLoadedFromServer(true);
     }
   }, [user?.schoolId, getSchoolParents]);
 
   useEffect(() => {
+    if (!isCacheHydrated) return;
     loadParents();
-  }, [loadParents]);
+  }, [isCacheHydrated, loadParents]);
 
   const awaitingStudentCount = parents.filter(p => p.studentConfirmed !== true).length;
   const pendingCount = parents.filter(p => p.studentConfirmed === true && p.approved !== true).length;
