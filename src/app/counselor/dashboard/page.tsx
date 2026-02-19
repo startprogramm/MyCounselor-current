@@ -7,12 +7,13 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { normalizeRequestStatus, type RequestStatus } from '@/lib/request-status';
 
 interface CounselingRequest {
   id: number;
   title: string;
   description: string;
-  status: string;
+  status: RequestStatus;
   createdAt: string;
   counselor: string;
   category: string;
@@ -78,7 +79,7 @@ export default function CounselorDashboardPage() {
           id: row.id,
           title: row.title,
           description: row.description,
-          status: row.status,
+          status: normalizeRequestStatus(row.status),
           createdAt: formatDate(row.created_at),
           counselor: row.counselor_name,
           category: row.category,

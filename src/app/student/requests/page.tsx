@@ -10,12 +10,17 @@ import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
 import { parseRequestDocuments, type RequestDocument } from '@/lib/request-documents';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+import {
+  getRequestStatusLabel,
+  normalizeRequestStatus,
+  type RequestStatus,
+} from '@/lib/request-status';
 
 interface CounselingRequest {
   id: number;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'approved' | 'completed';
+  status: RequestStatus;
   createdAt: string;
   counselor: string;
   category: string;
@@ -59,7 +64,7 @@ function mapRequest(row: {
     id: row.id,
     title: row.title,
     description: row.description,
-    status: row.status as CounselingRequest['status'],
+    status: normalizeRequestStatus(row.status),
     createdAt: formatCreatedAt(row.created_at),
     counselor: row.counselor_name,
     category: row.category,
@@ -95,7 +100,7 @@ export default function StudentRequestsPage() {
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [schoolCounselors, setSchoolCounselors] = useState<User[]>([]);
   const [showNewRequest, setShowNewRequest] = useState(false);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState<'all' | RequestStatus>('all');
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -110,6 +115,7 @@ export default function StudentRequestsPage() {
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
   const loadRequestIdRef = useRef(0);
   const requestsRef = useRef<CounselingRequest[]>([]);
+  const emptyFetchStreakRef = useRef(0);
   const hasWarmCacheRef = useRef(false);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('student-requests', user.id, user.schoolId) : null),
@@ -204,6 +210,17 @@ export default function StudentRequestsPage() {
       if (!retryError && retryData) {
         mappedRequests = retryData.map(mapRequest);
       }
+    }
+
+    if (mappedRequests.length === 0 && requestsRef.current.length > 0) {
+      emptyFetchStreakRef.current += 1;
+      if (emptyFetchStreakRef.current < 2) {
+        setLoadRequestsError('');
+        setHasLoadedFromServer(true);
+        return;
+      }
+    } else {
+      emptyFetchStreakRef.current = 0;
     }
 
     setLoadRequestsError('');
@@ -339,23 +356,13 @@ export default function StudentRequestsPage() {
     setRequests((prev) => prev.filter((request) => request.id !== id));
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: RequestStatus) => {
     switch (status) {
       case 'pending': return 'bg-warning/10 text-warning border-warning/20';
       case 'in_progress': return 'bg-primary/10 text-primary border-primary/20';
       case 'approved': return 'bg-success/10 text-success border-success/20';
       case 'completed': return 'bg-muted text-muted-foreground border-border';
       default: return 'bg-muted text-muted-foreground border-border';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'in_progress': return 'In Progress';
-      case 'approved': return 'Approved';
-      case 'completed': return 'Completed';
-      default: return status;
     }
   };
 
@@ -397,6 +404,7 @@ export default function StudentRequestsPage() {
   const filteredRequests = filter === 'all'
     ? requests
     : requests.filter(r => r.status === filter);
+  const hasAnyRequests = requests.length > 0;
 
   // True while we haven't yet checked the cache or started the first fetch.
   // Prevents the "No requests found" empty state from flashing on the very
@@ -539,7 +547,7 @@ export default function StudentRequestsPage() {
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
-            {status === 'all' ? 'All Requests' : getStatusLabel(status)}
+            {status === 'all' ? 'All Requests' : getRequestStatusLabel(status)}
             <span className="ml-1.5 opacity-70">({filterCounts[status]})</span>
           </button>
         ))}
@@ -558,10 +566,30 @@ export default function StudentRequestsPage() {
             <svg className="w-12 h-12 mx-auto text-muted-foreground mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <p className="text-muted-foreground">No requests found</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowNewRequest(true)}>
-              Create your first request
-            </Button>
+            {filter === 'all' ? (
+              <>
+                <p className="text-muted-foreground">No requests found</p>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowNewRequest(true)}>
+                  Create your first request
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  No {getRequestStatusLabel(filter).toLowerCase()} requests right now
+                </p>
+                <div className="mt-4 flex items-center justify-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setFilter('all')}>
+                    Show all requests
+                  </Button>
+                  {!hasAnyRequests && (
+                    <Button variant="outline" size="sm" onClick={() => setShowNewRequest(true)}>
+                      Create request
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         ) : !showLoadingState ? (
           filteredRequests.map((request) => (
@@ -580,7 +608,7 @@ export default function StudentRequestsPage() {
                       <p className="text-sm text-muted-foreground mt-1">{request.description}</p>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(request.status)}`}>
-                      {getStatusLabel(request.status)}
+                      {getRequestStatusLabel(request.status)}
                     </span>
                   </div>
                   {/* Counselor Response */}

@@ -12,12 +12,17 @@ import {
   type RequestDocument,
 } from '@/lib/request-documents';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+import {
+  getRequestStatusLabel,
+  normalizeRequestStatus,
+  type RequestStatus,
+} from '@/lib/request-status';
 
 interface CounselingRequest {
   id: number;
   title: string;
   description: string;
-  status: 'pending' | 'in_progress' | 'approved' | 'completed';
+  status: RequestStatus;
   createdAt: string;
   counselor: string;
   category: string;
@@ -60,7 +65,7 @@ function mapRequest(row: {
     id: row.id,
     title: row.title,
     description: row.description,
-    status: row.status as CounselingRequest['status'],
+    status: normalizeRequestStatus(row.status),
     createdAt: formatDate(row.created_at),
     counselor: row.counselor_name,
     category: row.category,
@@ -83,7 +88,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 export default function CounselorTasksPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState<'all' | RequestStatus>('all');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [responseText, setResponseText] = useState('');
   const [pendingDocs, setPendingDocs] = useState<RequestDocument[]>([]);
@@ -99,6 +104,8 @@ export default function CounselorTasksPage() {
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
   const loadRequestIdRef = useRef(0);
   const requestsRef = useRef<CounselingRequest[]>([]);
+  const emptyFetchStreakRef = useRef(0);
+  const hasWarmCacheRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('counselor-tasks', user.id, user.schoolId) : null),
@@ -108,6 +115,10 @@ export default function CounselorTasksPage() {
   useEffect(() => {
     requestsRef.current = requests;
   }, [requests]);
+
+  useEffect(() => {
+    hasWarmCacheRef.current = hasWarmCache;
+  }, [hasWarmCache]);
 
   useEffect(() => {
     setIsCacheHydrated(false);
@@ -186,6 +197,17 @@ export default function CounselorTasksPage() {
       }
     }
 
+    if (mappedRequests.length === 0 && requestsRef.current.length > 0) {
+      emptyFetchStreakRef.current += 1;
+      if (emptyFetchStreakRef.current < 2) {
+        setLoadError('');
+        setHasLoadedFromServer(true);
+        return;
+      }
+    } else {
+      emptyFetchStreakRef.current = 0;
+    }
+
     setLoadError('');
     setHasLoadedFromServer(true);
     setRequests(mappedRequests);
@@ -198,10 +220,12 @@ export default function CounselorTasksPage() {
       return;
     }
 
-    setIsLoadingRequests(!hasWarmCache);
+    if (!isCacheHydrated) return;
+
+    setIsLoadingRequests(!hasWarmCacheRef.current);
     void loadRequests().finally(() => setIsLoadingRequests(false));
     return startVisibilityAwarePolling(() => loadRequests(), 10000);
-  }, [user?.id, loadRequests, hasWarmCache]);
+  }, [user?.id, loadRequests, isCacheHydrated]);
 
   const updateRequest = async (
     id: number,
@@ -336,30 +360,20 @@ export default function CounselorTasksPage() {
     setPendingUploadCount(0);
   };
 
-  const handleStatusChange = async (id: number, newStatus: CounselingRequest['status']) => {
+  const handleStatusChange = async (id: number, newStatus: RequestStatus) => {
     const result = await updateRequest(id, { status: newStatus });
     if (!result.ok) {
       setSaveError(result.error || 'Unable to update status.');
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: RequestStatus) => {
     switch (status) {
       case 'pending': return 'bg-warning/10 text-warning border-warning/20';
       case 'in_progress': return 'bg-primary/10 text-primary border-primary/20';
       case 'approved': return 'bg-success/10 text-success border-success/20';
       case 'completed': return 'bg-muted text-muted-foreground border-border';
       default: return 'bg-muted text-muted-foreground border-border';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'in_progress': return 'In Progress';
-      case 'approved': return 'Approved';
-      case 'completed': return 'Completed';
-      default: return status;
     }
   };
 
@@ -409,6 +423,7 @@ export default function CounselorTasksPage() {
   const filteredRequests = filter === 'all'
     ? requests
     : requests.filter(r => r.status === filter);
+  const hasAnyRequests = requests.length > 0;
 
   const taskCounts = {
     all: requests.length,
@@ -484,7 +499,7 @@ export default function CounselorTasksPage() {
                 : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
-            {status === 'all' ? 'All Tasks' : getStatusLabel(status)}
+            {status === 'all' ? 'All Tasks' : getRequestStatusLabel(status)}
             <span className={`px-2 py-0.5 rounded-full text-xs ${
               filter === status ? 'bg-primary-foreground/20' : 'bg-background'
             }`}>
@@ -533,7 +548,7 @@ export default function CounselorTasksPage() {
                     <p className="text-sm text-muted-foreground mt-1">{request.description}</p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(request.status)}`}>
-                    {getStatusLabel(request.status)}
+                    {getRequestStatusLabel(request.status)}
                   </span>
                 </div>
 
@@ -723,8 +738,33 @@ export default function CounselorTasksPage() {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
           </svg>
-          <p className="text-muted-foreground">No student requests yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Student requests assigned to you will appear here</p>
+          {filter === 'all' ? (
+            <>
+              <p className="text-muted-foreground">No student requests yet</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Student requests assigned to you will appear here
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground">
+                No {getRequestStatusLabel(filter).toLowerCase()} tasks right now
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Try switching to all tasks to see the full queue
+              </p>
+              <div className="mt-4">
+                <Button variant="outline" size="sm" onClick={() => setFilter('all')}>
+                  Show all tasks
+                </Button>
+              </div>
+              {!hasAnyRequests && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  Waiting for students to submit requests.
+                </p>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

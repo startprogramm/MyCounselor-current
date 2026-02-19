@@ -8,12 +8,17 @@ import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
+import {
+  getRequestStatusLabel,
+  normalizeRequestStatus,
+  type RequestStatus,
+} from '@/lib/request-status';
 
 interface CounselingRequest {
   id: number;
   title: string;
   description: string;
-  status: string;
+  status: RequestStatus;
   createdAt: string;
   counselor: string;
   category: string;
@@ -264,7 +269,7 @@ export default function StudentDashboardPage() {
           id: row.id,
           title: row.title,
           description: row.description,
-          status: row.status,
+          status: normalizeRequestStatus(row.status),
           createdAt: formatDate(row.created_at),
           counselor: row.counselor_name,
           category: row.category,
@@ -409,21 +414,6 @@ export default function StudentDashboardPage() {
 
     setGoals((prev) => prev.map((goal) => (goal.id === goalId ? { ...goal, progress } : goal)));
     setEditingGoal(null);
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'Pending';
-      case 'in_progress':
-        return 'In Progress';
-      case 'approved':
-        return 'Approved';
-      case 'completed':
-        return 'Completed';
-      default:
-        return status;
-    }
   };
 
   const getActionIcon = (icon: string) => {
@@ -915,7 +905,7 @@ export default function StudentDashboardPage() {
                             : 'default'
                     }
                   >
-                    {getStatusLabel(request.status)}
+                    {getRequestStatusLabel(request.status)}
                   </Badge>
                 </div>
               ))}
