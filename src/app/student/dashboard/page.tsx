@@ -131,16 +131,16 @@ const quickActions = [
     description: 'Guides and articles',
     href: '/student/guidance',
     icon: 'book',
-    color: 'bg-[#2563EB]',
-    hoverBorder: 'hover:border-[#2563EB]',
+    color: 'bg-[#C2410C]',
+    hoverBorder: 'hover:border-[#C2410C]',
   },
   {
     label: 'Send Message',
     description: 'Start conversation',
     href: '/student/messages',
     icon: 'chat',
-    color: 'bg-[#DC2626]',
-    hoverBorder: 'hover:border-[#DC2626]',
+    color: 'bg-[#B91C1C]',
+    hoverBorder: 'hover:border-[#B91C1C]',
   },
 ];
 
@@ -806,7 +806,7 @@ export default function StudentDashboardPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleRejectParent(parent.id)}
-                    className="border-[#DC2626] bg-[#DC2626] text-white hover:bg-[#B91C1C]"
+                    className="border-[#B91C1C] bg-[#B91C1C] text-white hover:bg-[#991B1B]"
                   >
                     Reject
                   </Button>
@@ -888,7 +888,7 @@ export default function StudentDashboardPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/student/messages"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#DC2626] bg-[#DC2626] text-sm font-medium text-white hover:bg-[#B91C1C] transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#B91C1C] bg-[#B91C1C] text-sm font-medium text-white hover:bg-[#991B1B] transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -947,7 +947,7 @@ export default function StudentDashboardPage() {
             <div className="rounded-xl border border-border bg-muted p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-[#16A34A]" />
+                  <span className="w-2.5 h-2.5 rounded-sm bg-[#C2410C]" />
                   <p className="font-semibold text-foreground">Teachers</p>
                 </div>
                 <Badge variant="accent" size="sm">{teachers.length}</Badge>
@@ -973,7 +973,7 @@ export default function StudentDashboardPage() {
             <div className="rounded-xl border border-border bg-muted p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-[#DC2626]" />
+                  <span className="w-2.5 h-2.5 rounded-sm bg-[#B91C1C]" />
                   <p className="font-semibold text-foreground">Parents</p>
                 </div>
                 <Badge variant="warning" size="sm">{parents.length}</Badge>
@@ -1066,7 +1066,7 @@ export default function StudentDashboardPage() {
                         <span className="px-2.5 py-1 rounded-full border border-border bg-background text-muted-foreground">
                           {request.createdAt}
                         </span>
-                        <span className="px-2.5 py-1 rounded-full border border-[#2563EB] bg-[#2563EB] text-white capitalize">
+                        <span className="px-2.5 py-1 rounded-full border border-[#C2410C] bg-[#C2410C] text-white capitalize">
                           {request.category}
                         </span>
                       </div>
