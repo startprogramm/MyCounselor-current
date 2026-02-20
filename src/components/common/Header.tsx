@@ -10,6 +10,12 @@ import SkipLink from '@/components/ui/SkipLink';
 import { useAuth } from '@/context/AuthContext';
 import { getDashboardRouteForRole, getMessagesRouteForRole } from '@/lib/role-routes';
 
+const LANGUAGES = [
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'ru', label: 'Русский', flag: '🇷🇺' },
+  { code: 'uz', label: "O'zbek", flag: '🇺🇿' },
+];
+
 interface NavItem {
   label: string;
   href: string;
@@ -58,6 +64,22 @@ const Header: React.FC = () => {
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const langMenuRef = useRef<HTMLDivElement>(null);
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+  const [currentLang, setCurrentLang] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('mycounselor_language') || 'en';
+    }
+    return 'en';
+  });
+
+  const currentLangData = LANGUAGES.find((l) => l.code === currentLang) ?? LANGUAGES[0];
+
+  const selectLanguage = (code: string) => {
+    setCurrentLang(code);
+    localStorage.setItem('mycounselor_language', code);
+    setIsLangMenuOpen(false);
+  };
 
   const dashboardRoute = getDashboardRouteForRole(user?.role);
   const primaryActionRoute = getMessagesRouteForRole(user?.role);
@@ -109,6 +131,18 @@ const Header: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isProfileMenuOpen]);
+
+  // Close language menu when clicking outside
+  useEffect(() => {
+    if (!isLangMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setIsLangMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isLangMenuOpen]);
 
   return (
     <>
@@ -197,6 +231,52 @@ const Header: React.FC = () => {
 
             {/* Zoom, Theme Toggle & Auth Buttons */}
             <div className="hidden md:flex items-center space-x-3">
+              {/* Language Selector */}
+              <div className="relative" ref={langMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+                  className="flex items-center space-x-1 px-2 py-1.5 rounded-lg text-sm font-medium text-[#5F6368] dark:text-[#9AA0A6] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors focus-ring"
+                  aria-label="Select language"
+                  aria-expanded={isLangMenuOpen ? 'true' : 'false'}
+                  aria-haspopup="listbox"
+                >
+                  <span className="text-base leading-none">{currentLangData.flag}</span>
+                  <span className="uppercase">{currentLangData.code}</span>
+                  <Icon
+                    name="ChevronDownIcon"
+                    size={14}
+                    variant="outline"
+                    className={`transition-transform duration-200 ${isLangMenuOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                <div
+                  className={`absolute top-full right-0 mt-2 w-40 bg-white dark:bg-[#292929] rounded-lg shadow-lg border border-[#DADCE0] dark:border-[#3C4043] py-1 z-50 transition-all duration-200 ${
+                    isLangMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
+                  }`}
+                  role="listbox"
+                  aria-label="Language options"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      role="option"
+                      aria-selected={currentLang === lang.code ? 'true' : 'false'}
+                      onClick={() => selectLanguage(lang.code)}
+                      className={`w-full flex items-center space-x-3 px-3 py-2 text-sm transition-colors ${
+                        currentLang === lang.code
+                          ? 'bg-[#E8F0FE] dark:bg-[#1A3A5C] text-[#1A73E8] dark:text-[#8AB4F8] font-medium'
+                          : 'text-[#202124] dark:text-[#E8EAED] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043]'
+                      }`}
+                    >
+                      <span className="text-base">{lang.flag}</span>
+                      <span>{lang.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="w-px h-6 bg-[#DADCE0] dark:bg-[#3C4043]" />
               <ZoomControl />
               <div className="w-px h-6 bg-[#DADCE0] dark:bg-[#3C4043]" />
               <ThemeToggle />
@@ -273,6 +353,44 @@ const Header: React.FC = () => {
 
             {/* Mobile menu button */}
             <div className="flex items-center space-x-2 md:hidden">
+              {/* Language selector (compact) */}
+              <div className="relative" ref={langMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
+                  className="flex items-center space-x-1 px-2 py-1.5 rounded-lg text-sm font-medium text-[#5F6368] dark:text-[#9AA0A6] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors"
+                  aria-label="Select language"
+                  aria-expanded={isLangMenuOpen ? 'true' : 'false'}
+                  aria-haspopup="listbox"
+                >
+                  <span className="text-base leading-none">{currentLangData.flag}</span>
+                </button>
+                <div
+                  className={`absolute top-full right-0 mt-2 w-40 bg-white dark:bg-[#292929] rounded-lg shadow-lg border border-[#DADCE0] dark:border-[#3C4043] py-1 z-50 transition-all duration-200 ${
+                    isLangMenuOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'
+                  }`}
+                  role="listbox"
+                  aria-label="Language options"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      role="option"
+                      aria-selected={currentLang === lang.code ? 'true' : 'false'}
+                      onClick={() => selectLanguage(lang.code)}
+                      className={`w-full flex items-center space-x-3 px-3 py-2 text-sm transition-colors ${
+                        currentLang === lang.code
+                          ? 'bg-[#E8F0FE] dark:bg-[#1A3A5C] text-[#1A73E8] dark:text-[#8AB4F8] font-medium'
+                          : 'text-[#202124] dark:text-[#E8EAED] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043]'
+                      }`}
+                    >
+                      <span className="text-base">{lang.flag}</span>
+                      <span>{lang.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <ZoomControl />
               <ThemeToggle />
               <button
