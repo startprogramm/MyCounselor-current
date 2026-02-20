@@ -109,34 +109,82 @@ function getGuidanceCategoryLabel(category: string) {
   }
 }
 
+function getGuidanceCategoryStyles(category: string) {
+  switch (category) {
+    case 'college':
+      return {
+        card: 'border-[#1A73E8]/20 bg-[#1A73E8]/[0.05]',
+        label: 'text-[#1A73E8]',
+        type: 'border-[#1A73E8]/20 bg-[#1A73E8]/10 text-[#1A73E8]',
+        link: 'text-[#1A73E8] hover:text-[#1A73E8]/80',
+      };
+    case 'career':
+      return {
+        card: 'border-[#1E8E3E]/20 bg-[#1E8E3E]/[0.05]',
+        label: 'text-[#1E8E3E]',
+        type: 'border-[#1E8E3E]/20 bg-[#1E8E3E]/10 text-[#1E8E3E]',
+        link: 'text-[#1E8E3E] hover:text-[#1E8E3E]/80',
+      };
+    case 'academic':
+      return {
+        card: 'border-[#EA8600]/20 bg-[#EA8600]/[0.05]',
+        label: 'text-[#EA8600]',
+        type: 'border-[#EA8600]/20 bg-[#EA8600]/10 text-[#EA8600]',
+        link: 'text-[#EA8600] hover:text-[#EA8600]/80',
+      };
+    case 'wellness':
+      return {
+        card: 'border-[#7B1FA2]/20 bg-[#7B1FA2]/[0.05]',
+        label: 'text-[#7B1FA2]',
+        type: 'border-[#7B1FA2]/20 bg-[#7B1FA2]/10 text-[#7B1FA2]',
+        link: 'text-[#7B1FA2] hover:text-[#7B1FA2]/80',
+      };
+    default:
+      return {
+        card: 'border-border bg-muted/20',
+        label: 'text-primary',
+        type: 'border-border bg-background/60 text-muted-foreground',
+        link: 'text-primary hover:text-primary/80',
+      };
+  }
+}
+
 const quickActions = [
   {
     label: 'Book Meeting',
     description: 'Schedule with counselor',
     href: '/student/meetings',
     icon: 'calendar',
-    color: 'bg-primary',
+    iconColor: 'bg-[#1A73E8]',
+    cardColor: 'border-[#1A73E8]/25 bg-[#1A73E8]/[0.06] hover:bg-[#1A73E8]/[0.1]',
+    textColor: 'text-[#1A73E8]',
   },
   {
     label: 'New Request',
     description: 'Submit support need',
     href: '/student/requests',
     icon: 'document',
-    color: 'bg-secondary',
+    iconColor: 'bg-[#1E8E3E]',
+    cardColor: 'border-[#1E8E3E]/25 bg-[#1E8E3E]/[0.06] hover:bg-[#1E8E3E]/[0.1]',
+    textColor: 'text-[#1E8E3E]',
   },
   {
     label: 'View Resources',
     description: 'Guides and articles',
     href: '/student/guidance',
     icon: 'book',
-    color: 'bg-accent',
+    iconColor: 'bg-[#EA8600]',
+    cardColor: 'border-[#EA8600]/25 bg-[#EA8600]/[0.06] hover:bg-[#EA8600]/[0.1]',
+    textColor: 'text-[#EA8600]',
   },
   {
     label: 'Send Message',
     description: 'Start conversation',
     href: '/student/messages',
     icon: 'chat',
-    color: 'bg-warning',
+    iconColor: 'bg-[#7B1FA2]',
+    cardColor: 'border-[#7B1FA2]/25 bg-[#7B1FA2]/[0.06] hover:bg-[#7B1FA2]/[0.1]',
+    textColor: 'text-[#7B1FA2]',
   },
 ];
 
@@ -521,6 +569,13 @@ export default function StudentDashboardPage() {
     },
   ];
 
+  const statCardClasses = [
+    'border-[#1A73E8]/20 bg-[#1A73E8]/[0.05]',
+    'border-[#1E8E3E]/20 bg-[#1E8E3E]/[0.05]',
+    'border-[#EA8600]/20 bg-[#EA8600]/[0.05]',
+    'border-[#7B1FA2]/20 bg-[#7B1FA2]/[0.05]',
+  ];
+
   const updateGoalProgress = async (goalId: number, newProgress: number) => {
     if (!user) return;
     const progress = Math.min(100, Math.max(0, newProgress));
@@ -710,35 +765,41 @@ export default function StudentDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
-            Welcome back, {user?.firstName || 'Student'}!
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Here&apos;s what&apos;s happening with your counseling journey.
-          </p>
-          {user?.schoolName && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {user.schoolName} {user.gradeLevel && `| Grade ${user.gradeLevel}`}
+      <div className="relative overflow-hidden rounded-2xl border border-[#1A73E8]/20 bg-gradient-to-r from-[#1A73E8]/[0.1] via-[#34A853]/[0.08] to-[#EA8600]/[0.09] p-5 sm:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-14 -top-12 h-40 w-40 rounded-full bg-[#FBBC04]/20 blur-3xl"
+        />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
+              Welcome back, {user?.firstName || 'Student'}!
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Here&apos;s what&apos;s happening with your counseling journey.
             </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          {new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-          })}
+            {user?.schoolName && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {user.schoolName} {user.gradeLevel && `| Grade ${user.gradeLevel}`}
+              </p>
+            )}
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#1A73E8]/30 bg-background/65 px-3 py-1.5 text-sm text-muted-foreground">
+            <svg className="w-4 h-4 text-[#1A73E8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </div>
         </div>
       </div>
 
@@ -748,16 +809,21 @@ export default function StudentDashboardPage() {
           <Link
             key={action.label}
             href={action.href}
-            className="group p-4 bg-card rounded-xl border border-border hover:border-primary/20 hover:shadow-md transition-all"
+            className={`group relative overflow-hidden rounded-xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${action.cardColor}`}
           >
+            <div className={`absolute left-0 top-0 h-1 w-full ${action.iconColor}`} />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/20 blur-2xl"
+            />
             <div className="flex items-start gap-3">
               <div
-                className={`w-11 h-11 ${action.color} rounded-lg flex items-center justify-center text-white flex-shrink-0`}
+                className={`w-11 h-11 ${action.iconColor} rounded-lg flex items-center justify-center text-white flex-shrink-0 shadow-sm`}
               >
                 {getActionIcon(action.icon)}
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{action.label}</p>
+              <div className="relative min-w-0">
+                <p className={`text-sm font-semibold ${action.textColor}`}>{action.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
               </div>
             </div>
@@ -820,17 +886,40 @@ export default function StudentDashboardPage() {
         <ContentCard
           title="Your School Counselor(s)"
           description="Your assigned support team, organized for quick contact."
+          className="border-[#1A73E8]/20 bg-[#1A73E8]/[0.04]"
         >
           <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4">
             {counselors.map((c, index) => (
-              <Card key={c.id} className="p-0 overflow-hidden h-full border-border/80" hover>
+              <Card
+                key={c.id}
+                className={`p-0 overflow-hidden h-full ${
+                  index % 3 === 0
+                    ? 'border-[#1A73E8]/25 bg-[#1A73E8]/[0.04]'
+                    : index % 3 === 1
+                      ? 'border-[#1E8E3E]/25 bg-[#1E8E3E]/[0.04]'
+                      : 'border-[#EA8600]/25 bg-[#EA8600]/[0.04]'
+                }`}
+                hover
+              >
                 <div
-                  className={`h-1 ${index % 3 === 0 ? 'bg-primary' : index % 3 === 1 ? 'bg-secondary' : 'bg-accent'}`}
+                  className={`h-1 ${
+                    index % 3 === 0
+                      ? 'bg-[#1A73E8]'
+                      : index % 3 === 1
+                        ? 'bg-[#1E8E3E]'
+                        : 'bg-[#EA8600]'
+                  }`}
                 />
                 <div className="relative p-4 space-y-4">
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute -right-10 -top-10 w-24 h-24 rounded-full bg-primary/10 blur-2xl"
+                    className={`pointer-events-none absolute -right-10 -top-10 w-24 h-24 rounded-full blur-2xl ${
+                      index % 3 === 0
+                        ? 'bg-[#1A73E8]/20'
+                        : index % 3 === 1
+                          ? 'bg-[#1E8E3E]/20'
+                          : 'bg-[#EA8600]/20'
+                    }`}
                   />
                   <div className="relative flex items-start gap-3">
                     <div className="w-14 h-14 rounded-full border border-border bg-muted/40 overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -842,7 +931,13 @@ export default function StudentDashboardPage() {
                         />
                       ) : (
                         <span
-                          className={`font-bold text-base ${index % 3 === 0 ? 'text-primary' : index % 3 === 1 ? 'text-secondary' : 'text-accent'}`}
+                          className={`font-bold text-base ${
+                            index % 3 === 0
+                              ? 'text-[#1A73E8]'
+                              : index % 3 === 1
+                                ? 'text-[#1E8E3E]'
+                                : 'text-[#EA8600]'
+                          }`}
                         >
                           {c.firstName[0]}
                           {c.lastName[0]}
@@ -859,7 +954,7 @@ export default function StudentDashboardPage() {
                             {c.title || 'School Counselor'}
                           </p>
                         </div>
-                        <span className="px-2.5 py-1 rounded-full border border-primary/25 bg-primary/10 text-[11px] font-semibold text-primary mt-0.5">
+                        <span className="px-2.5 py-1 rounded-full border border-[#1A73E8]/25 bg-[#1A73E8]/10 text-[11px] font-semibold text-[#1A73E8] mt-0.5">
                           Assigned
                         </span>
                       </div>
@@ -867,7 +962,7 @@ export default function StudentDashboardPage() {
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+                    <div className="rounded-lg border border-[#1E8E3E]/20 bg-[#1E8E3E]/[0.05] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                         Department
                       </p>
@@ -875,7 +970,7 @@ export default function StudentDashboardPage() {
                         {c.department || 'General'}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5">
+                    <div className="rounded-lg border border-[#EA8600]/20 bg-[#EA8600]/[0.05] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                         School
                       </p>
@@ -888,7 +983,7 @@ export default function StudentDashboardPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/student/messages"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-background/60 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#7B1FA2]/20 bg-[#7B1FA2]/10 text-sm font-medium text-[#7B1FA2] hover:bg-[#7B1FA2]/15 transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -897,7 +992,7 @@ export default function StudentDashboardPage() {
                     </Link>
                     <Link
                       href="/student/meetings"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-primary/30 bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#1A73E8]/30 bg-[#1A73E8]/10 text-[#1A73E8] text-sm font-medium hover:bg-[#1A73E8]/15 transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -916,9 +1011,10 @@ export default function StudentDashboardPage() {
         <ContentCard
           title="Registered School Contacts"
           description="Everyone registered at your school by role."
+          className="border-[#34A853]/20 bg-[#34A853]/[0.04]"
         >
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
+            <div className="rounded-xl border border-[#1A73E8]/25 bg-[#1A73E8]/[0.05] p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-semibold text-foreground">Counselors</p>
                 <Badge variant="primary" size="sm">{counselors.length}</Badge>
@@ -928,7 +1024,7 @@ export default function StudentDashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {counselors.map((member) => (
-                    <div key={member.id} className="p-2.5 rounded-lg bg-card border border-border">
+                    <div key={member.id} className="p-2.5 rounded-lg bg-[#1A73E8]/10 border border-[#1A73E8]/25">
                       <p className="text-sm font-medium text-foreground">
                         {member.firstName} {member.lastName}
                       </p>
@@ -941,7 +1037,7 @@ export default function StudentDashboardPage() {
               )}
             </div>
 
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
+            <div className="rounded-xl border border-[#1E8E3E]/25 bg-[#1E8E3E]/[0.05] p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-semibold text-foreground">Teachers</p>
                 <Badge variant="accent" size="sm">{teachers.length}</Badge>
@@ -951,7 +1047,7 @@ export default function StudentDashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {teachers.map((member) => (
-                    <div key={member.id} className="p-2.5 rounded-lg bg-card border border-border">
+                    <div key={member.id} className="p-2.5 rounded-lg bg-[#1E8E3E]/10 border border-[#1E8E3E]/25">
                       <p className="text-sm font-medium text-foreground">
                         {member.firstName} {member.lastName}
                       </p>
@@ -964,7 +1060,7 @@ export default function StudentDashboardPage() {
               )}
             </div>
 
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
+            <div className="rounded-xl border border-[#EA8600]/25 bg-[#EA8600]/[0.05] p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-semibold text-foreground">Parents</p>
                 <Badge variant="warning" size="sm">{parents.length}</Badge>
@@ -974,7 +1070,7 @@ export default function StudentDashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {parents.map((member) => (
-                    <div key={member.id} className="p-2.5 rounded-lg bg-card border border-border">
+                    <div key={member.id} className="p-2.5 rounded-lg bg-[#EA8600]/10 border border-[#EA8600]/25">
                       <p className="text-sm font-medium text-foreground">
                         {member.firstName} {member.lastName}
                       </p>
@@ -999,6 +1095,7 @@ export default function StudentDashboardPage() {
             value={stat.value}
             subtitle={stat.subtitle}
             accentColor={stat.accent}
+            className={statCardClasses[index]}
           />
         ))}
       </div>
@@ -1014,12 +1111,12 @@ export default function StudentDashboardPage() {
               View all
             </Link>
           }
-          className="lg:col-span-2"
+          className="lg:col-span-2 border-[#1A73E8]/20 bg-[#1A73E8]/[0.04]"
         >
           {recentRequests.length > 0 ? (
             <div className="space-y-3">
               {recentRequests.map((request) => (
-                <div key={request.id} className="rounded-xl border border-border bg-muted/20 p-3.5">
+                <div key={request.id} className="rounded-xl border border-[#1A73E8]/20 bg-[#1A73E8]/[0.05] p-3.5">
                   <div className="flex items-start gap-3">
                     <span
                       className={`mt-1.5 w-2.5 h-2.5 rounded-full ${
@@ -1067,7 +1164,7 @@ export default function StudentDashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-6 rounded-xl border border-dashed border-border bg-muted/10 text-muted-foreground">
+            <div className="text-center py-6 rounded-xl border border-dashed border-[#1A73E8]/25 bg-[#1A73E8]/[0.03] text-muted-foreground">
               <svg className="w-10 h-10 mx-auto mb-2 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -1090,11 +1187,12 @@ export default function StudentDashboardPage() {
               View all
             </Link>
           }
+          className="border-[#EA8600]/20 bg-[#EA8600]/[0.04]"
         >
           {upcomingMeetingsList.length > 0 ? (
             <div className="space-y-3">
               {upcomingMeetingsList.map((meeting) => (
-                <div key={meeting.id} className="rounded-xl border border-border bg-muted/20 p-3.5">
+                <div key={meeting.id} className="rounded-xl border border-[#EA8600]/20 bg-[#EA8600]/[0.05] p-3.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold text-foreground text-sm leading-5">{meeting.title}</p>
@@ -1105,7 +1203,7 @@ export default function StudentDashboardPage() {
                     </Badge>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-border bg-background/60">
+                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[#EA8600]/20 bg-[#EA8600]/10">
                       <svg
                         className="w-3.5 h-3.5"
                         fill="none"
@@ -1121,7 +1219,7 @@ export default function StudentDashboardPage() {
                       </svg>
                       {meeting.date}
                     </span>
-                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-border bg-background/60">
+                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[#EA8600]/20 bg-[#EA8600]/10">
                       <svg
                         className="w-3.5 h-3.5"
                         fill="none"
@@ -1141,19 +1239,19 @@ export default function StudentDashboardPage() {
                 </div>
               ))}
               <Link href="/student/meetings">
-                <Button variant="outline" fullWidth size="sm">
+                <Button variant="outline" fullWidth size="sm" className="border-[#EA8600]/30 text-[#EA8600] hover:bg-[#EA8600]/10">
                   Book New Meeting
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="text-center py-6 rounded-xl border border-dashed border-border bg-muted/10 text-muted-foreground">
+            <div className="text-center py-6 rounded-xl border border-dashed border-[#EA8600]/25 bg-[#EA8600]/[0.03] text-muted-foreground">
               <svg className="w-10 h-10 mx-auto mb-2 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <p>No upcoming meetings.</p>
               <Link href="/student/meetings">
-                <Button variant="outline" size="sm" className="mt-3">
+                <Button variant="outline" size="sm" className="mt-3 border-[#EA8600]/30 text-[#EA8600] hover:bg-[#EA8600]/10">
                   Book a Meeting
                 </Button>
               </Link>
@@ -1170,43 +1268,47 @@ export default function StudentDashboardPage() {
             Open guidance
           </Link>
         }
+        className="border-[#1E8E3E]/20 bg-[#1E8E3E]/[0.04]"
       >
         {guidanceResources.length > 0 ? (
           <div className="grid sm:grid-cols-2 gap-3">
-            {guidanceResources.map((resource) => (
-              <div
-                key={resource.id}
-                className="rounded-xl border border-border bg-muted/20 p-4 space-y-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
-                      {getGuidanceCategoryLabel(resource.category)}
-                    </p>
-                    <h3 className="font-semibold text-foreground mt-1 line-clamp-2">
-                      {resource.title}
-                    </h3>
+            {guidanceResources.map((resource) => {
+              const color = getGuidanceCategoryStyles(resource.category);
+              return (
+                <div
+                  key={resource.id}
+                  className={`rounded-xl border p-4 space-y-3 ${color.card}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={`text-[11px] font-semibold uppercase tracking-wide ${color.label}`}>
+                        {getGuidanceCategoryLabel(resource.category)}
+                      </p>
+                      <h3 className="font-semibold text-foreground mt-1 line-clamp-2">
+                        {resource.title}
+                      </h3>
+                    </div>
+                    <span className={`text-[11px] whitespace-nowrap rounded-full border px-2 py-1 ${color.type}`}>
+                      {resource.type}
+                    </span>
                   </div>
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                    {resource.type}
-                  </span>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{resource.description}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{resource.createdAt}</span>
+                    <Link
+                      href="/student/guidance"
+                      className={`text-xs font-medium ${color.link}`}
+                    >
+                      View
+                    </Link>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground line-clamp-2">{resource.description}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{resource.createdAt}</span>
-                  <Link
-                    href="/student/guidance"
-                    className="text-xs font-medium text-primary hover:text-primary/80"
-                  >
-                    View
-                  </Link>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <div className="text-center py-8 rounded-xl border border-dashed border-border bg-muted/10 text-muted-foreground">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-xl border border-border bg-background/60 flex items-center justify-center">
+          <div className="text-center py-8 rounded-xl border border-dashed border-[#1E8E3E]/25 bg-[#1E8E3E]/[0.03] text-muted-foreground">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-xl border border-[#1E8E3E]/20 bg-[#1E8E3E]/10 flex items-center justify-center">
               <svg className="w-6 h-6 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
@@ -1224,11 +1326,22 @@ export default function StudentDashboardPage() {
         title="Goals Progress"
         description="Track your academic and personal goals"
         action={goals.length > 0 ? undefined : undefined}
+        className="border-[#7B1FA2]/20 bg-[#7B1FA2]/[0.04]"
       >
         {goals.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {goals.map((goal) => (
-              <Card key={goal.id} className="p-4" hover>
+              <Card
+                key={goal.id}
+                className={`p-4 ${
+                  goal.priority === 'high'
+                    ? 'border-[#EA8600]/25 bg-[#EA8600]/[0.06]'
+                    : goal.priority === 'medium'
+                      ? 'border-[#1A73E8]/25 bg-[#1A73E8]/[0.06]'
+                      : 'border-[#1E8E3E]/25 bg-[#1E8E3E]/[0.06]'
+                }`}
+                hover
+              >
                 <div className="flex items-center justify-between mb-2">
                   <Badge
                     variant={
