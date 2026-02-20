@@ -25,6 +25,7 @@ interface CounselingRequest {
   counselor: string;
   category: string;
 }
+
 interface Meeting {
   id: number;
   title: string;
@@ -112,31 +113,31 @@ function getGuidanceCategoryStyles(category: string) {
   switch (category) {
     case 'college':
       return {
-        card: 'border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747]',
-        label: 'text-[#1A73E8] dark:text-[#8AB4F8]',
-        type: 'border-[#AECBFA] dark:border-[#355C9A] bg-[#D2E3FC] dark:bg-[#1B3B6F] text-[#1A73E8] dark:text-[#8AB4F8]',
-        link: 'text-[#1A73E8] dark:text-[#8AB4F8] hover:text-[#185ABC] dark:hover:text-[#AECBFA]',
+        card: 'border-[#AECBFA] bg-[#E8F0FE]',
+        label: 'text-[#1A73E8]',
+        type: 'border-[#AECBFA] bg-[#D2E3FC] text-[#1A73E8]',
+        link: 'text-[#1A73E8] hover:text-[#185ABC]',
       };
     case 'career':
       return {
-        card: 'border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18]',
-        label: 'text-[#1E8E3E] dark:text-[#81C995]',
-        type: 'border-[#81C995] dark:border-[#2E7D32] bg-[#CEEAD6] dark:bg-[#1A4A28] text-[#1E8E3E] dark:text-[#81C995]',
-        link: 'text-[#1E8E3E] dark:text-[#81C995] hover:text-[#137333] dark:hover:text-[#A8DAB5]',
+        card: 'border-[#81C995] bg-[#E6F4EA]',
+        label: 'text-[#1E8E3E]',
+        type: 'border-[#81C995] bg-[#CEEAD6] text-[#1E8E3E]',
+        link: 'text-[#1E8E3E] hover:text-[#137333]',
       };
     case 'academic':
       return {
-        card: 'border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E]',
-        label: 'text-[#EA8600] dark:text-[#F6C26B]',
-        type: 'border-[#F6C26B] dark:border-[#A86A08] bg-[#FDE293] dark:bg-[#4A340F] text-[#EA8600] dark:text-[#F6C26B]',
-        link: 'text-[#EA8600] dark:text-[#F6C26B] hover:text-[#C26401] dark:hover:text-[#FDE293]',
+        card: 'border-[#F6C26B] bg-[#FEF7E0]',
+        label: 'text-[#EA8600]',
+        type: 'border-[#F6C26B] bg-[#FDE293] text-[#EA8600]',
+        link: 'text-[#EA8600] hover:text-[#C26401]',
       };
     case 'wellness':
       return {
-        card: 'border-[#D7AEFB] dark:border-[#6F4E93] bg-[#F3E8FD] dark:bg-[#261537]',
-        label: 'text-[#7B1FA2] dark:text-[#D7AEFB]',
-        type: 'border-[#D7AEFB] dark:border-[#6F4E93] bg-[#E9D4FA] dark:bg-[#3B2455] text-[#7B1FA2] dark:text-[#D7AEFB]',
-        link: 'text-[#7B1FA2] dark:text-[#D7AEFB] hover:text-[#6A1B9A] dark:hover:text-[#E9D4FA]',
+        card: 'border-[#D7AEFB] bg-[#F3E8FD]',
+        label: 'text-[#7B1FA2]',
+        type: 'border-[#D7AEFB] bg-[#E9D4FA] text-[#7B1FA2]',
+        link: 'text-[#7B1FA2] hover:text-[#6A1B9A]',
       };
     default:
       return {
@@ -154,36 +155,36 @@ const quickActions = [
     description: 'Schedule with counselor',
     href: '/student/meetings',
     icon: 'calendar',
-    iconColor: 'bg-[#1A73E8] dark:bg-[#355C9A]',
-    cardColor: 'border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747] hover:bg-[#D2E3FC] dark:hover:bg-[#1B3B6F]',
-    textColor: 'text-[#1A73E8] dark:text-[#8AB4F8]',
+    iconColor: 'bg-[#1A73E8]',
+    cardColor: 'border-[#AECBFA] bg-[#E8F0FE] hover:bg-[#D2E3FC]',
+    textColor: 'text-[#1A73E8]',
   },
   {
     label: 'New Request',
     description: 'Submit support need',
     href: '/student/requests',
     icon: 'document',
-    iconColor: 'bg-[#1E8E3E] dark:bg-[#2E7D32]',
-    cardColor: 'border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18] hover:bg-[#CEEAD6] dark:hover:bg-[#1A4A28]',
-    textColor: 'text-[#1E8E3E] dark:text-[#81C995]',
+    iconColor: 'bg-[#1E8E3E]',
+    cardColor: 'border-[#81C995] bg-[#E6F4EA] hover:bg-[#CEEAD6]',
+    textColor: 'text-[#1E8E3E]',
   },
   {
     label: 'View Resources',
     description: 'Guides and articles',
     href: '/student/guidance',
     icon: 'book',
-    iconColor: 'bg-[#EA8600] dark:bg-[#A86A08]',
-    cardColor: 'border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E] hover:bg-[#FDE293] dark:hover:bg-[#4A340F]',
-    textColor: 'text-[#EA8600] dark:text-[#F6C26B]',
+    iconColor: 'bg-[#EA8600]',
+    cardColor: 'border-[#F6C26B] bg-[#FEF7E0] hover:bg-[#FDE293]',
+    textColor: 'text-[#EA8600]',
   },
   {
     label: 'Send Message',
     description: 'Start conversation',
     href: '/student/messages',
     icon: 'chat',
-    iconColor: 'bg-[#7B1FA2] dark:bg-[#6F4E93]',
-    cardColor: 'border-[#D7AEFB] dark:border-[#6F4E93] bg-[#F3E8FD] dark:bg-[#261537] hover:bg-[#E9D4FA] dark:hover:bg-[#3B2455]',
-    textColor: 'text-[#7B1FA2] dark:text-[#D7AEFB]',
+    iconColor: 'bg-[#7B1FA2]',
+    cardColor: 'border-[#D7AEFB] bg-[#F3E8FD] hover:bg-[#E9D4FA]',
+    textColor: 'text-[#7B1FA2]',
   },
 ];
 
@@ -569,10 +570,10 @@ export default function StudentDashboardPage() {
   ];
 
   const statCardClasses = [
-    'border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747]',
-    'border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18]',
-    'border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E]',
-    'border-[#D7AEFB] dark:border-[#6F4E93] bg-[#F3E8FD] dark:bg-[#261537]',
+    'border-[#AECBFA] bg-[#E8F0FE]',
+    'border-[#81C995] bg-[#E6F4EA]',
+    'border-[#F6C26B] bg-[#FEF7E0]',
+    'border-[#D7AEFB] bg-[#F3E8FD]',
   ];
 
   const updateGoalProgress = async (goalId: number, newProgress: number) => {
@@ -674,11 +675,11 @@ export default function StudentDashboardPage() {
         </div>
 
         {/* Pending Approval Notice */}
-        <Card className="p-0 overflow-hidden border-[#F6C26B] dark:border-[#A86A08]">
+        <Card className="p-0 overflow-hidden border-[#F6C26B]">
           <div className="h-1 bg-warning" />
           <div className="p-6 sm:p-8">
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#FDE293] dark:bg-[#4A340F] flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-[#FDE293] flex items-center justify-center flex-shrink-0">
                 <svg
                   className="w-6 h-6 text-warning"
                   fill="none"
@@ -764,7 +765,7 @@ export default function StudentDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="rounded-2xl border border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747] p-5 sm:p-6">
+      <div className="rounded-2xl border border-[#AECBFA] bg-[#E8F0FE] p-5 sm:p-6">
         <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
@@ -779,8 +780,8 @@ export default function StudentDashboardPage() {
               </p>
             )}
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#AECBFA] dark:border-[#355C9A] bg-[#D2E3FC] dark:bg-[#1B3B6F] px-3 py-1.5 text-sm text-muted-foreground">
-            <svg className="w-4 h-4 text-[#1A73E8] dark:text-[#8AB4F8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#AECBFA] bg-[#D2E3FC] px-3 py-1.5 text-sm text-muted-foreground">
+            <svg className="w-4 h-4 text-[#1A73E8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -832,10 +833,10 @@ export default function StudentDashboardPage() {
             {pendingParents.map(parent => (
               <div
                 key={parent.id}
-                className="flex items-center justify-between p-4 bg-[#FEF7E0] dark:bg-[#33240E] border border-[#F6C26B] dark:border-[#A86A08] rounded-lg"
+                className="flex items-center justify-between p-4 bg-[#FEF7E0] border border-[#F6C26B] rounded-lg"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#FDE293] dark:bg-[#4A340F] flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-[#FDE293] flex items-center justify-center flex-shrink-0">
                     <span className="font-bold text-sm text-warning">
                       {parent.firstName[0]}{parent.lastName[0]}
                     </span>
@@ -861,7 +862,7 @@ export default function StudentDashboardPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleRejectParent(parent.id)}
-                    className="border-destructive text-destructive hover:bg-[#FCE8E6] dark:hover:bg-[#5F1D1D]"
+                    className="border-destructive text-destructive hover:bg-[#FCE8E6]"
                   >
                     Reject
                   </Button>
@@ -877,7 +878,7 @@ export default function StudentDashboardPage() {
         <ContentCard
           title="Your School Counselor(s)"
           description="Your assigned support team, organized for quick contact."
-          className="border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747]"
+          className="border-[#AECBFA] bg-[#E8F0FE]"
         >
           <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4">
             {counselors.map((c, index) => (
@@ -885,20 +886,20 @@ export default function StudentDashboardPage() {
                 key={c.id}
                 className={`p-0 overflow-hidden h-full ${
                   index % 3 === 0
-                    ? 'border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747]'
+                    ? 'border-[#AECBFA] bg-[#E8F0FE]'
                     : index % 3 === 1
-                      ? 'border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18]'
-                      : 'border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E]'
+                      ? 'border-[#81C995] bg-[#E6F4EA]'
+                      : 'border-[#F6C26B] bg-[#FEF7E0]'
                 }`}
                 hover
               >
                 <div
                   className={`h-1 ${
                     index % 3 === 0
-                      ? 'bg-[#1A73E8] dark:bg-[#355C9A]'
+                      ? 'bg-[#1A73E8]'
                       : index % 3 === 1
-                        ? 'bg-[#1E8E3E] dark:bg-[#2E7D32]'
-                        : 'bg-[#EA8600] dark:bg-[#A86A08]'
+                        ? 'bg-[#1E8E3E]'
+                        : 'bg-[#EA8600]'
                   }`}
                 />
                 <div className="relative p-4 space-y-4">
@@ -906,10 +907,10 @@ export default function StudentDashboardPage() {
                     aria-hidden
                     className={`pointer-events-none absolute -right-10 -top-10 w-24 h-24 rounded-full blur-2xl ${
                       index % 3 === 0
-                        ? 'bg-[#D2E3FC] dark:bg-[#1B3B6F]'
+                        ? 'bg-[#D2E3FC]'
                         : index % 3 === 1
-                          ? 'bg-[#CEEAD6] dark:bg-[#1A4A28]'
-                          : 'bg-[#FDE293] dark:bg-[#4A340F]'
+                          ? 'bg-[#CEEAD6]'
+                          : 'bg-[#FDE293]'
                     }`}
                   />
                   <div className="relative flex items-start gap-3">
@@ -924,10 +925,10 @@ export default function StudentDashboardPage() {
                         <span
                           className={`font-bold text-base ${
                             index % 3 === 0
-                              ? 'text-[#1A73E8] dark:text-[#8AB4F8]'
+                              ? 'text-[#1A73E8]'
                               : index % 3 === 1
-                                ? 'text-[#1E8E3E] dark:text-[#81C995]'
-                                : 'text-[#EA8600] dark:text-[#F6C26B]'
+                                ? 'text-[#1E8E3E]'
+                                : 'text-[#EA8600]'
                           }`}
                         >
                           {c.firstName[0]}
@@ -945,7 +946,7 @@ export default function StudentDashboardPage() {
                             {c.title || 'School Counselor'}
                           </p>
                         </div>
-                        <span className="px-2.5 py-1 rounded-full border border-[#AECBFA] dark:border-[#355C9A] bg-[#D2E3FC] dark:bg-[#1B3B6F] text-[11px] font-semibold text-[#1A73E8] dark:text-[#8AB4F8] mt-0.5">
+                        <span className="px-2.5 py-1 rounded-full border border-[#AECBFA] bg-[#D2E3FC] text-[11px] font-semibold text-[#1A73E8] mt-0.5">
                           Assigned
                         </span>
                       </div>
@@ -953,7 +954,7 @@ export default function StudentDashboardPage() {
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-2">
-                    <div className="rounded-lg border border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18] px-3 py-2.5">
+                    <div className="rounded-lg border border-[#81C995] bg-[#E6F4EA] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                         Department
                       </p>
@@ -961,7 +962,7 @@ export default function StudentDashboardPage() {
                         {c.department || 'General'}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E] px-3 py-2.5">
+                    <div className="rounded-lg border border-[#F6C26B] bg-[#FEF7E0] px-3 py-2.5">
                       <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
                         School
                       </p>
@@ -974,7 +975,7 @@ export default function StudentDashboardPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/student/messages"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#D7AEFB] dark:border-[#6F4E93] bg-[#E9D4FA] dark:bg-[#3B2455] text-sm font-medium text-[#7B1FA2] dark:text-[#D7AEFB] hover:bg-[#D7AEFB] dark:hover:bg-[#6F4E93] transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#D7AEFB] bg-[#E9D4FA] text-sm font-medium text-[#7B1FA2] hover:bg-[#D7AEFB] transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -983,7 +984,7 @@ export default function StudentDashboardPage() {
                     </Link>
                     <Link
                       href="/student/meetings"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#AECBFA] dark:border-[#355C9A] bg-[#D2E3FC] dark:bg-[#1B3B6F] text-[#1A73E8] dark:text-[#8AB4F8] text-sm font-medium hover:bg-[#AECBFA] dark:hover:bg-[#355C9A] transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#AECBFA] bg-[#D2E3FC] text-[#1A73E8] text-sm font-medium hover:bg-[#AECBFA] transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1002,10 +1003,10 @@ export default function StudentDashboardPage() {
         <ContentCard
           title="Registered School Contacts"
           description="Everyone registered at your school by role."
-          className="border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18]"
+          className="border-[#81C995] bg-[#E6F4EA]"
         >
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747] p-4">
+            <div className="rounded-xl border border-[#AECBFA] bg-[#E8F0FE] p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-semibold text-foreground">Counselors</p>
                 <Badge variant="primary" size="sm">{counselors.length}</Badge>
@@ -1015,7 +1016,7 @@ export default function StudentDashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {counselors.map((member) => (
-                    <div key={member.id} className="p-2.5 rounded-lg bg-[#D2E3FC] dark:bg-[#1B3B6F] border border-[#AECBFA] dark:border-[#355C9A]">
+                    <div key={member.id} className="p-2.5 rounded-lg bg-[#D2E3FC] border border-[#AECBFA]">
                       <p className="text-sm font-medium text-foreground">
                         {member.firstName} {member.lastName}
                       </p>
@@ -1028,7 +1029,7 @@ export default function StudentDashboardPage() {
               )}
             </div>
 
-            <div className="rounded-xl border border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18] p-4">
+            <div className="rounded-xl border border-[#81C995] bg-[#E6F4EA] p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-semibold text-foreground">Teachers</p>
                 <Badge variant="accent" size="sm">{teachers.length}</Badge>
@@ -1038,7 +1039,7 @@ export default function StudentDashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {teachers.map((member) => (
-                    <div key={member.id} className="p-2.5 rounded-lg bg-[#CEEAD6] dark:bg-[#1A4A28] border border-[#81C995] dark:border-[#2E7D32]">
+                    <div key={member.id} className="p-2.5 rounded-lg bg-[#CEEAD6] border border-[#81C995]">
                       <p className="text-sm font-medium text-foreground">
                         {member.firstName} {member.lastName}
                       </p>
@@ -1051,7 +1052,7 @@ export default function StudentDashboardPage() {
               )}
             </div>
 
-            <div className="rounded-xl border border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E] p-4">
+            <div className="rounded-xl border border-[#F6C26B] bg-[#FEF7E0] p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-semibold text-foreground">Parents</p>
                 <Badge variant="warning" size="sm">{parents.length}</Badge>
@@ -1061,7 +1062,7 @@ export default function StudentDashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {parents.map((member) => (
-                    <div key={member.id} className="p-2.5 rounded-lg bg-[#FDE293] dark:bg-[#4A340F] border border-[#F6C26B] dark:border-[#A86A08]">
+                    <div key={member.id} className="p-2.5 rounded-lg bg-[#FDE293] border border-[#F6C26B]">
                       <p className="text-sm font-medium text-foreground">
                         {member.firstName} {member.lastName}
                       </p>
@@ -1102,12 +1103,12 @@ export default function StudentDashboardPage() {
               View all
             </Link>
           }
-          className="lg:col-span-2 border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747]"
+          className="lg:col-span-2 border-[#AECBFA] bg-[#E8F0FE]"
         >
           {recentRequests.length > 0 ? (
             <div className="space-y-3">
               {recentRequests.map((request) => (
-                <div key={request.id} className="rounded-xl border border-[#AECBFA] dark:border-[#355C9A] bg-[#D2E3FC] dark:bg-[#1B3B6F] p-3.5">
+                <div key={request.id} className="rounded-xl border border-[#AECBFA] bg-[#D2E3FC] p-3.5">
                   <div className="flex items-start gap-3">
                     <span
                       className={`mt-1.5 w-2.5 h-2.5 rounded-full ${
@@ -1145,7 +1146,7 @@ export default function StudentDashboardPage() {
                         <span className="px-2.5 py-1 rounded-full border border-border bg-background text-muted-foreground">
                           {request.createdAt}
                         </span>
-                        <span className="px-2.5 py-1 rounded-full border border-[#AECBFA] dark:border-[#355C9A] bg-[#D2E3FC] dark:bg-[#1B3B6F] text-[#1A73E8] dark:text-[#8AB4F8] capitalize">
+                        <span className="px-2.5 py-1 rounded-full border border-[#AECBFA] bg-[#D2E3FC] text-[#1A73E8] capitalize">
                           {request.category}
                         </span>
                       </div>
@@ -1155,7 +1156,7 @@ export default function StudentDashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-6 rounded-xl border border-dashed border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747] text-muted-foreground">
+            <div className="text-center py-6 rounded-xl border border-dashed border-[#AECBFA] bg-[#E8F0FE] text-muted-foreground">
               <svg className="w-10 h-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -1178,12 +1179,12 @@ export default function StudentDashboardPage() {
               View all
             </Link>
           }
-          className="border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E]"
+          className="border-[#F6C26B] bg-[#FEF7E0]"
         >
           {upcomingMeetingsList.length > 0 ? (
             <div className="space-y-3">
               {upcomingMeetingsList.map((meeting) => (
-                <div key={meeting.id} className="rounded-xl border border-[#F6C26B] dark:border-[#A86A08] bg-[#FDE293] dark:bg-[#4A340F] p-3.5">
+                <div key={meeting.id} className="rounded-xl border border-[#F6C26B] bg-[#FDE293] p-3.5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-semibold text-foreground text-sm leading-5">{meeting.title}</p>
@@ -1194,7 +1195,7 @@ export default function StudentDashboardPage() {
                     </Badge>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E]">
+                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[#F6C26B] bg-[#FEF7E0]">
                       <svg
                         className="w-3.5 h-3.5"
                         fill="none"
@@ -1210,7 +1211,7 @@ export default function StudentDashboardPage() {
                       </svg>
                       {meeting.date}
                     </span>
-                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E]">
+                    <span className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg border border-[#F6C26B] bg-[#FEF7E0]">
                       <svg
                         className="w-3.5 h-3.5"
                         fill="none"
@@ -1230,19 +1231,19 @@ export default function StudentDashboardPage() {
                 </div>
               ))}
               <Link href="/student/meetings">
-                <Button variant="outline" fullWidth size="sm" className="border-[#F6C26B] dark:border-[#A86A08] text-[#EA8600] dark:text-[#F6C26B] hover:bg-[#FDE293] dark:hover:bg-[#4A340F]">
+                <Button variant="outline" fullWidth size="sm" className="border-[#F6C26B] text-[#EA8600] hover:bg-[#FDE293]">
                   Book New Meeting
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="text-center py-6 rounded-xl border border-dashed border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E] text-muted-foreground">
+            <div className="text-center py-6 rounded-xl border border-dashed border-[#F6C26B] bg-[#FEF7E0] text-muted-foreground">
               <svg className="w-10 h-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <p>No upcoming meetings.</p>
               <Link href="/student/meetings">
-                <Button variant="outline" size="sm" className="mt-3 border-[#F6C26B] dark:border-[#A86A08] text-[#EA8600] dark:text-[#F6C26B] hover:bg-[#FDE293] dark:hover:bg-[#4A340F]">
+                <Button variant="outline" size="sm" className="mt-3 border-[#F6C26B] text-[#EA8600] hover:bg-[#FDE293]">
                   Book a Meeting
                 </Button>
               </Link>
@@ -1259,7 +1260,7 @@ export default function StudentDashboardPage() {
             Open guidance
           </Link>
         }
-        className="border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18]"
+        className="border-[#81C995] bg-[#E6F4EA]"
       >
         {guidanceResources.length > 0 ? (
           <div className="grid sm:grid-cols-2 gap-3">
@@ -1298,8 +1299,8 @@ export default function StudentDashboardPage() {
             })}
           </div>
         ) : (
-          <div className="text-center py-8 rounded-xl border border-dashed border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18] text-muted-foreground">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-xl border border-[#81C995] dark:border-[#2E7D32] bg-[#CEEAD6] dark:bg-[#1A4A28] flex items-center justify-center">
+          <div className="text-center py-8 rounded-xl border border-dashed border-[#81C995] bg-[#E6F4EA] text-muted-foreground">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-xl border border-[#81C995] bg-[#CEEAD6] flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
@@ -1317,7 +1318,7 @@ export default function StudentDashboardPage() {
         title="Goals Progress"
         description="Track your academic and personal goals"
         action={goals.length > 0 ? undefined : undefined}
-        className="border-[#D7AEFB] dark:border-[#6F4E93] bg-[#F3E8FD] dark:bg-[#261537]"
+        className="border-[#D7AEFB] bg-[#F3E8FD]"
       >
         {goals.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1326,10 +1327,10 @@ export default function StudentDashboardPage() {
                 key={goal.id}
                 className={`p-4 ${
                   goal.priority === 'high'
-                    ? 'border-[#F6C26B] dark:border-[#A86A08] bg-[#FEF7E0] dark:bg-[#33240E]'
+                    ? 'border-[#F6C26B] bg-[#FEF7E0]'
                     : goal.priority === 'medium'
-                      ? 'border-[#AECBFA] dark:border-[#355C9A] bg-[#E8F0FE] dark:bg-[#0F2747]'
-                      : 'border-[#81C995] dark:border-[#2E7D32] bg-[#E6F4EA] dark:bg-[#102E18]'
+                      ? 'border-[#AECBFA] bg-[#E8F0FE]'
+                      : 'border-[#81C995] bg-[#E6F4EA]'
                 }`}
                 hover
               >
@@ -1422,4 +1423,3 @@ export default function StudentDashboardPage() {
     </div>
   );
 }
-
