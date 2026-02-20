@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/AppIcon';
@@ -57,6 +57,7 @@ const Header: React.FC = () => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const dashboardRoute = getDashboardRouteForRole(user?.role);
   const primaryActionRoute = getMessagesRouteForRole(user?.role);
@@ -96,6 +97,18 @@ const Header: React.FC = () => {
       document.body.style.overflow = 'unset';
     };
   }, [isMobileMenuOpen]);
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileMenuOpen]);
 
   return (
     <>
@@ -188,7 +201,7 @@ const Header: React.FC = () => {
               <div className="w-px h-6 bg-[#DADCE0] dark:bg-[#3C4043]" />
               <ThemeToggle />
               {!isLoading && user ? (
-                <div className="relative">
+                <div className="relative" ref={profileMenuRef}>
                   <button
                     onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                     className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors focus-ring"
