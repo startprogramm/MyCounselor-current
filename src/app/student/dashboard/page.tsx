@@ -139,8 +139,8 @@ const quickActions = [
     description: 'Start conversation',
     href: '/student/messages',
     icon: 'chat',
-    color: 'bg-[#16A34A]',
-    hoverBorder: 'hover:border-[#16A34A]',
+    color: 'bg-[#EF4444]',
+    hoverBorder: 'hover:border-[#EF4444]',
   },
 ];
 
