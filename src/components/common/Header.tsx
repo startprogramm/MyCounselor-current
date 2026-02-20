@@ -391,7 +391,6 @@ const Header: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <ZoomControl />
               <ThemeToggle />
               <button
                 type="button"
