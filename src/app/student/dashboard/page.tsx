@@ -115,7 +115,8 @@ const quickActions = [
     description: 'Schedule with counselor',
     href: '/student/meetings',
     icon: 'calendar',
-    color: 'bg-[#16A34A]',
+    color: 'bg-[#2563EB]',
+    hoverBorder: 'hover:border-[#2563EB]',
   },
   {
     label: 'New Request',
@@ -123,20 +124,23 @@ const quickActions = [
     href: '/student/requests',
     icon: 'document',
     color: 'bg-[#16A34A]',
+    hoverBorder: 'hover:border-[#16A34A]',
   },
   {
     label: 'View Resources',
     description: 'Guides and articles',
     href: '/student/guidance',
     icon: 'book',
-    color: 'bg-[#16A34A]',
+    color: 'bg-[#2563EB]',
+    hoverBorder: 'hover:border-[#2563EB]',
   },
   {
     label: 'Send Message',
     description: 'Start conversation',
     href: '/student/messages',
     icon: 'chat',
-    color: 'bg-[#16A34A]',
+    color: 'bg-[#DC2626]',
+    hoverBorder: 'hover:border-[#DC2626]',
   },
 ];
 
@@ -664,7 +668,7 @@ export default function StudentDashboardPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {counselors.map((c) => (
                 <Card key={c.id} className="p-0 overflow-hidden">
-                  <div className="h-1 bg-[#16A34A]" />
+                  <div className="h-1 bg-[#2563EB]" />
                   <div className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="w-12 h-12 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -676,7 +680,7 @@ export default function StudentDashboardPage() {
                           />
                         ) : (
                           <span
-                            className="font-bold text-sm text-[#16A34A]"
+                            className="font-bold text-sm text-[#2563EB]"
                           >
                             {c.firstName[0]}
                             {c.lastName[0]}
@@ -746,7 +750,7 @@ export default function StudentDashboardPage() {
           <Link
             key={action.label}
             href={action.href}
-            className="group p-4 bg-card rounded-xl border border-border hover:border-[#16A34A] hover:shadow-md transition-all"
+            className={`group p-4 bg-card rounded-xl border border-border ${action.hoverBorder} hover:shadow-md transition-all`}
           >
             <div className="flex items-start gap-3">
               <div
@@ -802,7 +806,7 @@ export default function StudentDashboardPage() {
                     size="sm"
                     variant="outline"
                     onClick={() => handleRejectParent(parent.id)}
-                    className="border-border text-foreground hover:bg-muted"
+                    className="border-[#DC2626] bg-[#DC2626] text-white hover:bg-[#B91C1C]"
                   >
                     Reject
                   </Button>
@@ -822,11 +826,11 @@ export default function StudentDashboardPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4">
             {counselors.map((c) => (
               <Card key={c.id} className="p-0 overflow-hidden h-full border-border" hover>
-                <div className="h-1 bg-[#16A34A]" />
+                <div className="h-1 bg-[#2563EB]" />
                 <div className="relative p-4 space-y-4">
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute right-4 top-4 w-3 h-3 rounded-full bg-[#16A34A]"
+                    className="pointer-events-none absolute right-4 top-4 w-3 h-3 rounded-full bg-[#2563EB]"
                   />
                   <div className="relative flex items-start gap-3">
                     <div className="w-14 h-14 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
@@ -838,7 +842,7 @@ export default function StudentDashboardPage() {
                         />
                       ) : (
                         <span
-                          className="font-bold text-base text-[#16A34A]"
+                          className="font-bold text-base text-[#2563EB]"
                         >
                           {c.firstName[0]}
                           {c.lastName[0]}
@@ -855,7 +859,7 @@ export default function StudentDashboardPage() {
                             {c.title || 'School Counselor'}
                           </p>
                         </div>
-                        <span className="px-2.5 py-1 rounded-full border border-[#16A34A] bg-[#16A34A] text-[11px] font-semibold text-white mt-0.5">
+                        <span className="px-2.5 py-1 rounded-full border border-[#2563EB] bg-[#2563EB] text-[11px] font-semibold text-white mt-0.5">
                           Assigned
                         </span>
                       </div>
@@ -884,7 +888,7 @@ export default function StudentDashboardPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/student/messages"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-background text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#DC2626] bg-[#DC2626] text-sm font-medium text-white hover:bg-[#B91C1C] transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -893,7 +897,7 @@ export default function StudentDashboardPage() {
                     </Link>
                     <Link
                       href="/student/meetings"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#16A34A] bg-[#16A34A] text-white text-sm font-medium hover:bg-[#15803D] transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#2563EB] bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1D4ED8] transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -916,7 +920,10 @@ export default function StudentDashboardPage() {
           <div className="grid md:grid-cols-3 gap-4">
             <div className="rounded-xl border border-border bg-muted p-4">
               <div className="flex items-center justify-between mb-3">
-                <p className="font-semibold text-foreground">Counselors</p>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-[#2563EB]" />
+                  <p className="font-semibold text-foreground">Counselors</p>
+                </div>
                 <Badge variant="primary" size="sm">{counselors.length}</Badge>
               </div>
               {counselors.length === 0 ? (
@@ -939,7 +946,10 @@ export default function StudentDashboardPage() {
 
             <div className="rounded-xl border border-border bg-muted p-4">
               <div className="flex items-center justify-between mb-3">
-                <p className="font-semibold text-foreground">Teachers</p>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-[#16A34A]" />
+                  <p className="font-semibold text-foreground">Teachers</p>
+                </div>
                 <Badge variant="accent" size="sm">{teachers.length}</Badge>
               </div>
               {teachers.length === 0 ? (
@@ -962,7 +972,10 @@ export default function StudentDashboardPage() {
 
             <div className="rounded-xl border border-border bg-muted p-4">
               <div className="flex items-center justify-between mb-3">
-                <p className="font-semibold text-foreground">Parents</p>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-sm bg-[#DC2626]" />
+                  <p className="font-semibold text-foreground">Parents</p>
+                </div>
                 <Badge variant="warning" size="sm">{parents.length}</Badge>
               </div>
               {parents.length === 0 ? (
@@ -1053,7 +1066,7 @@ export default function StudentDashboardPage() {
                         <span className="px-2.5 py-1 rounded-full border border-border bg-background text-muted-foreground">
                           {request.createdAt}
                         </span>
-                        <span className="px-2.5 py-1 rounded-full border border-[#16A34A] bg-[#16A34A] text-white capitalize">
+                        <span className="px-2.5 py-1 rounded-full border border-[#2563EB] bg-[#2563EB] text-white capitalize">
                           {request.category}
                         </span>
                       </div>
