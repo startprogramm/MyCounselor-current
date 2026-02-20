@@ -1006,24 +1006,33 @@ export default function StudentMeetingsPage() {
             {pastMeetings.map((meeting) => (
               <div key={meeting.id}>
                 <div
-                  className="flex items-center justify-between p-4 bg-muted/30 rounded-lg opacity-75"
+                  className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border border-border/80"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center text-muted-foreground">
+                    <div className="w-10 h-10 rounded-full border border-success/30 bg-success/10 flex items-center justify-center text-success">
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
                     <div>
-                      <h3 className="font-medium text-foreground">{meeting.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {meeting.counselor} &bull; {meeting.date}
-                      </p>
+                      <h3 className="font-semibold text-foreground">{meeting.title}</h3>
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="px-2.5 py-1 rounded-full border border-border bg-background/60 text-muted-foreground">
+                          {meeting.counselor}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full border border-border bg-background/60 text-muted-foreground">
+                          {meeting.date}
+                        </span>
+                        <span className="px-2.5 py-1 rounded-full border border-success/30 bg-success/10 text-success font-medium">
+                          Completed
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
+                    className="min-w-[98px]"
                     onClick={() => setViewingNotes(viewingNotes === meeting.id ? null : meeting.id)}
                   >
                     {viewingNotes === meeting.id ? 'Hide Notes' : 'View Notes'}
