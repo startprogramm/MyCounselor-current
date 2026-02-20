@@ -139,8 +139,8 @@ const quickActions = [
     description: 'Start conversation',
     href: '/student/messages',
     icon: 'chat',
-    color: 'bg-[#EF4444]',
-    hoverBorder: 'hover:border-[#EF4444]',
+    color: 'bg-[#16A34A]',
+    hoverBorder: 'hover:border-[#16A34A]',
   },
 ];
 
@@ -888,7 +888,7 @@ export default function StudentDashboardPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Link
                       href="/student/messages"
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#EF4444] bg-[#EF4444] text-sm font-medium text-white hover:bg-[#DC2626] transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#16A34A] bg-[#16A34A] text-sm font-medium text-white hover:bg-[#15803D] transition-colors"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
