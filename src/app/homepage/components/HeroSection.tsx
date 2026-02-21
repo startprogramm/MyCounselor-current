@@ -463,7 +463,7 @@ const HeroSection = ({ className = '' }: HeroSectionProps) => {
               <div
                 ref={cardRef}
                 className="relative w-full overflow-hidden rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl backdrop-blur-xl animate-float"
-                style={{ height: '480px', transformOrigin: 'center center', willChange: 'transform, opacity' }}
+                style={{ height: '560px', transformOrigin: 'center center', willChange: 'transform, opacity' }}
               >
                 {renderSlide(slideIndex)}
                 <div className="pointer-events-none absolute -bottom-24 -right-24 h-64 w-64 rounded-full bg-[#EA8600]/20 blur-3xl" />
