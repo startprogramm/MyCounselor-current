@@ -11,9 +11,9 @@ import { useAuth } from '@/context/AuthContext';
 import { getDashboardRouteForRole, getMessagesRouteForRole } from '@/lib/role-routes';
 
 const LANGUAGES = [
-  { code: 'en', label: 'English', flag: '🇺🇸' },
-  { code: 'ru', label: 'Русский', flag: '🇷🇺' },
-  { code: 'uz', label: "O'zbek", flag: '🇺🇿' },
+  { code: 'en', label: 'English', flagUrl: 'https://flagcdn.com/w20/us.png' },
+  { code: 'ru', label: 'Русский', flagUrl: 'https://flagcdn.com/w20/ru.png' },
+  { code: 'uz', label: "O'zbek", flagUrl: 'https://flagcdn.com/w20/uz.png' },
 ];
 
 interface NavItem {
@@ -241,7 +241,7 @@ const Header: React.FC = () => {
                   aria-expanded={isLangMenuOpen ? 'true' : 'false'}
                   aria-haspopup="listbox"
                 >
-                  <span className="text-base leading-none">{currentLangData.flag}</span>
+                  <img src={currentLangData.flagUrl} alt={currentLangData.label} className="w-5 h-3.5 object-cover rounded-sm" />
                   <span className="uppercase">{currentLangData.code}</span>
                   <Icon
                     name="ChevronDownIcon"
@@ -270,7 +270,7 @@ const Header: React.FC = () => {
                           : 'text-[#202124] dark:text-[#E8EAED] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043]'
                       }`}
                     >
-                      <span className="text-base">{lang.flag}</span>
+                      <img src={lang.flagUrl} alt={lang.label} className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
                       <span>{lang.label}</span>
                     </button>
                   ))}
@@ -363,7 +363,7 @@ const Header: React.FC = () => {
                   aria-expanded={isLangMenuOpen ? 'true' : 'false'}
                   aria-haspopup="listbox"
                 >
-                  <span className="text-base leading-none">{currentLangData.flag}</span>
+                  <img src={currentLangData.flagUrl} alt={currentLangData.label} className="w-5 h-3.5 object-cover rounded-sm" />
                 </button>
                 <div
                   className={`absolute top-full right-0 mt-2 w-40 bg-white dark:bg-[#292929] rounded-lg shadow-lg border border-[#DADCE0] dark:border-[#3C4043] py-1 z-50 transition-all duration-200 ${
@@ -385,7 +385,7 @@ const Header: React.FC = () => {
                           : 'text-[#202124] dark:text-[#E8EAED] hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043]'
                       }`}
                     >
-                      <span className="text-base">{lang.flag}</span>
+                      <img src={lang.flagUrl} alt={lang.label} className="w-5 h-3.5 object-cover rounded-sm flex-shrink-0" />
                       <span>{lang.label}</span>
                     </button>
                   ))}
