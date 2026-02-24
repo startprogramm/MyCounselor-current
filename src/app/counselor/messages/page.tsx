@@ -11,7 +11,7 @@ import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-
 
 interface Message {
   id: number;
-  sender: 'student' | 'counselor';
+  sender: 'counselor' | 'contact';
   content: string;
   timestamp: string;
 }
@@ -26,8 +26,8 @@ interface MessageRow {
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
-interface StudentChat {
-  student: User;
+interface ContactChat {
+  contact: User;
   conversationKey: string;
   lastMessage: string;
   timestamp: string;
@@ -36,14 +36,20 @@ interface StudentChat {
 }
 
 interface CounselorMessagesCachePayload {
-  studentChats: StudentChat[];
+  studentChats: ContactChat[];
+  teacherChats: ContactChat[];
+  parentChats: ContactChat[];
   selectedStudentId: string | null;
+  selectedTeacherId: string | null;
+  selectedParentId: string | null;
 }
+
+type TabType = 'students' | 'teachers' | 'parents';
 
 const COUNSELOR_MESSAGES_CACHE_TTL_MS = 2 * 60 * 1000;
 
-function buildConversationKey(studentId: string, counselorId: string) {
-  return [studentId, counselorId].sort().join('__');
+function buildConversationKey(idA: string, idB: string) {
+  return [idA, idB].sort().join('__');
 }
 
 function formatMessageTime(value: string) {
@@ -74,36 +80,80 @@ function mapProfileToUser(profile: ProfileRow): User {
   };
 }
 
+// ─── Tab config ───────────────────────────────────────────────────────────────
+const TABS: { key: TabType; label: string; role: 'student' | 'teacher' | 'parent' }[] = [
+  { key: 'students', label: 'Students', role: 'student' },
+  { key: 'teachers', label: 'Teachers', role: 'teacher' },
+  { key: 'parents',  label: 'Parents',  role: 'parent'  },
+];
+
 export default function CounselorMessagesPage() {
   const { user } = useAuth();
-  const [studentChats, setStudentChats] = useState<StudentChat[]>([]);
+
+  // ─── Tab state ──────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<TabType>('students');
+
+  // ─── Per-tab chat lists ─────────────────────────────────────────────────────
+  const [studentChats, setStudentChats] = useState<ContactChat[]>([]);
+  const [teacherChats, setTeacherChats] = useState<ContactChat[]>([]);
+  const [parentChats,  setParentChats]  = useState<ContactChat[]>([]);
+
+  // ─── Per-tab selected contact ───────────────────────────────────────────────
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
+  const [selectedParentId,  setSelectedParentId]  = useState<string | null>(null);
+
+  // ─── Loading / error ────────────────────────────────────────────────────────
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [hasLoadedChats, setHasLoadedChats] = useState(false);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+
+  // ─── Misc ───────────────────────────────────────────────────────────────────
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
   const loadRequestIdRef = useRef(0);
-  const studentChatsRef = useRef<StudentChat[]>([]);
+  const studentChatsRef = useRef<ContactChat[]>([]);
   const emptyChatsStreakRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const cacheKey = useMemo(
-    () => (user?.id ? makeUserCacheKey('counselor-messages', user.id, user.schoolId) : null),
+    () => (user?.id ? makeUserCacheKey('counselor-messages-v2', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
   );
 
+  // ─── Derived active-tab helpers ─────────────────────────────────────────────
+  const activeChats = useMemo(() => {
+    if (activeTab === 'students') return studentChats;
+    if (activeTab === 'teachers') return teacherChats;
+    return parentChats;
+  }, [activeTab, studentChats, teacherChats, parentChats]);
+
+  const activeSelectedId =
+    activeTab === 'students' ? selectedStudentId :
+    activeTab === 'teachers' ? selectedTeacherId :
+    selectedParentId;
+
+  // ─── Cache hydration ────────────────────────────────────────────────────────
   useLayoutEffect(() => {
     if (!cacheKey) {
       setStudentChats([]);
+      setTeacherChats([]);
+      setParentChats([]);
       setSelectedStudentId(null);
+      setSelectedTeacherId(null);
+      setSelectedParentId(null);
       setIsLoadingChats(true);
       setHasLoadedChats(false);
       return;
     }
 
     setStudentChats([]);
+    setTeacherChats([]);
+    setParentChats([]);
     setSelectedStudentId(null);
+    setSelectedTeacherId(null);
+    setSelectedParentId(null);
     setIsLoadingChats(true);
     setHasLoadedChats(false);
 
@@ -111,19 +161,18 @@ export default function CounselorMessagesPage() {
       cacheKey,
       COUNSELOR_MESSAGES_CACHE_TTL_MS
     );
-
     if (!cached.found || !cached.data) return;
 
-    const cachedChats = cached.data.studentChats || [];
-    const cachedSelectedStudentId = cached.data.selectedStudentId || null;
-    const selectedStudentExists = cachedSelectedStudentId
-      ? cachedChats.some((chat) => chat.student.id === cachedSelectedStudentId)
-      : false;
+    const { studentChats: sc = [], teacherChats: tc = [], parentChats: pc = [],
+            selectedStudentId: sid = null, selectedTeacherId: tid = null, selectedParentId: pid = null } =
+      cached.data;
 
-    setStudentChats(cachedChats);
-    setSelectedStudentId(
-      selectedStudentExists ? cachedSelectedStudentId : cachedChats[0]?.student.id || null
-    );
+    setStudentChats(sc);
+    setTeacherChats(tc);
+    setParentChats(pc);
+    setSelectedStudentId(sid && sc.some(c => c.contact.id === sid) ? sid : sc[0]?.contact.id || null);
+    setSelectedTeacherId(tid && tc.some(c => c.contact.id === tid) ? tid : tc[0]?.contact.id || null);
+    setSelectedParentId(pid  && pc.some(c => c.contact.id === pid)  ? pid  : pc[0]?.contact.id  || null);
     setIsLoadingChats(false);
     setHasLoadedChats(true);
   }, [cacheKey]);
@@ -132,57 +181,133 @@ export default function CounselorMessagesPage() {
     studentChatsRef.current = studentChats;
   }, [studentChats]);
 
+  // ─── Persist to cache when data changes ─────────────────────────────────────
+  useEffect(() => {
+    if (!cacheKey || !hasLoadedChats) return;
+    writeCachedData<CounselorMessagesCachePayload>(cacheKey, {
+      studentChats, teacherChats, parentChats,
+      selectedStudentId, selectedTeacherId, selectedParentId,
+    });
+  }, [cacheKey, studentChats, teacherChats, parentChats,
+      selectedStudentId, selectedTeacherId, selectedParentId, hasLoadedChats]);
+
+  // ─── Mark conversation as read ───────────────────────────────────────────────
+  const markConversationAsRead = useCallback(
+    async (conversationKey: string, tab: TabType) => {
+      if (!user?.id) return;
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('message_reads').upsert(
+        { conversation_key: conversationKey, reader_id: user.id, last_read_at: now, updated_at: now },
+        { onConflict: 'conversation_key,reader_id' }
+      );
+      if (error) return;
+
+      const clearUnread = (chats: ContactChat[]) =>
+        chats.map(c => c.conversationKey === conversationKey ? { ...c, unread: 0 } : c);
+
+      if (tab === 'students') setStudentChats(clearUnread);
+      else if (tab === 'teachers') setTeacherChats(clearUnread);
+      else setParentChats(clearUnread);
+    },
+    [user?.id]
+  );
+
+  // ─── Generic chat loader ─────────────────────────────────────────────────────
+  const loadContactChats = useCallback(async (
+    role: 'student' | 'teacher' | 'parent',
+    setChats: React.Dispatch<React.SetStateAction<ContactChat[]>>,
+    setSelectedId: React.Dispatch<React.SetStateAction<string | null>>,
+    options?: { silent?: boolean }
+  ) => {
+    if (!user?.schoolId || !user?.id) return;
+
+    const [{ data: contactRows, error: contactsError }, ] = await Promise.all([
+      supabase.from('profiles').select('*').eq('school_id', user.schoolId).eq('role', role),
+    ]);
+
+    if (contactsError) return;
+
+    const contacts = (contactRows || []).map(mapProfileToUser);
+    if (contacts.length === 0) {
+      setChats([]);
+      return;
+    }
+
+    const keys = contacts.map(c => buildConversationKey(c.id, user.id));
+
+    const [{ data: messageRows }, { data: readRows }] = await Promise.all([
+      supabase.from('messages').select('*').in('conversation_key', keys).order('created_at', { ascending: true }),
+      supabase.from('message_reads').select('conversation_key,last_read_at').eq('reader_id', user.id).in('conversation_key', keys),
+    ]);
+
+    const grouped = new Map<string, MessageRow[]>();
+    (messageRows || []).forEach(row => {
+      const bucket = grouped.get(row.conversation_key) || [];
+      bucket.push(row as MessageRow);
+      grouped.set(row.conversation_key, bucket);
+    });
+
+    const readByConversation = new Map<string, string>();
+    (readRows || []).forEach(row => {
+      readByConversation.set(row.conversation_key, row.last_read_at);
+    });
+
+    const chats: ContactChat[] = contacts.map(contact => {
+      const conversationKey = buildConversationKey(contact.id, user.id);
+      const rows = grouped.get(conversationKey) || [];
+      const lastReadAt = readByConversation.get(conversationKey);
+      const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
+
+      const messages: Message[] = rows.map(row => ({
+        id: (row as MessageRow).id,
+        sender: (row as MessageRow).sender_role === 'counselor' ? 'counselor' : 'contact',
+        content: (row as MessageRow).content,
+        timestamp: formatMessageTime((row as MessageRow).created_at),
+      }));
+
+      const lastMessage = messages[messages.length - 1];
+      const unread = rows.filter(row =>
+        (row as MessageRow).sender_role !== 'counselor' &&
+        (lastReadMs === 0 || new Date((row as MessageRow).created_at).getTime() > lastReadMs)
+      ).length;
+
+      return {
+        contact,
+        conversationKey,
+        messages,
+        unread,
+        lastMessage: lastMessage?.content || 'No messages yet',
+        timestamp: lastMessage?.timestamp || '',
+      };
+    });
+
+    chats.sort((a, b) => {
+      const aHas = a.messages.length > 0;
+      const bHas = b.messages.length > 0;
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
+      if (aHas && bHas) return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
+      return a.contact.firstName.localeCompare(b.contact.firstName);
+    });
+
+    setChats(chats);
+    setSelectedId(prev => (prev && chats.some(c => c.contact.id === prev)) ? prev : chats[0]?.contact.id || null);
+  }, [user?.id, user?.schoolId]);
+
+  // ─── Student-specific loader (keeps the existing robust fallback logic) ──────
   const shouldPreserveStudentChats = useCallback(() => {
     if (studentChatsRef.current.length === 0) return false;
     emptyChatsStreakRef.current += 1;
     return emptyChatsStreakRef.current < 2;
   }, []);
 
-  useEffect(() => {
-    if (!cacheKey || !hasLoadedChats) return;
-
-    writeCachedData<CounselorMessagesCachePayload>(cacheKey, {
-      studentChats,
-      selectedStudentId,
-    });
-  }, [cacheKey, studentChats, selectedStudentId, hasLoadedChats]);
-
-  const markConversationAsRead = useCallback(
-    async (conversationKey?: string) => {
-      if (!conversationKey || !user?.id) return;
-
-      const now = new Date().toISOString();
-      const { error } = await supabase.from('message_reads').upsert(
-        {
-          conversation_key: conversationKey,
-          reader_id: user.id,
-          last_read_at: now,
-          updated_at: now,
-        },
-        { onConflict: 'conversation_key,reader_id' }
-      );
-
-      if (error) return;
-
-      setStudentChats((previous) =>
-        previous.map((chat) =>
-          chat.conversationKey === conversationKey ? { ...chat, unread: 0 } : chat
-        )
-      );
-    },
-    [user?.id]
-  );
-
   const loadStudentChats = useCallback(async (options?: { silent?: boolean }) => {
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
 
-    const silent = options?.silent === true;
-    if (!silent) {
-      setIsLoadingChats(true);
-    }
+    if (!options?.silent) setIsLoadingChats(true);
 
-    const finishLoad = () => {
+    const finish = () => {
       if (loadRequestIdRef.current !== requestId) return;
       setIsLoadingChats(false);
       setHasLoadedChats(true);
@@ -194,21 +319,17 @@ export default function CounselorMessagesPage() {
         setSelectedStudentId(null);
         setLoadError(null);
       }
-      finishLoad();
+      finish();
       return;
     }
 
     const { data: studentRows, error: studentsError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('school_id', user.schoolId)
-      .eq('role', 'student');
+      .from('profiles').select('*').eq('school_id', user.schoolId).eq('role', 'student');
 
     if (studentsError) {
-      if (loadRequestIdRef.current === requestId) {
+      if (loadRequestIdRef.current === requestId)
         setLoadError('Unable to load students right now. Please refresh and try again.');
-      }
-      finishLoad();
+      finish();
       return;
     }
 
@@ -216,137 +337,93 @@ export default function CounselorMessagesPage() {
     let messageRows: MessageRow[] = [];
 
     if (schoolStudents.length === 0) {
-      const { data: fallbackMessages, error: fallbackMessagesError } = await supabase
-        .from('messages')
-        .select('*')
-        .ilike('conversation_key', `%${user.id}%`)
-        .order('created_at', { ascending: true });
+      const { data: fallbackMessages, error: fallbackError } = await supabase
+        .from('messages').select('*').ilike('conversation_key', `%${user.id}%`).order('created_at', { ascending: true });
 
-      if (fallbackMessagesError || !fallbackMessages || fallbackMessages.length === 0) {
-        if (shouldPreserveStudentChats()) {
-          if (loadRequestIdRef.current === requestId) {
-            setLoadError(null);
-          }
-          finishLoad();
-          return;
-        }
-
-        if (loadRequestIdRef.current === requestId) {
-          setStudentChats([]);
-          setLoadError(null);
-        }
-        finishLoad();
+      if (fallbackError || !fallbackMessages || fallbackMessages.length === 0) {
+        if (shouldPreserveStudentChats()) { finish(); return; }
+        if (loadRequestIdRef.current === requestId) { setStudentChats([]); setLoadError(null); }
+        finish();
         return;
       }
 
-      const fallbackStudentIds = Array.from(
-        new Set(
-          fallbackMessages
-            .map((row) => row.conversation_key.split('__'))
-            .flat()
-            .filter((id) => id !== user.id)
-        )
-      );
+      const fallbackIds = Array.from(new Set(
+        fallbackMessages.map(r => r.conversation_key.split('__')).flat().filter(id => id !== user.id)
+      ));
 
-      if (fallbackStudentIds.length === 0) {
-        if (shouldPreserveStudentChats()) {
-          if (loadRequestIdRef.current === requestId) {
-            setLoadError(null);
-          }
-          finishLoad();
-          return;
-        }
-
-        if (loadRequestIdRef.current === requestId) {
-          setStudentChats([]);
-          setLoadError(null);
-        }
-        finishLoad();
+      if (fallbackIds.length === 0) {
+        if (shouldPreserveStudentChats()) { finish(); return; }
+        if (loadRequestIdRef.current === requestId) { setStudentChats([]); setLoadError(null); }
+        finish();
         return;
       }
 
       const { data: fallbackStudents, error: fallbackStudentsError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'student')
-        .in('id', fallbackStudentIds);
+        .from('profiles').select('*').eq('role', 'student').in('id', fallbackIds);
 
       if (fallbackStudentsError || !fallbackStudents || fallbackStudents.length === 0) {
-        if (loadRequestIdRef.current === requestId) {
+        if (loadRequestIdRef.current === requestId)
           setStudentChats([]);
-          setLoadError('Unable to load related student profiles. Please try again.');
-        }
-        finishLoad();
+        finish();
         return;
       }
 
       schoolStudents = fallbackStudents.map(mapProfileToUser);
-      messageRows = fallbackMessages;
+      messageRows = fallbackMessages as MessageRow[];
     }
 
     emptyChatsStreakRef.current = 0;
-
-    const keys = schoolStudents.map((student) => buildConversationKey(student.id, user.id));
+    const keys = schoolStudents.map(s => buildConversationKey(s.id, user.id));
 
     let hasMessageError = false;
     if (messageRows.length === 0) {
       const { data: liveMessages, error } = await supabase
-        .from('messages')
-        .select('*')
-        .in('conversation_key', keys)
-        .order('created_at', { ascending: true });
-
+        .from('messages').select('*').in('conversation_key', keys).order('created_at', { ascending: true });
       messageRows = (liveMessages || []) as MessageRow[];
       hasMessageError = Boolean(error);
     }
 
     const { data: readRows } = await supabase
-      .from('message_reads')
-      .select('conversation_key,last_read_at')
-      .eq('reader_id', user.id)
-      .in('conversation_key', keys);
+      .from('message_reads').select('conversation_key,last_read_at').eq('reader_id', user.id).in('conversation_key', keys);
 
     if (hasMessageError) {
-      if (loadRequestIdRef.current === requestId) {
+      if (loadRequestIdRef.current === requestId)
         setLoadError('Unable to load chat messages right now. Please try again.');
-      }
-      finishLoad();
+      finish();
       return;
     }
 
     const grouped = new Map<string, MessageRow[]>();
-    messageRows.forEach((row) => {
+    messageRows.forEach(row => {
       const bucket = grouped.get(row.conversation_key) || [];
       bucket.push(row);
       grouped.set(row.conversation_key, bucket);
     });
 
     const readByConversation = new Map<string, string>();
-    (readRows || []).forEach((row) => {
-      readByConversation.set(row.conversation_key, row.last_read_at);
-    });
+    (readRows || []).forEach(row => readByConversation.set(row.conversation_key, row.last_read_at));
 
-    const chats: StudentChat[] = schoolStudents.map((student) => {
+    const chats: ContactChat[] = schoolStudents.map(student => {
       const conversationKey = buildConversationKey(student.id, user.id);
       const rows = grouped.get(conversationKey) || [];
       const lastReadAt = readByConversation.get(conversationKey);
       const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
-      const messages: Message[] = rows.map((row) => ({
+
+      const messages: Message[] = rows.map(row => ({
         id: row.id,
-        sender: row.sender_role === 'counselor' ? 'counselor' : 'student',
+        sender: row.sender_role === 'counselor' ? 'counselor' : 'contact',
         content: row.content,
         timestamp: formatMessageTime(row.created_at),
       }));
 
       const lastMessage = messages[messages.length - 1];
-      const unread = rows.filter(
-        (row) =>
-          row.sender_role === 'student' &&
-          (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
+      const unread = rows.filter(row =>
+        row.sender_role === 'student' &&
+        (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
       ).length;
 
       return {
-        student,
+        contact: student,
         conversationKey,
         messages,
         unread,
@@ -356,90 +433,84 @@ export default function CounselorMessagesPage() {
     });
 
     chats.sort((a, b) => {
-      const aHasMessages = a.messages.length > 0;
-      const bHasMessages = b.messages.length > 0;
-
-      if (aHasMessages && !bHasMessages) return -1;
-      if (!aHasMessages && bHasMessages) return 1;
-
-      if (aHasMessages && bHasMessages) {
-        return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
-      }
-
-      return a.student.firstName.localeCompare(b.student.firstName);
+      const aHas = a.messages.length > 0, bHas = b.messages.length > 0;
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
+      if (aHas && bHas) return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
+      return a.contact.firstName.localeCompare(b.contact.firstName);
     });
 
     if (loadRequestIdRef.current === requestId) {
       setStudentChats(chats);
       setLoadError(null);
-      setSelectedStudentId((prev) => {
-        if (prev && chats.some((chat) => chat.student.id === prev)) {
-          return prev;
-        }
-        return chats[0]?.student.id || null;
-      });
+      setSelectedStudentId(prev =>
+        (prev && chats.some(c => c.contact.id === prev)) ? prev : chats[0]?.contact.id || null
+      );
     }
-
-    finishLoad();
+    finish();
   }, [user, shouldPreserveStudentChats]);
 
+  // ─── Initial load ────────────────────────────────────────────────────────────
   useEffect(() => {
     loadStudentChats();
-  }, [loadStudentChats]);
+    loadContactChats('teacher', setTeacherChats, setSelectedTeacherId);
+    loadContactChats('parent',  setParentChats,  setSelectedParentId);
+  }, [loadStudentChats, loadContactChats]);
 
+  // ─── Polling (all tabs) ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
-    return startVisibilityAwarePolling(() => loadStudentChats({ silent: true }), 12000);
-  }, [user?.id, loadStudentChats]);
+    return startVisibilityAwarePolling(() => {
+      void loadStudentChats({ silent: true });
+      void loadContactChats('teacher', setTeacherChats, setSelectedTeacherId, { silent: true });
+      void loadContactChats('parent',  setParentChats,  setSelectedParentId,  { silent: true });
+    }, 12000);
+  }, [user?.id, loadStudentChats, loadContactChats]);
 
+  // ─── Scroll to bottom on message change ─────────────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selectedStudentId, studentChats]);
+  }, [activeSelectedId, studentChats, teacherChats, parentChats]);
 
-  const selectedChat = studentChats.find((chat) => chat.student.id === selectedStudentId);
+  // ─── Auto-mark as read when opening a chat ───────────────────────────────────
+  const selectedChat = activeChats.find(c => c.contact.id === activeSelectedId);
 
   useEffect(() => {
     if (!selectedChat || selectedChat.unread === 0) return;
-    void markConversationAsRead(selectedChat.conversationKey);
-  }, [selectedChat?.conversationKey, selectedChat?.unread, markConversationAsRead]);
+    void markConversationAsRead(selectedChat.conversationKey, activeTab);
+  }, [selectedChat?.conversationKey, selectedChat?.unread, markConversationAsRead, activeTab]);
 
-  const filteredChats = studentChats.filter((chat) => {
+  // ─── Search filter ───────────────────────────────────────────────────────────
+  const filteredChats = activeChats.filter(chat => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
-    const fullName = `${chat.student.firstName} ${chat.student.lastName}`.toLowerCase();
-    return (
-      fullName.includes(query) ||
-      (chat.student.gradeLevel || '').toLowerCase().includes(query) ||
-      chat.lastMessage.toLowerCase().includes(query)
-    );
+    const fullName = `${chat.contact.firstName} ${chat.contact.lastName}`.toLowerCase();
+    return fullName.includes(query) || chat.lastMessage.toLowerCase().includes(query);
   });
 
+  // ─── Send message ────────────────────────────────────────────────────────────
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat || !user) return;
 
     const messageToSend = newMessage.trim();
-
-    const optimisticMessage: Message = {
+    const optimistic: Message = {
       id: Date.now(),
       sender: 'counselor',
       content: messageToSend,
       timestamp: formatMessageTime(new Date().toISOString()),
     };
 
-    setStudentChats((previous) =>
-      previous.map((chat) => {
-        if (chat.student.id === selectedChat.student.id) {
-          return {
-            ...chat,
-            messages: [...chat.messages, optimisticMessage],
-            lastMessage: optimisticMessage.content,
-            timestamp: optimisticMessage.timestamp,
-          };
-        }
-        return chat;
-      })
-    );
+    const appendMessage = (prev: ContactChat[]) =>
+      prev.map(c =>
+        c.contact.id === selectedChat.contact.id
+          ? { ...c, messages: [...c.messages, optimistic], lastMessage: messageToSend, timestamp: optimistic.timestamp }
+          : c
+      );
+
+    if (activeTab === 'students') setStudentChats(appendMessage);
+    else if (activeTab === 'teachers') setTeacherChats(appendMessage);
+    else setParentChats(appendMessage);
 
     setNewMessage('');
 
@@ -455,48 +526,70 @@ export default function CounselorMessagesPage() {
       return;
     }
 
-    await loadStudentChats();
+    // Reload the active tab
+    if (activeTab === 'students') await loadStudentChats();
+    else if (activeTab === 'teachers') await loadContactChats('teacher', setTeacherChats, setSelectedTeacherId);
+    else await loadContactChats('parent', setParentChats, setSelectedParentId);
   };
 
-  const handleSelectStudent = (studentId: string) => {
-    setSelectedStudentId(studentId);
+  // ─── Select contact ──────────────────────────────────────────────────────────
+  const handleSelectContact = (contactId: string) => {
+    if (activeTab === 'students') setSelectedStudentId(contactId);
+    else if (activeTab === 'teachers') setSelectedTeacherId(contactId);
+    else setSelectedParentId(contactId);
+
     setShowMobileList(false);
 
-    const openedChat = studentChats.find((chat) => chat.student.id === studentId);
-    if (openedChat?.unread) {
-      void markConversationAsRead(openedChat.conversationKey);
-    }
+    const chat = activeChats.find(c => c.contact.id === contactId);
+    if (chat?.unread) void markConversationAsRead(chat.conversationKey, activeTab);
 
-    setStudentChats((previous) =>
-      previous.map((chat) => {
-        if (chat.student.id === studentId) {
-          return { ...chat, unread: 0 };
-        }
-        return chat;
-      })
-    );
+    const clearUnread = (prev: ContactChat[]) =>
+      prev.map(c => c.contact.id === contactId ? { ...c, unread: 0 } : c);
+
+    if (activeTab === 'students') setStudentChats(clearUnread);
+    else if (activeTab === 'teachers') setTeacherChats(clearUnread);
+    else setParentChats(clearUnread);
   };
 
-  const totalUnread = studentChats.reduce((sum, chat) => sum + chat.unread, 0);
+  // ─── Unread totals ───────────────────────────────────────────────────────────
+  const unreadStudents = studentChats.reduce((s, c) => s + c.unread, 0);
+  const unreadTeachers = teacherChats.reduce((s, c) => s + c.unread, 0);
+  const unreadParents  = parentChats.reduce((s, c)  => s + c.unread, 0);
+  const totalUnread = unreadStudents + unreadTeachers + unreadParents;
 
+  // ─── Contact subtitle (shown under name in chat header) ─────────────────────
+  const contactSubtitle = (contact: User) => {
+    if (contact.role === 'student') return `Grade ${contact.gradeLevel || 'N/A'} | ${contact.email}`;
+    if (contact.role === 'teacher') return `${contact.subject || contact.department || 'Teacher'} | ${contact.email}`;
+    if (contact.role === 'parent') return `Parent${contact.relationship ? ` (${contact.relationship})` : ''} | ${contact.email}`;
+    return contact.email;
+  };
+
+  // ─── Contact sub-label in list (shown under name) ────────────────────────────
+  const contactListSublabel = (contact: User) => {
+    if (contact.role === 'student') return `Grade ${contact.gradeLevel || 'N/A'}`;
+    if (contact.role === 'teacher') return contact.subject || contact.department || 'Teacher';
+    if (contact.role === 'parent') return contact.relationship || 'Parent';
+    return '';
+  };
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-[72vh] flex flex-col">
+      {/* Page header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Messages</h1>
           <p className="text-muted-foreground mt-1">
-            Private conversations with your students
+            Conversations with students, teachers, and parents
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {totalUnread > 0 && (
             <div className="px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-sm text-primary font-medium">
               {totalUnread} unread
             </div>
           )}
-          <div className="px-3 py-2 rounded-lg border border-border bg-card text-sm text-muted-foreground">
-            {studentChats.length} student{studentChats.length === 1 ? '' : 's'}
-          </div>
         </div>
       </div>
 
@@ -517,273 +610,194 @@ export default function CounselorMessagesPage() {
         <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
           <div className="text-center py-12 px-4">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="font-medium text-foreground text-lg">Loading student chats...</p>
-            <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
-              Fetching your conversations.
-            </p>
-          </div>
-        </div>
-      ) : studentChats.length === 0 ? (
-        <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
-          <div className="text-center py-12 px-4">
-            <svg
-              className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-              />
-            </svg>
-            <p className="font-medium text-foreground text-lg">No students yet</p>
-            <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
-              No students have registered at your school yet. Once they join, you can message them
-              here.
-            </p>
+            <p className="font-medium text-foreground text-lg">Loading conversations...</p>
           </div>
         </div>
       ) : (
         <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-hidden flex">
-          {/* Student list panel */}
+
+          {/* ─── Sidebar (list panel) ─── */}
           <div
             className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background/30 ${
               showMobileList ? 'block' : 'hidden md:block'
             }`}
           >
-            <div className="p-4 border-b border-border space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-semibold text-foreground">Students</h2>
-                <span className="text-xs text-muted-foreground">{filteredChats.length}</span>
-              </div>
+            {/* Tab switcher */}
+            <div className="flex border-b border-border flex-shrink-0">
+              {TABS.map(tab => {
+                const unread = tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); }}
+                    className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+                      activeTab === tab.key
+                        ? 'border-primary text-primary bg-primary/5'
+                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    }`}
+                  >
+                    {tab.label}
+                    {unread > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                        {unread}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Search */}
+            <div className="p-3 border-b border-border flex-shrink-0">
               <div className="relative">
-                <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search student..."
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder={`Search ${activeTab}...`}
                   className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
             </div>
 
+            {/* Chat list */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {filteredChats.length === 0 && (
-                <div className="p-5 text-sm text-muted-foreground">No matching students.</div>
-              )}
-              {filteredChats.map((chat) => (
-                <button
-                  key={chat.student.id}
-                  onClick={() => handleSelectStudent(chat.student.id)}
-                  className={`w-full p-3.5 text-left border-b border-border/60 transition-all duration-200 ${
-                    selectedStudentId === chat.student.id
-                      ? 'bg-primary/12 border-l-[3px] border-l-primary shadow-[inset_0_1px_0_rgba(59,130,246,0.08)]'
-                      : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {chat.student.profileImage ? (
-                        <img
-                          src={chat.student.profileImage}
-                          alt={`${chat.student.firstName} ${chat.student.lastName}`}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-sm font-semibold text-primary">
-                          {chat.student.firstName[0]}
-                          {chat.student.lastName[0]}
+              {filteredChats.length === 0 ? (
+                <div className="p-5 text-sm text-muted-foreground text-center mt-4">
+                  {activeChats.length === 0 ? `No ${activeTab} yet` : 'No matches found'}
+                </div>
+              ) : (
+                filteredChats.map(chat => (
+                  <button
+                    key={chat.contact.id}
+                    onClick={() => handleSelectContact(chat.contact.id)}
+                    className={`w-full p-3.5 text-left border-b border-border/60 transition-all duration-200 ${
+                      activeSelectedId === chat.contact.id
+                        ? 'bg-primary/12 border-l-[3px] border-l-primary'
+                        : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                        {chat.contact.profileImage ? (
+                          <img src={chat.contact.profileImage} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-sm font-semibold text-primary">
+                            {chat.contact.firstName[0]}{chat.contact.lastName[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-foreground truncate">
+                            {chat.contact.firstName} {chat.contact.lastName}
+                          </span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">{chat.timestamp || '--'}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {contactListSublabel(chat.contact)}
+                        </p>
+                        <p className={`text-sm truncate mt-1 ${chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                          {chat.lastMessage}
+                        </p>
+                      </div>
+                      {chat.unread > 0 && (
+                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {chat.unread}
                         </span>
                       )}
                     </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-foreground truncate">
-                          {chat.student.firstName} {chat.student.lastName}
-                        </span>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {chat.timestamp || '--'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        Grade {chat.student.gradeLevel || 'N/A'}
-                      </p>
-                      <p
-                        className={`text-sm truncate mt-1 ${
-                          chat.unread > 0
-                            ? 'text-foreground font-medium'
-                            : 'text-muted-foreground'
-                        }`}
-                      >
-                        {chat.lastMessage}
-                      </p>
-                    </div>
-
-                    {chat.unread > 0 && (
-                      <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                        {chat.unread}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
-          {/* Chat area */}
-          <div
-            className={`flex-1 min-h-0 flex flex-col bg-background/10 ${
-              showMobileList ? 'hidden md:flex' : 'flex'
-            }`}
-          >
+          {/* ─── Chat area ─── */}
+          <div className={`flex-1 min-h-0 flex flex-col bg-background/10 ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
             {selectedChat ? (
               <>
                 {/* Chat header */}
                 <div className="p-4 border-b border-border bg-card/90 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <button
-                      type="button"
-                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-lg"
-                      onClick={() => setShowMobileList(true)}
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 19l-7-7 7-7"
-                        />
+                    <button type="button" className="md:hidden p-2 -ml-2 hover:bg-muted rounded-lg" onClick={() => setShowMobileList(true)}>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
-
                     <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {selectedChat.student.profileImage ? (
-                        <img
-                          src={selectedChat.student.profileImage}
-                          alt={`${selectedChat.student.firstName} ${selectedChat.student.lastName}`}
-                          className="w-full h-full object-cover"
-                        />
+                      {selectedChat.contact.profileImage ? (
+                        <img src={selectedChat.contact.profileImage} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-sm font-semibold text-primary">
-                          {selectedChat.student.firstName[0]}
-                          {selectedChat.student.lastName[0]}
+                          {selectedChat.contact.firstName[0]}{selectedChat.contact.lastName[0]}
                         </span>
                       )}
                     </div>
                     <div className="min-w-0">
                       <h3 className="font-semibold text-foreground truncate">
-                        {selectedChat.student.firstName} {selectedChat.student.lastName}
+                        {selectedChat.contact.firstName} {selectedChat.contact.lastName}
                       </h3>
                       <p className="text-xs text-muted-foreground truncate">
-                        Grade {selectedChat.student.gradeLevel || 'N/A'} | {selectedChat.student.email}
+                        {contactSubtitle(selectedChat.contact)}
                       </p>
                     </div>
                   </div>
-
-                  <Link
-                    href="/counselor/students"
-                    className="hidden sm:inline-flex px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                  >
-                    View Profile
-                  </Link>
+                  {activeTab === 'students' && (
+                    <Link
+                      href="/counselor/students"
+                      className="hidden sm:inline-flex px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                    >
+                      View Profile
+                    </Link>
+                  )}
                 </div>
 
-                {/* Messages area */}
+                {/* Messages */}
                 <div className="relative flex-1 min-h-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.08),transparent_45%)]">
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]"
-                  />
+                  <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]" />
                   <div className="relative h-full overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-3">
                     {selectedChat.messages.length === 0 && (
                       <div className="h-full flex items-center justify-center">
                         <div className="text-center text-muted-foreground">
-                          <svg
-                            className="w-12 h-12 mx-auto mb-3 opacity-50"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                            />
+                          <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                           </svg>
                           <p className="font-medium">No messages yet</p>
-                          <p className="text-sm mt-1">
-                            Send a message to start the conversation with {selectedChat.student.firstName}
-                          </p>
+                          <p className="text-sm mt-1">Start the conversation with {selectedChat.contact.firstName}</p>
                         </div>
                       </div>
                     )}
 
-                    {selectedChat.messages.map((message) => {
-                      const isCounselorMessage = message.sender === 'counselor';
+                    {selectedChat.messages.map(message => {
+                      const isMine = message.sender === 'counselor';
                       return (
-                        <div
-                          key={message.id}
-                          className={`flex items-end gap-2.5 ${isCounselorMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          {!isCounselorMessage && (
+                        <div key={message.id} className={`flex items-end gap-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          {!isMine && (
                             <div className="w-8 h-8 rounded-full border border-border bg-card overflow-hidden flex items-center justify-center mb-1 flex-shrink-0 shadow-sm">
-                              {selectedChat.student.profileImage ? (
-                                <img
-                                  src={selectedChat.student.profileImage}
-                                  alt={`${selectedChat.student.firstName} ${selectedChat.student.lastName}`}
-                                  className="w-full h-full object-cover"
-                                />
+                              {selectedChat.contact.profileImage ? (
+                                <img src={selectedChat.contact.profileImage} alt="" className="w-full h-full object-cover" />
                               ) : (
                                 <span className="text-xs font-semibold text-primary">
-                                  {selectedChat.student.firstName[0]}
-                                  {selectedChat.student.lastName[0]}
+                                  {selectedChat.contact.firstName[0]}{selectedChat.contact.lastName[0]}
                                 </span>
                               )}
                             </div>
                           )}
-
                           <div className="max-w-[84%] sm:max-w-[70%]">
-                            <div
-                              className={`rounded-2xl px-4 py-2.5 border ${
-                                isCounselorMessage
-                                  ? 'bg-sky-500 text-white border-sky-600/40 rounded-br-md shadow-[0_8px_18px_-10px_rgba(14,165,233,0.9)]'
-                                  : 'bg-card/95 text-foreground border-border rounded-bl-md shadow-sm backdrop-blur-[1px]'
-                              }`}
-                            >
-                              <p className="text-sm leading-6 whitespace-pre-wrap break-words">
-                                {message.content}
-                              </p>
+                            <div className={`rounded-2xl px-4 py-2.5 border ${
+                              isMine
+                                ? 'bg-sky-500 text-white border-sky-600/40 rounded-br-md shadow-[0_8px_18px_-10px_rgba(14,165,233,0.9)]'
+                                : 'bg-card/95 text-foreground border-border rounded-bl-md shadow-sm backdrop-blur-[1px]'
+                            }`}>
+                              <p className="text-sm leading-6 whitespace-pre-wrap break-words">{message.content}</p>
                             </div>
-                            <p
-                              className={`text-[11px] text-muted-foreground mt-1.5 ${
-                                isCounselorMessage ? 'text-right' : 'text-left'
-                              }`}
-                            >
-                              {isCounselorMessage ? 'You' : selectedChat.student.firstName} |{' '}
-                              {message.timestamp}
+                            <p className={`text-[11px] text-muted-foreground mt-1.5 ${isMine ? 'text-right' : 'text-left'}`}>
+                              {isMine ? 'You' : selectedChat.contact.firstName} | {message.timestamp}
                             </p>
                           </div>
                         </div>
@@ -794,63 +808,34 @@ export default function CounselorMessagesPage() {
                 </div>
 
                 {/* Message input */}
-                <form
-                  onSubmit={handleSendMessage}
-                  className="px-4 py-4 sm:px-5 sm:py-5 border-t border-border bg-card/95"
-                >
+                <form onSubmit={handleSendMessage} className="px-4 py-4 sm:px-5 sm:py-5 border-t border-border bg-card/95">
                   <div className="flex items-center gap-2 sm:gap-3 rounded-xl border border-input bg-background/90 px-2 sm:px-3 py-2 shadow-sm">
                     <input
                       type="text"
                       value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder={`Message ${selectedChat.student.firstName}...`}
+                      onChange={e => setNewMessage(e.target.value)}
+                      placeholder={`Message ${selectedChat.contact.firstName}...`}
                       className="flex-1 bg-transparent px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none"
                     />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={!newMessage.trim()}
-                      className="rounded-full px-3.5 py-2"
-                      aria-label="Send message"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                        />
+                    <Button type="submit" size="sm" disabled={!newMessage.trim()} className="rounded-full px-3.5 py-2" aria-label="Send message">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                     </Button>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
-                    Keep communication concise and professional so students get clear guidance.
+                    Keep communication professional and supportive.
                   </p>
                 </form>
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center text-muted-foreground">
-                  <svg
-                    className="w-12 h-12 mx-auto mb-3 opacity-50"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                    />
+                  <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
-                  <p className="font-medium">Select a student to start</p>
-                  <p className="text-sm mt-1">Pick a student from the list to view or start a conversation</p>
+                  <p className="font-medium">Select a conversation</p>
+                  <p className="text-sm mt-1">Pick someone from the list to start chatting</p>
                 </div>
               </div>
             )}
