@@ -46,7 +46,8 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
     "serve": "next start",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "bulk:create-students": "node scripts/bulk-create-students.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.77.0",
