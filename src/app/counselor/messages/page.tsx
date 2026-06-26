@@ -842,8 +842,7 @@ export default function CounselorMessagesPage() {
             )}
           </div>
         </div>
-      )
+      )}
     </div>
-  </div>
-  )
-};
+  );
+}
