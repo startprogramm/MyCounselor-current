@@ -575,7 +575,7 @@ export default function CounselorMessagesPage() {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-[72vh] flex flex-col">
+    <div className="h-screen min-h-0 flex flex-col overflow-hidden">
       {/* Page header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -622,50 +622,52 @@ export default function CounselorMessagesPage() {
               showMobileList ? 'block' : 'hidden md:block'
             }`}
           >
-            {/* Tab switcher */}
-            <div className="flex border-b border-border flex-shrink-0">
-              {TABS.map(tab => {
-                const unread = tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); }}
-                    className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
-                      activeTab === tab.key
-                        ? 'border-primary text-primary bg-primary/5'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                    }`}
-                  >
-                    {tab.label}
-                    {unread > 0 && (
-                      <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
-                        {unread}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <div className="sticky top-0 z-20 bg-background/30">
+              {/* Tab switcher */}
+              <div className="flex border-b border-border flex-shrink-0 bg-background/30">
+                {TABS.map(tab => {
+                  const unread = tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); }}
+                      className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+                        activeTab === tab.key
+                          ? 'border-primary text-primary bg-primary/5'
+                          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                      }`}
+                    >
+                      {tab.label}
+                      {unread > 0 && (
+                        <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                          {unread}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
 
-            {/* Search */}
-            <div className="p-3 border-b border-border flex-shrink-0">
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder={`Search ${activeTab}...`}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+              {/* Search */}
+              <div className="p-3 border-b border-border flex-shrink-0 bg-background/30">
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder={`Search ${activeTab}...`}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
               </div>
             </div>
 
             {/* Chat list */}
-            <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {filteredChats.length === 0 ? (
                 <div className="p-5 text-sm text-muted-foreground text-center mt-4">
                   {activeChats.length === 0 ? `No ${activeTab} yet` : 'No matches found'}
@@ -757,7 +759,7 @@ export default function CounselorMessagesPage() {
                 {/* Messages */}
                 <div className="relative flex-1 min-h-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.08),transparent_45%)]">
                   <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]" />
-                  <div className="relative h-full overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-3">
+                  <div className="relative flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-3">
                     {selectedChat.messages.length === 0 && (
                       <div className="h-full flex items-center justify-center">
                         <div className="text-center text-muted-foreground">
