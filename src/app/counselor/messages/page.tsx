@@ -675,13 +675,13 @@ export default function CounselorMessagesPage() {
                   <button
                     key={chat.contact.id}
                     onClick={() => handleSelectContact(chat.contact.id)}
-                    className={`w-full p-3 text-left border-b border-border/60 transition-all duration-200 ${
+                    className={`w-full p-2.5 text-left border-b border-border/60 transition-all duration-200 ${
                       activeSelectedId === chat.contact.id
                         ? 'bg-primary/12 border-l-[3px] border-l-primary'
                         : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
                     }`}
                   >
-                    <div className="flex items-start gap-2.5">
+                    <div className="flex items-start gap-2">
                       <div className="w-10 h-10 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                         {chat.contact.profileImage ? (
                           <img src={chat.contact.profileImage} alt="" className="w-full h-full object-cover" />
@@ -693,20 +693,17 @@ export default function CounselorMessagesPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-foreground truncate">
+                          <span className="font-semibold text-foreground truncate text-sm">
                             {chat.contact.firstName} {chat.contact.lastName}
                           </span>
                           <span className="text-[11px] text-muted-foreground whitespace-nowrap">{chat.timestamp || '--'}</span>
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                          {contactListSublabel(chat.contact)}
-                        </p>
-                        <p className={`text-sm truncate mt-1 ${chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                          {chat.lastMessage}
+                        <p className={`text-[11px] truncate mt-1 ${chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                          {contactListSublabel(chat.contact)} · {chat.lastMessage}
                         </p>
                       </div>
                       {chat.unread > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center flex-shrink-0">
                           {chat.unread}
                         </span>
                       )}
