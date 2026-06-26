@@ -618,15 +618,15 @@ export default function CounselorMessagesPage() {
 
           {/* ─── Sidebar (list panel) ─── */}
           <div
-            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background/30 ${
+            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background ${
               showMobileList ? 'block' : 'hidden md:block'
             }`}
           >
             {/* Make the scroll container wrap both the sticky header and the list so `position: sticky` works inside it */}
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="sticky top-0 z-20 bg-background/30">
+              <div className="sticky top-0 z-20 bg-background">
                 {/* Tab switcher */}
-                <div className="flex border-b border-border flex-shrink-0 bg-background/30">
+                <div className="flex border-b border-border flex-shrink-0 bg-background">
                   {TABS.map(tab => {
                     const unread = tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
                     return (
@@ -652,7 +652,7 @@ export default function CounselorMessagesPage() {
                 </div>
 
                 {/* Search */}
-                <div className="p-3 border-b border-border flex-shrink-0 bg-background/30">
+                <div className="p-3 border-b border-border flex-shrink-0 bg-background">
                   <div className="relative">
                     <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
