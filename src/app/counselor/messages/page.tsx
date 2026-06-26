@@ -669,7 +669,7 @@ export default function CounselorMessagesPage() {
               </div>
 
               {/* Chat list - occupies remaining height inside the scroll container */}
-              <div className="">
+              {/* Chat list - occupies remaining height inside the scroll container */}
               {filteredChats.length === 0 ? (
                 <div className="p-5 text-sm text-muted-foreground text-center mt-4">
                   {activeChats.length === 0 ? `No ${activeTab} yet` : 'No matches found'}
@@ -716,7 +716,7 @@ export default function CounselorMessagesPage() {
                 ))
               )}
             </div>
-          </div>
+            </div>
 
           {/* ─── Chat area ─── */}
           <div className={`flex-1 min-h-0 flex flex-col bg-background/10 ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
