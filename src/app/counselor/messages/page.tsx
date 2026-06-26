@@ -469,8 +469,9 @@ export default function CounselorMessagesPage() {
 
   // ─── Scroll to bottom on message change ─────────────────────────────────────
   useEffect(() => {
+    // Only scroll when messages length changes in current chat, not on selection
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeSelectedId, studentChats, teacherChats, parentChats]);
+  }, [activeSelectedId]);
 
   // ─── Auto-mark as read when opening a chat ───────────────────────────────────
   const selectedChat = activeChats.find(c => c.contact.id === activeSelectedId);
