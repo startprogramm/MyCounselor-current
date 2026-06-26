@@ -665,7 +665,7 @@ export default function CounselorMessagesPage() {
             </div>
 
             {/* Chat list */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth">
               {filteredChats.length === 0 ? (
                 <div className="p-5 text-sm text-muted-foreground text-center mt-4">
                   {activeChats.length === 0 ? `No ${activeTab} yet` : 'No matches found'}
@@ -675,14 +675,14 @@ export default function CounselorMessagesPage() {
                   <button
                     key={chat.contact.id}
                     onClick={() => handleSelectContact(chat.contact.id)}
-                    className={`w-full p-3.5 text-left border-b border-border/60 transition-all duration-200 ${
+                    className={`w-full p-3 text-left border-b border-border/60 transition-all duration-200 ${
                       activeSelectedId === chat.contact.id
                         ? 'bg-primary/12 border-l-[3px] border-l-primary'
                         : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-10 h-10 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                         {chat.contact.profileImage ? (
                           <img src={chat.contact.profileImage} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -696,9 +696,9 @@ export default function CounselorMessagesPage() {
                           <span className="font-semibold text-foreground truncate">
                             {chat.contact.firstName} {chat.contact.lastName}
                           </span>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">{chat.timestamp || '--'}</span>
+                          <span className="text-[11px] text-muted-foreground whitespace-nowrap">{chat.timestamp || '--'}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                           {contactListSublabel(chat.contact)}
                         </p>
                         <p className={`text-sm truncate mt-1 ${chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
