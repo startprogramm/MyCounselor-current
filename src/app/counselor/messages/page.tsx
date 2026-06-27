@@ -613,8 +613,8 @@ export default function CounselorMessagesPage() {
 
           {/* ─── Sidebar (list panel) ─── */}
           <div
-            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background ${
-              showMobileList ? 'block' : 'hidden md:block'
+            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 min-h-0 bg-background ${
+              showMobileList ? 'block md:flex md:flex-col' : 'hidden md:flex md:flex-col'
             }`}
           >
             <div className="sticky top-0 z-20 bg-background">
