@@ -617,54 +617,51 @@ export default function CounselorMessagesPage() {
               showMobileList ? 'block' : 'hidden md:block'
             }`}
           >
-            {/* Make the scroll container wrap both the sticky header and the list so `position: sticky` works inside it */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="sticky top-0 z-20 bg-background">
-                {/* Tab switcher */}
-                <div className="flex border-b border-border flex-shrink-0 bg-background">
-                  {TABS.map(tab => {
-                    const unread = tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
-                    return (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); }}
-                        className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
-                          activeTab === tab.key
-                            ? 'border-primary text-primary bg-primary/5'
-                            : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                        }`}
-                      >
-                        {tab.label}
-                        {unread > 0 && (
-                          <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
-                            {unread}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Search */}
-                <div className="p-3 border-b border-border flex-shrink-0 bg-background">
-                  <div className="relative">
-                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder={`Search ${activeTab}...`}
-                      className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                </div>
+            <div className="sticky top-0 z-20 bg-background">
+              {/* Tab switcher */}
+              <div className="flex border-b border-border flex-shrink-0 bg-background">
+                {TABS.map(tab => {
+                  const unread = tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); }}
+                      className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+                        activeTab === tab.key
+                          ? 'border-primary text-primary bg-primary/5'
+                          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                      }`}
+                    >
+                      {tab.label}
+                      {unread > 0 && (
+                        <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                          {unread}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Chat list - occupies remaining height inside the scroll container */}
-              {/* Chat list - occupies remaining height inside the scroll container */}
+              {/* Search */}
+              <div className="p-3 border-b border-border flex-shrink-0 bg-background">
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder={`Search ${activeTab}...`}
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto">
               {filteredChats.length === 0 ? (
                 <div className="p-5 text-sm text-muted-foreground text-center mt-4">
                   {activeChats.length === 0 ? `No ${activeTab} yet` : 'No matches found'}
@@ -711,7 +708,7 @@ export default function CounselorMessagesPage() {
                 ))
               )}
             </div>
-            </div>
+          </div>
 
           {/* ─── Chat area ─── */}
           <div className={`flex-1 min-h-0 flex flex-col bg-background/10 ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
