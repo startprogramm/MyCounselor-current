@@ -16,7 +16,13 @@ function RootLayoutNav() {
     if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (user && inAuthGroup) {
-      router.replace('/(app)/home');
+      const destByRole: Record<string, string> = {
+        student: '/(app)/student/dashboard',
+        counselor: '/(app)/counselor/dashboard',
+        teacher: '/(app)/teacher/dashboard',
+        parent: '/(app)/parent/dashboard',
+      };
+      router.replace((destByRole[user.role] ?? '/(app)/student/dashboard') as any);
     }
   }, [user, isLoading, segments]);
 

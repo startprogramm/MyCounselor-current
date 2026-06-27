@@ -7,10 +7,10 @@ import {
   FlatList,
   StyleSheet,
   KeyboardAvoidingView,
-  Platform,
   Animated,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -228,7 +228,7 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
       >
         <FlatList
           ref={flatListRef}
@@ -310,7 +310,7 @@ export default function ChatScreen() {
               onPress={() => sendMessage()}
               disabled={!input.trim() || streaming}
             >
-              <Text style={styles.sendIcon}>↑</Text>
+              <Ionicons name="paper-plane" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
           <Text style={styles.inputHint}>Enter to send · Ctrl+Enter for new line</Text>
@@ -510,6 +510,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendButtonDisabled: { opacity: 0.35 },
-  sendIcon: { color: '#fff', fontSize: 20, fontWeight: '700', marginTop: -2 },
   inputHint: { fontSize: 11, color: '#c3c8d4', textAlign: 'center', marginTop: 5 },
 });

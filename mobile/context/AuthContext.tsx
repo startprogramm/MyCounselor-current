@@ -12,12 +12,30 @@ export interface User {
   gradeLevel?: string;
   title?: string;
   profileImage?: string;
+  approved?: boolean;
+}
+
+export interface RegisterData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  role: 'student' | 'counselor' | 'teacher' | 'parent';
+  schoolId: string;
+  schoolName: string;
+  gradeLevel?: string;
+  title?: string;
+  department?: string;
+  subject?: string;
+  relationship?: string;
+  childrenNames?: string[];
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error: string | null }>;
+  register: (data: RegisterData) => Promise<{ error: string | null }>;
   logout: () => Promise<void>;
 }
 
@@ -26,7 +44,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Prevents duplicate concurrent profile fetches from getSession + onAuthStateChange racing
   const fetchingRef = useRef(false);
 
   useEffect(() => {
@@ -80,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           gradeLevel: data.grade_level ?? undefined,
           title: data.title ?? undefined,
           profileImage: data.profile_image ?? undefined,
+          approved: data.approved,
         });
       }
     } finally {
@@ -88,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string): Promise<{ error: string | null }> {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -103,12 +121,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function register(data: RegisterData): Promise<{ error: string | null }> {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+      });
+
+      if (authError) return { error: authError.message };
+      if (!authData.user) return { error: 'Signup failed. Please try again.' };
+
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: authData.user.id,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        role: data.role,
+        school_id: data.schoolId,
+        school_name: data.schoolName,
+        grade_level: data.gradeLevel ?? null,
+        title: data.title ?? null,
+        department: data.department ?? null,
+        subject: data.subject ?? null,
+        relationship: data.relationship ?? null,
+        children_names: data.childrenNames ?? null,
+        approved: data.role === 'student' ? false : true,
+        student_confirmed: false,
+      });
+
+      if (profileError) return { error: profileError.message };
+      return { error: null };
+    } catch {
+      return { error: 'Registration failed. Please try again.' };
+    }
+  }
+
   async function logout() {
     await supabase.auth.signOut();
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

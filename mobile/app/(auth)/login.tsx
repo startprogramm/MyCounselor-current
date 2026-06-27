@@ -10,10 +10,12 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,6 +79,16 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.signupLink}
+          onPress={() => router.push('/(auth)/signup')}
+        >
+          <Text style={styles.signupText}>
+            Don't have an account?{' '}
+            <Text style={styles.signupTextBold}>Sign up</Text>
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -147,6 +159,18 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  signupLink: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  signupText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  signupTextBold: {
+    color: '#1e40af',
     fontWeight: '600',
   },
 });
