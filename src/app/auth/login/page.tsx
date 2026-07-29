@@ -135,6 +135,7 @@ export default function LoginPage() {
               value={formData.email}
               onChange={handleInputChange}
               error={errors.email}
+              disabled={!mounted}
               leftIcon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
@@ -155,6 +156,7 @@ export default function LoginPage() {
               value={formData.password}
               onChange={handleInputChange}
               error={errors.password}
+              disabled={!mounted}
               leftIcon={
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path

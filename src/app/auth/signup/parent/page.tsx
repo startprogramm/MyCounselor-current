@@ -180,6 +180,7 @@ export default function ParentSignupPage() {
                     value={formData.firstName}
                     onChange={handleInputChange}
                     error={errors.firstName}
+                    disabled={!mounted}
                   />
                   <Input
                     label="Last name"
@@ -188,6 +189,7 @@ export default function ParentSignupPage() {
                     value={formData.lastName}
                     onChange={handleInputChange}
                     error={errors.lastName}
+                    disabled={!mounted}
                   />
                 </div>
 
@@ -199,6 +201,7 @@ export default function ParentSignupPage() {
                   value={formData.email}
                   onChange={handleInputChange}
                   error={errors.email}
+                  disabled={!mounted}
                 />
 
                 <Input
@@ -210,6 +213,7 @@ export default function ParentSignupPage() {
                   onChange={handleInputChange}
                   error={errors.password}
                   hint="Must be at least 8 characters"
+                  disabled={!mounted}
                 />
 
                 <Input
@@ -219,6 +223,7 @@ export default function ParentSignupPage() {
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
+                  disabled={!mounted}
                   error={errors.confirmPassword}
                 />
 

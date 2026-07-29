@@ -177,6 +177,7 @@ export default function StudentSignupPage() {
                     value={formData.firstName}
                     onChange={handleInputChange}
                     error={errors.firstName}
+                    disabled={!mounted}
                   />
                   <Input
                     label="Last name"
@@ -185,6 +186,7 @@ export default function StudentSignupPage() {
                     value={formData.lastName}
                     onChange={handleInputChange}
                     error={errors.lastName}
+                    disabled={!mounted}
                   />
                 </div>
 
@@ -196,6 +198,7 @@ export default function StudentSignupPage() {
                   value={formData.email}
                   onChange={handleInputChange}
                   error={errors.email}
+                  disabled={!mounted}
                 />
 
                 <Input
@@ -207,6 +210,7 @@ export default function StudentSignupPage() {
                   onChange={handleInputChange}
                   error={errors.password}
                   hint="Must be at least 8 characters"
+                  disabled={!mounted}
                 />
 
                 <Input
@@ -217,6 +221,7 @@ export default function StudentSignupPage() {
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   error={errors.confirmPassword}
+                  disabled={!mounted}
                 />
 
                 <Button type="button" fullWidth onClick={handleNext}>
