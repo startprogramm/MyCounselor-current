@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Input, { Select } from '@/components/ui/Input';
@@ -11,8 +11,17 @@ import { useAuth } from '@/context/AuthContext';
 export default function StudentSignupPage() {
   const router = useRouter();
   const { register } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
+
+  // Guard against submitting before React hydrates: without this, pressing
+  // Enter in a password field can hit the raw <form> before onSubmit is
+  // attached, causing a native GET submission that puts the password in
+  // the URL.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -264,7 +273,7 @@ export default function StudentSignupPage() {
                   >
                     Back
                   </Button>
-                  <Button type="submit" isLoading={isLoading} className="flex-1">
+                  <Button type="submit" isLoading={isLoading} disabled={!mounted} className="flex-1">
                     Create account
                   </Button>
                 </div>

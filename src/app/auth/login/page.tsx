@@ -11,6 +11,7 @@ import { getDashboardRouteForRole } from '@/lib/role-routes';
 export default function LoginPage() {
   const router = useRouter();
   const { login, user } = useAuth();
+  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSlowNetwork, setIsSlowNetwork] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -46,6 +47,13 @@ export default function LoginPage() {
     if (!user) return;
     router.replace(getDashboardRouteForRole(user.role));
   }, [user, router]);
+
+  // Guard against submitting before React hydrates: without this, a fast
+  // click/Enter can hit the raw <form> before onSubmit is attached, causing
+  // a native GET submission that puts the password in the URL.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,7 +218,7 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <Button type="submit" fullWidth isLoading={isLoading}>
+            <Button type="submit" fullWidth isLoading={isLoading} disabled={!mounted}>
               Sign in
             </Button>
 

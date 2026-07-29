@@ -59,9 +59,11 @@ All three return a 503 if `ANTHROPIC_API_KEY` is unset. None of them implement r
 
 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`. No `.env`/`.env.local` is committed (gitignored) — these are configured directly in the Vercel project's environment variables.
 
-### Orphaned prototype routes
+### Orphaned prototype routes — and one that isn't
 
-`src/app/homepage/`, `student-portal-dashboard/`, `counselor-command-center/`, `appointment-scheduling-system/`, `resource-discovery-center/`, and `secure-communication-hub/` are **not linked from anywhere in the live app** (confirmed by grepping for `href` references to them — none exist outside their own subtrees, and a couple only link back to each other). They look like the original scaffolded/generated demo pages (this project uses `@dhiwise/component-tagger`) that were superseded by the hand-built, Supabase-backed pages under `src/app/{role}/` and the real root `src/app/page.tsx` homepage, but were never deleted. Don't assume these are live surfaces or spend time keeping them in sync with schema/behavior changes — verify reachability before treating any page as part of the real product.
+`next.config.mjs` has `redirects()`: `/` → `/homepage` (permanent: false). That means **`src/app/homepage/` is the real, live marketing homepage** — the one built at the actual root, `src/app/page.tsx`, is unreachable (any visit to `/` redirects away before it ever renders). Check `next.config.mjs` for redirects before judging a route reachable/unreachable — a plain `href` grep across components misses framework-level redirects like this one.
+
+`student-portal-dashboard/`, `counselor-command-center/`, `appointment-scheduling-system/`, `resource-discovery-center/`, and `secure-communication-hub/` genuinely are dead — no `href` references anywhere outside their own subtrees, and no redirect rule points at them either. They look like the original scaffolded/generated demo pages (this project uses `@dhiwise/component-tagger`) that were superseded by the hand-built, Supabase-backed pages under `src/app/{role}/`, but were never deleted. Don't assume these are live or spend time keeping them in sync with schema/behavior changes — but do verify reachability (component `href`s *and* `next.config.mjs` redirects) before calling any page dead.
 
 ### Deployment
 
