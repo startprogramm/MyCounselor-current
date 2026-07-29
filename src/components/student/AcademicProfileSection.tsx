@@ -321,11 +321,11 @@ function QualificationSection({
   };
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
+    <div className="rounded-xl border border-border">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors"
+        className={`w-full flex items-center justify-between px-4 py-3 bg-muted/40 hover:bg-muted/60 transition-colors ${open ? 'rounded-t-xl' : 'rounded-xl'}`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold text-foreground">{title}</span>
