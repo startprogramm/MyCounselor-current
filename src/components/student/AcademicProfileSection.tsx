@@ -1341,7 +1341,7 @@ export default function AcademicProfileSection() {
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
       {/* Header */}
       <div
         className="flex items-start justify-between gap-4 p-6 cursor-pointer select-none"
