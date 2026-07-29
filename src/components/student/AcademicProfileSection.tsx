@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { searchALevelSubjects, type ALevelSubjectOption } from '@/data/aLevelSubjects';
 
 /* ─── Types ────────────────────────────────────────────────────── */
 interface Extracurricular {
@@ -17,6 +18,12 @@ interface HonorAward {
   level: 'School' | 'Regional' | 'State' | 'National' | 'International';
 }
 
+interface ALevelCourse {
+  subjectCode: string;
+  subjectName: string;
+  level: 'AS Level' | 'A Level';
+}
+
 export interface AcademicProfile {
   // Academics
   gpa_weighted: string;
@@ -29,6 +36,7 @@ export interface AcademicProfile {
   sat_ebrw: string;
   act_composite: string;
   ap_courses_taken: string[];
+  a_level_courses: ALevelCourse[];
   // Direction
   intended_major: string;
   career_interests: string[];
@@ -53,6 +61,7 @@ const EMPTY_PROFILE: AcademicProfile = {
   sat_ebrw: '',
   act_composite: '',
   ap_courses_taken: [],
+  a_level_courses: [],
   intended_major: '',
   career_interests: [],
   preferred_college_type: '',
@@ -95,7 +104,7 @@ type TabId = typeof TABS[number]['id'];
 function isTabFilled(tab: TabId, p: AcademicProfile): boolean {
   switch (tab) {
     case 'academics':
-      return !!(p.gpa_unweighted || p.gpa_weighted);
+      return !!(p.gpa_unweighted || p.gpa_weighted) && p.a_level_courses.length > 0;
     case 'tests':
       return !!(p.sat_total || p.act_composite);
     case 'direction':
@@ -124,6 +133,7 @@ function profileToApiPayload(p: AcademicProfile, studentId: string, schoolId: st
     sat_ebrw: p.sat_ebrw ? parseInt(p.sat_ebrw) : null,
     act_composite: p.act_composite ? parseInt(p.act_composite) : null,
     ap_courses_taken: p.ap_courses_taken,
+    a_level_courses: p.a_level_courses,
     intended_major: p.intended_major || null,
     career_interests: p.career_interests,
     preferred_college_type: p.preferred_college_type || null,
@@ -186,6 +196,119 @@ function NumericInput({
   );
 }
 
+/* ─── A Level / AS Level subject picker ────────────────────────── */
+function ALevelCoursesField({
+  courses,
+  onAdd,
+  onRemove,
+}: {
+  courses: ALevelCourse[];
+  onAdd: (course: ALevelCourse) => void;
+  onRemove: (index: number) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState<ALevelSubjectOption | null>(null);
+  const [level, setLevel] = useState<'AS Level' | 'A Level'>('A Level');
+  const [showResults, setShowResults] = useState(false);
+
+  const results = searchALevelSubjects(query).slice(0, 8);
+
+  const handleAdd = () => {
+    if (!selectedSubject) return;
+    const alreadyAdded = courses.some(
+      (c) => c.subjectCode === selectedSubject.code && c.level === level
+    );
+    if (alreadyAdded) return;
+
+    onAdd({ subjectCode: selectedSubject.code, subjectName: selectedSubject.name, level });
+    setSelectedSubject(null);
+    setQuery('');
+  };
+
+  return (
+    <div>
+      <FieldLabel>A Level / AS Level Subjects Taken</FieldLabel>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={selectedSubject ? selectedSubject.name : query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedSubject(null);
+              setShowResults(true);
+            }}
+            onFocus={() => setShowResults(true)}
+            onBlur={() => setTimeout(() => setShowResults(false), 150)}
+            placeholder="Search subject name or code (e.g. Mathematics, 9709)"
+            className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-lg text-foreground
+              placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40
+              focus:border-primary transition-colors"
+          />
+          {showResults && !selectedSubject && (
+            <div className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+              {results.length > 0 ? (
+                results.map((subject) => (
+                  <button
+                    key={subject.code}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setSelectedSubject(subject);
+                      setQuery(subject.name);
+                      setShowResults(false);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 text-sm text-left hover:bg-muted transition-colors"
+                  >
+                    <span className="text-foreground">{subject.name}</span>
+                    <span className="text-xs text-muted-foreground">{subject.code}</span>
+                  </button>
+                ))
+              ) : (
+                <p className="px-3 py-2 text-sm text-muted-foreground">No matching subject.</p>
+              )}
+            </div>
+          )}
+        </div>
+        <select
+          value={level}
+          onChange={(e) => setLevel(e.target.value as 'AS Level' | 'A Level')}
+          className="px-3 py-2.5 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors"
+        >
+          <option value="AS Level">AS Level</option>
+          <option value="A Level">A Level</option>
+        </select>
+        <button
+          type="button"
+          onClick={handleAdd}
+          disabled={!selectedSubject}
+          className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Add
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">
+        Search and select a subject, choose AS Level or A Level, then click Add.
+      </p>
+      {courses.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {courses.map((course, i) => (
+            <span
+              key={`${course.subjectCode}-${course.level}-${i}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
+            >
+              {course.subjectName} · {course.level}
+              <button type="button" onClick={() => onRemove(i)} className="hover:text-primary/60 transition-colors">
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Tab Content Components ────────────────────────────────────── */
 function AcademicsTab({ profile, setProfile, save }: { profile: AcademicProfile; setProfile: React.Dispatch<React.SetStateAction<AcademicProfile>>; save: () => void }) {
   const apInput = useRef('');
@@ -237,6 +360,17 @@ function AcademicsTab({ profile, setProfile, save }: { profile: AcademicProfile;
           />
         </div>
       </div>
+      <ALevelCoursesField
+        courses={profile.a_level_courses}
+        onAdd={(course) => {
+          setProfile((p) => ({ ...p, a_level_courses: [...p.a_level_courses, course] }));
+          setTimeout(save, 0);
+        }}
+        onRemove={(index) => {
+          setProfile((p) => ({ ...p, a_level_courses: p.a_level_courses.filter((_, i) => i !== index) }));
+          setTimeout(save, 0);
+        }}
+      />
       <div>
         <FieldLabel optional>AP / IB Courses Taken</FieldLabel>
         <div className="flex gap-2">
@@ -741,6 +875,7 @@ export default function AcademicProfileSection() {
             sat_ebrw: data.sat_ebrw?.toString() ?? '',
             act_composite: data.act_composite?.toString() ?? '',
             ap_courses_taken: data.ap_courses_taken ?? [],
+            a_level_courses: data.a_level_courses ?? [],
             intended_major: data.intended_major ?? '',
             career_interests: data.career_interests ?? [],
             preferred_college_type: data.preferred_college_type ?? '',

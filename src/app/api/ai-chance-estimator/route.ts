@@ -77,6 +77,11 @@ Student Academic Profile:
 - SAT EBRW: ${studentProfile.sat_ebrw ?? 'Not provided'}
 - ACT Composite: ${studentProfile.act_composite ?? 'Not provided'}
 - AP Courses: ${(studentProfile.ap_courses_taken as string[] | undefined)?.join(', ') || 'None listed'}
+- A Level / AS Level Subjects: ${
+    (studentProfile.a_level_courses as { subjectName: string; level: string }[] | undefined)
+      ?.map((c) => `${c.subjectName} (${c.level})`)
+      .join(', ') || 'None listed'
+  }
 - Intended Major: ${studentProfile.intended_major ?? 'Undecided'}
 - Career Interests: ${(studentProfile.career_interests as string[] | undefined)?.join(', ') || 'Not specified'}
 - Preferred College Type: ${studentProfile.preferred_college_type ?? 'Not specified'}

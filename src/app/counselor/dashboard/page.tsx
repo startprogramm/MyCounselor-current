@@ -144,7 +144,7 @@ export default function CounselorDashboardPage() {
     const [requestsResult, meetingsResult] = await Promise.all([
       supabase
         .from('requests')
-        .select('*')
+        .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,student_name,student_id,school_id,response,created_at')
         .eq('counselor_id', user.id)
         .order('created_at', { ascending: false }),
       supabase

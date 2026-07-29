@@ -12,6 +12,8 @@ function computeCompletionPct(data: Partial<AcademicProfileRow>): number {
     // Tests
     data.sat_total != null || data.act_composite != null,
     (data.ap_courses_taken?.length ?? 0) > 0,
+    (data.a_level_courses as unknown[] | null)?.length != null &&
+      (data.a_level_courses as unknown[]).length > 0,
     // Direction
     !!data.intended_major,
     (data.career_interests?.length ?? 0) > 0,

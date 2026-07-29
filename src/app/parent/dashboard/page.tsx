@@ -189,7 +189,7 @@ export default function ParentDashboardPage() {
         .order('created_at', { ascending: false }),
       supabase
         .from('requests')
-        .select('*')
+        .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,student_name,student_id,school_id,response,created_at')
         .in('student_id', childIds)
         .order('created_at', { ascending: false })
         .limit(10),

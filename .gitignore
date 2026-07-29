@@ -5,6 +5,9 @@
 .env.test.local
 .env.production.local
 
+# MCP server config (contains access tokens)
+.mcp.json
+
 # Node modules
 node_modules/
 package-lock.json
@@ -44,3 +47,4 @@ scripts/output/
 # Optional: if using TurboRepo or monorepo
 turbo/
 .vercel
+.env*

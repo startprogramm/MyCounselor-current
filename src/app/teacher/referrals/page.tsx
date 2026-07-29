@@ -116,7 +116,7 @@ export default function TeacherReferralsPage() {
 
     const { data, error } = await supabase
       .from('requests')
-      .select('*')
+      .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,student_name,student_id,school_id,response,created_at')
       .eq('school_id', user.schoolId)
       .or(`teacher_id.eq.${user.id},counselor_id.eq.${user.id}`)
       .order('created_at', { ascending: false });

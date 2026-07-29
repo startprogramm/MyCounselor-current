@@ -338,6 +338,7 @@ export type Database = {
           sat_ebrw: number | null;
           act_composite: number | null;
           ap_courses_taken: string[] | null;
+          a_level_courses: Json | null;
           intended_major: string | null;
           career_interests: string[] | null;
           preferred_college_type: string | null;
@@ -362,6 +363,7 @@ export type Database = {
           sat_ebrw?: number | null;
           act_composite?: number | null;
           ap_courses_taken?: string[] | null;
+          a_level_courses?: Json | null;
           intended_major?: string | null;
           career_interests?: string[] | null;
           preferred_college_type?: string | null;
@@ -386,6 +388,7 @@ export type Database = {
           sat_ebrw?: number | null;
           act_composite?: number | null;
           ap_courses_taken?: string[] | null;
+          a_level_courses?: Json | null;
           intended_major?: string | null;
           career_interests?: string[] | null;
           preferred_college_type?: string | null;
