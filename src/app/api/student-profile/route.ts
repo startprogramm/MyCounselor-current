@@ -4,29 +4,32 @@ import type { Database } from '@/lib/database.types';
 
 type AcademicProfileRow = Database['public']['Tables']['student_academic_profiles']['Row'];
 
+function hasItems(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0;
+}
+
 function computeCompletionPct(data: Partial<AcademicProfileRow>): number {
   const checks = [
-    // Academics (each counts as 1)
+    // Academics
     data.gpa_unweighted != null,
     data.gpa_weighted != null,
+    hasItems(data.igcse_subjects) || hasItems(data.as_level_subjects) || hasItems(data.a_level_courses),
     // Tests
     data.sat_total != null || data.act_composite != null,
-    (data.ap_courses_taken?.length ?? 0) > 0,
-    (data.a_level_courses as unknown[] | null)?.length != null &&
-      (data.a_level_courses as unknown[]).length > 0,
+    !!data.english_test_type,
     // Direction
     !!data.intended_major,
     (data.career_interests?.length ?? 0) > 0,
     !!data.preferred_college_type,
     // Activities
-    (data.extracurriculars as unknown[] | null)?.length != null &&
-      (data.extracurriculars as unknown[]).length > 0,
+    hasItems(data.extracurriculars),
     // Achievements
-    (data.honors_awards as unknown[] | null)?.length != null &&
-      (data.honors_awards as unknown[]).length > 0,
+    hasItems(data.honors_awards),
     // Colleges
-    (data.target_colleges?.length ?? 0) > 0,
+    hasItems(data.college_list) || (data.target_countries?.length ?? 0) > 0,
     !!data.personal_statement,
+    // Background
+    !!data.financial_aid_need || data.first_generation != null || !!data.additional_context,
   ];
 
   const filled = checks.filter(Boolean).length;

@@ -71,6 +71,8 @@ export default function EssayCoachPage() {
         if (profile) setStudentContext({
           intended_major: profile.intended_major,
           career_interests: profile.career_interests,
+          target_countries: profile.target_countries,
+          additional_context: profile.additional_context,
           gradeLevel: user.gradeLevel,
         });
       })

@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   }
 
   const contextBlock = studentContext
-    ? `\n\nStudent context:\n- Intended major: ${studentContext.intended_major || 'Not specified'}\n- Grade: ${studentContext.gradeLevel || 'Not specified'}\n- Career interests: ${(studentContext.career_interests as string[] | undefined)?.join(', ') || 'Not specified'}`
+    ? `\n\nStudent context:\n- Intended major: ${studentContext.intended_major || 'Not specified'}\n- Grade: ${studentContext.gradeLevel || 'Not specified'}\n- Career interests: ${(studentContext.career_interests as string[] | undefined)?.join(', ') || 'Not specified'}\n- Target countries: ${(studentContext.target_countries as string[] | undefined)?.join(', ') || 'Not specified'}\n- Additional personal context: ${studentContext.additional_context || 'None provided'}`
     : '';
 
   const userMessage = `Essay Prompt: "${essayPrompt || 'Common App personal statement'}"
