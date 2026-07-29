@@ -180,6 +180,25 @@ function isTabFilled(tab: TabId, p: AcademicProfile): boolean {
   }
 }
 
+// Backfills fields added after some students already had extracurriculars
+// saved, so older records never crash the renderer that expects them.
+function normalizeExtracurriculars(value: unknown): Extracurricular[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => {
+    const e = (entry ?? {}) as Partial<Extracurricular>;
+    return {
+      name: e.name ?? '',
+      role: e.role ?? '',
+      leadershipPosition: e.leadershipPosition ?? '',
+      years: e.years ?? '',
+      hoursPerWeek: e.hoursPerWeek ?? '',
+      weeksPerYear: e.weeksPerYear ?? '',
+      gradeLevels: e.gradeLevels ?? [],
+      description: e.description ?? '',
+    };
+  });
+}
+
 function profileToApiPayload(p: AcademicProfile, studentId: string, schoolId: string) {
   return {
     studentId,
@@ -773,7 +792,7 @@ function ActivitiesTab({ profile, setProfile, save }: { profile: AcademicProfile
                   <> · {act.hoursPerWeek || '?'} hrs/wk, {act.weeksPerYear || '?'} wks/yr</>
                 )}
               </p>
-              {act.gradeLevels.length > 0 && (
+              {(act.gradeLevels?.length ?? 0) > 0 && (
                 <p className="text-xs text-muted-foreground mt-0.5">Grades: {act.gradeLevels.join(', ')}</p>
               )}
               {act.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{act.description}</p>}
@@ -1255,7 +1274,7 @@ export default function AcademicProfileSection() {
             intended_major: data.intended_major ?? '',
             career_interests: data.career_interests ?? [],
             preferred_college_type: data.preferred_college_type ?? '',
-            extracurriculars: data.extracurriculars ?? [],
+            extracurriculars: normalizeExtracurriculars(data.extracurriculars),
             honors_awards: data.honors_awards ?? [],
             target_countries: data.target_countries ?? [],
             college_list: data.college_list ?? [],
