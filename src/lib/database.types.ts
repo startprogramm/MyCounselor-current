@@ -79,6 +79,7 @@ export type Database = {
           counselor_name: string;
           counselor_id: string | null;
           teacher_id: string | null;
+          teacher_name: string | null;
           student_name: string;
           student_id: string;
           school_id: string;
@@ -95,6 +96,7 @@ export type Database = {
           counselor_name?: string;
           counselor_id?: string | null;
           teacher_id?: string | null;
+          teacher_name?: string | null;
           student_name: string;
           student_id: string;
           school_id: string;
@@ -111,6 +113,7 @@ export type Database = {
           counselor_name?: string;
           counselor_id?: string | null;
           teacher_id?: string | null;
+          teacher_name?: string | null;
           student_name?: string;
           student_id?: string;
           school_id?: string;

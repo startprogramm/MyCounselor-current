@@ -29,6 +29,8 @@ interface CounselingRequest {
   studentId?: string;
   response?: string;
   documents?: RequestDocument[];
+  teacherId?: string;
+  teacherName?: string;
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -39,20 +41,26 @@ function cacheKey(userId: string) {
   return `mycounselor_requests_${userId}`;
 }
 
-function readCache(userId: string): { requests: CounselingRequest[]; counselors: User[] } | null {
+interface RequestsCachePayload {
+  requests: CounselingRequest[];
+  counselors: User[];
+  teachers: User[];
+}
+
+function readCache(userId: string): RequestsCachePayload | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(cacheKey(userId));
-    return raw ? (JSON.parse(raw) as { requests: CounselingRequest[]; counselors: User[] }) : null;
+    return raw ? (JSON.parse(raw) as RequestsCachePayload) : null;
   } catch {
     return null;
   }
 }
 
-function writeCache(userId: string, requests: CounselingRequest[], counselors: User[]) {
+function writeCache(userId: string, requests: CounselingRequest[], counselors: User[], teachers: User[]) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(cacheKey(userId), JSON.stringify({ requests, counselors }));
+    localStorage.setItem(cacheKey(userId), JSON.stringify({ requests, counselors, teachers }));
   } catch {
     // ignore quota errors
   }
@@ -80,6 +88,8 @@ function mapRequest(row: {
   student_id: string;
   response: string | null;
   documents: unknown;
+  teacher_id?: string | null;
+  teacher_name?: string | null;
 }): CounselingRequest {
   return {
     id: row.id,
@@ -93,8 +103,12 @@ function mapRequest(row: {
     studentId: row.student_id,
     response: row.response || undefined,
     documents: parseRequestDocuments(row.documents),
+    teacherId: row.teacher_id || undefined,
+    teacherName: row.teacher_name || undefined,
   };
 }
+
+const RECOMMENDATION_CATEGORY = 'recommendation';
 
 function mapProfileToUser(profile: ProfileRow): User {
   return {
@@ -124,6 +138,7 @@ export default function StudentRequestsPage() {
   // Data
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [schoolCounselors, setSchoolCounselors] = useState<User[]>([]);
+  const [schoolTeachers, setSchoolTeachers] = useState<User[]>([]);
 
   // Loading / error
   const [initialized, setInitialized] = useState(false); // true after localStorage check
@@ -136,6 +151,7 @@ export default function StudentRequestsPage() {
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newTeacherId, setNewTeacherId] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -152,29 +168,38 @@ export default function StudentRequestsPage() {
     if (cached) {
       setRequests(cached.requests || []);
       setSchoolCounselors(cached.counselors || []);
+      setSchoolTeachers(cached.teachers || []);
     }
     setInitialized(true);
   }, [user?.id]);
 
-  // ── Step 2: Fetch from Supabase (requests + counselors in parallel) ─────────
+  // ── Step 2: Fetch from Supabase (requests + counselors + teachers in parallel) ──
   const fetchData = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
     const fetchId = ++fetchIdRef.current;
 
-    const [{ data: requestData, error: requestError }, { data: counselorData }] =
-      await Promise.all([
-        supabase
-          .from('requests')
-          .select('*')
-          .eq('student_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('school_id', user.schoolId)
-          .eq('role', 'counselor'),
-      ]);
+    const [
+      { data: requestData, error: requestError },
+      { data: counselorData },
+      { data: teacherData },
+    ] = await Promise.all([
+      supabase
+        .from('requests')
+        .select('*')
+        .eq('student_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .eq('role', 'counselor'),
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .eq('role', 'teacher'),
+    ]);
 
     if (fetchIdRef.current !== fetchId) return; // stale, another fetch started
 
@@ -185,13 +210,15 @@ export default function StudentRequestsPage() {
 
     const mappedRequests = (requestData || []).map(mapRequest);
     const mappedCounselors = (counselorData || []).map(mapProfileToUser);
+    const mappedTeachers = (teacherData || []).map(mapProfileToUser);
 
     // Write to localStorage synchronously right here — never miss this write
-    writeCache(user.id, mappedRequests, mappedCounselors);
+    writeCache(user.id, mappedRequests, mappedCounselors, mappedTeachers);
 
     setFetchError('');
     setRequests(mappedRequests);
     setSchoolCounselors(mappedCounselors);
+    setSchoolTeachers(mappedTeachers);
   }, [user?.id, user?.schoolId]);
 
   // ── Step 3: Kick off fetch once initialized, then poll every 30 s ──────────
@@ -214,10 +241,13 @@ export default function StudentRequestsPage() {
     if (isSubmitting) return;
     setSubmitError('');
 
+    const isRecommendation = newCategory === RECOMMENDATION_CATEGORY;
+
     const errors: Record<string, string> = {};
     if (!newTitle.trim()) errors.title = 'Title is required';
     if (!newCategory) errors.category = 'Category is required';
     if (!newDescription.trim()) errors.description = 'Description is required';
+    if (isRecommendation && !newTeacherId) errors.teacher = 'Please select a teacher';
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -227,12 +257,19 @@ export default function StudentRequestsPage() {
     if (!user) return;
     setIsSubmitting(true);
 
-    const availableCounselors = schoolCounselors.filter((c) => c.approved === true);
-    const counselorPool = availableCounselors.length > 0 ? availableCounselors : schoolCounselors;
-    const assignedCounselor =
-      counselorPool.length > 0
-        ? counselorPool[Math.floor(Math.random() * counselorPool.length)]
-        : null;
+    let assignedCounselor: User | null = null;
+    let assignedTeacher: User | null = null;
+
+    if (isRecommendation) {
+      assignedTeacher = schoolTeachers.find((t) => t.id === newTeacherId) || null;
+    } else {
+      const availableCounselors = schoolCounselors.filter((c) => c.approved === true);
+      const counselorPool = availableCounselors.length > 0 ? availableCounselors : schoolCounselors;
+      assignedCounselor =
+        counselorPool.length > 0
+          ? counselorPool[Math.floor(Math.random() * counselorPool.length)]
+          : null;
+    }
 
     const { data, error } = await supabase
       .from('requests')
@@ -245,6 +282,8 @@ export default function StudentRequestsPage() {
           ? `${assignedCounselor.firstName} ${assignedCounselor.lastName}`
           : 'Unassigned',
         counselor_id: assignedCounselor?.id || null,
+        teacher_id: assignedTeacher?.id || null,
+        teacher_name: assignedTeacher ? `${assignedTeacher.firstName} ${assignedTeacher.lastName}` : null,
         student_name: `${user.firstName} ${user.lastName}`,
         student_id: user.id,
         school_id: user.schoolId,
@@ -261,15 +300,18 @@ export default function StudentRequestsPage() {
     const newRequest = mapRequest(data);
     const updated = [newRequest, ...requests];
     setRequests(updated);
-    writeCache(user.id, updated, schoolCounselors);
+    writeCache(user.id, updated, schoolCounselors, schoolTeachers);
 
     setNewTitle('');
     setNewCategory('');
     setNewDescription('');
+    setNewTeacherId('');
     setFormErrors({});
     setShowNewRequest(false);
     setSuccessMessage(
-      assignedCounselor
+      isRecommendation
+        ? `Request sent to ${assignedTeacher ? assignedTeacher.firstName + ' ' + assignedTeacher.lastName : 'your teacher'}!`
+        : assignedCounselor
         ? 'Request submitted successfully! Your counselor will review it shortly.'
         : 'Request submitted successfully! A counselor will be assigned soon.'
     );
@@ -290,7 +332,7 @@ export default function StudentRequestsPage() {
 
     const updated = requests.filter((r) => r.id !== id);
     setRequests(updated);
-    writeCache(user.id, updated, schoolCounselors);
+    writeCache(user.id, updated, schoolCounselors, schoolTeachers);
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -343,6 +385,12 @@ export default function StudentRequestsPage() {
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        );
+      case RECOMMENDATION_CATEGORY:
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7zM17 7a4 4 0 013.87 5.06M20 21h1a2 2 0 002-2 7 7 0 00-4-6.33" />
           </svg>
         );
       default:
@@ -421,9 +469,14 @@ export default function StudentRequestsPage() {
       {showNewRequest && (
         <ContentCard title="Create New Request">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {schoolCounselors.length === 0 && (
+            {newCategory !== RECOMMENDATION_CATEGORY && schoolCounselors.length === 0 && (
               <div className="p-3 rounded-lg border border-warning/30 bg-warning/10 text-sm text-warning">
                 No counselors registered yet. Your request will be saved and marked as unassigned.
+              </div>
+            )}
+            {newCategory === RECOMMENDATION_CATEGORY && schoolTeachers.length === 0 && (
+              <div className="p-3 rounded-lg border border-warning/30 bg-warning/10 text-sm text-warning">
+                No teachers are registered at your school yet, so there&apos;s no one to select.
               </div>
             )}
             <Input
@@ -436,10 +489,15 @@ export default function StudentRequestsPage() {
             <Select
               label="Category"
               value={newCategory}
-              onChange={(e) => { setNewCategory(e.target.value); setFormErrors(prev => ({ ...prev, category: '' })); }}
+              onChange={(e) => {
+                setNewCategory(e.target.value);
+                setFormErrors(prev => ({ ...prev, category: '', teacher: '' }));
+                if (e.target.value !== RECOMMENDATION_CATEGORY) setNewTeacherId('');
+              }}
               error={formErrors.category}
               options={[
                 { value: '', label: 'Select a category' },
+                { value: RECOMMENDATION_CATEGORY, label: 'Recommendation Letter' },
                 { value: 'academic', label: 'Academic Support' },
                 { value: 'college', label: 'College Planning' },
                 { value: 'career', label: 'Career Guidance' },
@@ -447,9 +505,28 @@ export default function StudentRequestsPage() {
                 { value: 'other', label: 'Other' },
               ]}
             />
+            {newCategory === RECOMMENDATION_CATEGORY && (
+              <Select
+                label="Teacher"
+                value={newTeacherId}
+                onChange={(e) => { setNewTeacherId(e.target.value); setFormErrors(prev => ({ ...prev, teacher: '' })); }}
+                error={formErrors.teacher}
+                options={[
+                  { value: '', label: 'Select a teacher' },
+                  ...schoolTeachers.map((t) => ({
+                    value: t.id,
+                    label: `${t.firstName} ${t.lastName}${t.subject ? ` — ${t.subject}` : ''}`,
+                  })),
+                ]}
+              />
+            )}
             <Textarea
               label="Description"
-              placeholder="Provide details about your request..."
+              placeholder={
+                newCategory === RECOMMENDATION_CATEGORY
+                  ? 'Let them know what the letter is for, any deadlines, and what you’d like them to highlight...'
+                  : 'Provide details about your request...'
+              }
               value={newDescription}
               onChange={(e) => { setNewDescription(e.target.value); setFormErrors(prev => ({ ...prev, description: '' })); }}
               error={formErrors.description}
@@ -460,6 +537,7 @@ export default function StudentRequestsPage() {
                 setNewTitle('');
                 setNewCategory('');
                 setNewDescription('');
+                setNewTeacherId('');
                 setFormErrors({});
                 setSubmitError('');
               }}>
@@ -548,10 +626,12 @@ export default function StudentRequestsPage() {
                     </span>
                   </div>
 
-                  {/* Counselor Response */}
+                  {/* Response */}
                   {request.response && (
                     <div className="mt-3 p-3 bg-primary/5 border border-primary/10 rounded-lg">
-                      <p className="text-xs font-medium text-primary mb-1">Counselor Response:</p>
+                      <p className="text-xs font-medium text-primary mb-1">
+                        {request.teacherName ? 'Teacher Response:' : 'Counselor Response:'}
+                      </p>
                       <p className="text-sm text-foreground whitespace-pre-wrap">{request.response}</p>
                     </div>
                   )}
@@ -586,7 +666,7 @@ export default function StudentRequestsPage() {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        {request.counselor}
+                        {request.teacherName ? `${request.teacherName} (Teacher)` : request.counselor}
                       </span>
                       <span className="flex items-center gap-1">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
