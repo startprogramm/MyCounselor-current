@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 import { getRequestStatusLabel, normalizeRequestStatus, type RequestStatus } from '@/lib/request-status';
+import { parseRecommendationDetails, type RecommendationDetails } from '@/lib/recommendation-details';
 
 const RECOMMENDATION_CATEGORY = 'recommendation';
 
@@ -22,6 +23,7 @@ interface Referral {
   category: string;
   response: string | null;
   createdAt: string;
+  recommendationDetails?: RecommendationDetails;
 }
 
 interface TeacherReferralsCachePayload {
@@ -40,6 +42,7 @@ function mapRequestRowToReferral(row: {
   category: string;
   response: string | null;
   created_at: string;
+  recommendation_details?: unknown;
 }): Referral {
   return {
     id: row.id,
@@ -51,6 +54,7 @@ function mapRequestRowToReferral(row: {
     category: row.category,
     response: row.response,
     createdAt: new Date(row.created_at).toLocaleDateString(),
+    recommendationDetails: parseRecommendationDetails(row.recommendation_details),
   };
 }
 
@@ -127,7 +131,7 @@ export default function TeacherReferralsPage() {
 
     const { data, error } = await supabase
       .from('requests')
-      .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,teacher_name,student_name,student_id,school_id,response,created_at')
+      .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,teacher_name,student_name,student_id,school_id,response,recommendation_details,created_at')
       .eq('school_id', user.schoolId)
       .or(`teacher_id.eq.${user.id},counselor_id.eq.${user.id}`)
       .order('created_at', { ascending: false });
@@ -225,7 +229,7 @@ export default function TeacherReferralsPage() {
       .from('requests')
       .update(payload)
       .eq('id', id)
-      .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,teacher_name,student_name,student_id,school_id,response,created_at')
+      .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,teacher_name,student_name,student_id,school_id,response,recommendation_details,created_at')
       .single();
 
     if (error || !data) {
@@ -425,6 +429,81 @@ export default function TeacherReferralsPage() {
                     <p className="text-sm text-muted-foreground">Requested by: {req.studentName}</p>
                     {req.description && <p className="text-sm text-muted-foreground mt-1">{req.description}</p>}
                     <span className="text-xs text-muted-foreground mt-2 inline-block">{req.createdAt}</span>
+
+                    {req.recommendationDetails && (
+                      <dl className="mt-3 space-y-2.5 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                        {(req.recommendationDetails.courses || req.recommendationDetails.deadline) && (
+                          <div className="flex flex-wrap gap-x-6 gap-y-1">
+                            {req.recommendationDetails.courses && (
+                              <div>
+                                <dt className="text-xs font-medium text-muted-foreground">Course(s)</dt>
+                                <dd className="text-foreground">{req.recommendationDetails.courses}</dd>
+                              </div>
+                            )}
+                            {req.recommendationDetails.deadline && (
+                              <div>
+                                <dt className="text-xs font-medium text-muted-foreground">Deadline</dt>
+                                <dd className="text-foreground">{req.recommendationDetails.deadline}</dd>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {req.recommendationDetails.reasonForChoosing && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Why they chose you</dt>
+                            <dd className="text-foreground">{req.recommendationDetails.reasonForChoosing}</dd>
+                          </div>
+                        )}
+                        {req.recommendationDetails.adjectives.length > 0 && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Three words</dt>
+                            <dd className="text-foreground">{req.recommendationDetails.adjectives.join(', ')}</dd>
+                          </div>
+                        )}
+                        {req.recommendationDetails.proudProject && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">A project they're proud of</dt>
+                            <dd className="text-foreground">{req.recommendationDetails.proudProject}</dd>
+                          </div>
+                        )}
+                        {req.recommendationDetails.favoriteLesson && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">A lesson they enjoyed</dt>
+                            <dd className="text-foreground">{req.recommendationDetails.favoriteLesson}</dd>
+                          </div>
+                        )}
+                        {req.recommendationDetails.attributes.length > 0 && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">
+                              Qualities to highlight: {req.recommendationDetails.attributes.join(', ')}
+                            </dt>
+                            <dd className="text-foreground">{req.recommendationDetails.attributeStory}</dd>
+                          </div>
+                        )}
+                        {req.recommendationDetails.somethingTheyDontKnow && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Something you might not know</dt>
+                            <dd className="text-foreground">{req.recommendationDetails.somethingTheyDontKnow}</dd>
+                          </div>
+                        )}
+                        {(req.recommendationDetails.targetColleges || req.recommendationDetails.intendedMajor) && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Applying to</dt>
+                            <dd className="text-foreground">
+                              {[req.recommendationDetails.targetColleges, req.recommendationDetails.intendedMajor]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </dd>
+                          </div>
+                        )}
+                        {req.recommendationDetails.additionalInfo && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Anything else</dt>
+                            <dd className="text-foreground">{req.recommendationDetails.additionalInfo}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    )}
 
                     {req.response && expandedId !== req.id && (
                       <div className="mt-3 p-3 bg-muted/30 rounded-lg">

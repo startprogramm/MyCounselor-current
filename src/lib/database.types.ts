@@ -85,6 +85,7 @@ export type Database = {
           school_id: string;
           response: string | null;
           documents: Json | null;
+          recommendation_details: Json | null;
           created_at: string;
         };
         Insert: {
@@ -102,6 +103,7 @@ export type Database = {
           school_id: string;
           response?: string | null;
           documents?: Json | null;
+          recommendation_details?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -119,6 +121,7 @@ export type Database = {
           school_id?: string;
           response?: string | null;
           documents?: Json | null;
+          recommendation_details?: Json | null;
           created_at?: string;
         };
         Relationships: [];

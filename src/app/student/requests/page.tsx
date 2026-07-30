@@ -14,6 +14,13 @@ import {
   normalizeRequestStatus,
   type RequestStatus,
 } from '@/lib/request-status';
+import {
+  EMPTY_RECOMMENDATION_DETAILS,
+  MAX_RECOMMENDATION_ATTRIBUTES,
+  RECOMMENDATION_ATTRIBUTES,
+  parseRecommendationDetails,
+  type RecommendationDetails,
+} from '@/lib/recommendation-details';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +38,7 @@ interface CounselingRequest {
   documents?: RequestDocument[];
   teacherId?: string;
   teacherName?: string;
+  recommendationDetails?: RecommendationDetails;
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -90,6 +98,7 @@ function mapRequest(row: {
   documents: unknown;
   teacher_id?: string | null;
   teacher_name?: string | null;
+  recommendation_details?: unknown;
 }): CounselingRequest {
   return {
     id: row.id,
@@ -105,6 +114,7 @@ function mapRequest(row: {
     documents: parseRequestDocuments(row.documents),
     teacherId: row.teacher_id || undefined,
     teacherName: row.teacher_name || undefined,
+    recommendationDetails: parseRecommendationDetails(row.recommendation_details),
   };
 }
 
@@ -139,6 +149,7 @@ export default function StudentRequestsPage() {
   const [requests, setRequests] = useState<CounselingRequest[]>([]);
   const [schoolCounselors, setSchoolCounselors] = useState<User[]>([]);
   const [schoolTeachers, setSchoolTeachers] = useState<User[]>([]);
+  const [profileDefaults, setProfileDefaults] = useState<{ targetColleges: string; intendedMajor: string } | null>(null);
 
   // Loading / error
   const [initialized, setInitialized] = useState(false); // true after localStorage check
@@ -152,10 +163,30 @@ export default function StudentRequestsPage() {
   const [newCategory, setNewCategory] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newTeacherId, setNewTeacherId] = useState('');
+  const [recDetails, setRecDetails] = useState<RecommendationDetails>(EMPTY_RECOMMENDATION_DETAILS);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const updateRecField = <K extends keyof RecommendationDetails>(
+    field: K,
+    value: RecommendationDetails[K]
+  ) => {
+    setRecDetails((prev) => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const toggleRecAttribute = (attribute: string) => {
+    setRecDetails((prev) => {
+      const already = prev.attributes.includes(attribute);
+      if (already) {
+        return { ...prev, attributes: prev.attributes.filter((a) => a !== attribute) };
+      }
+      if (prev.attributes.length >= MAX_RECOMMENDATION_ATTRIBUTES) return prev;
+      return { ...prev, attributes: [...prev.attributes, attribute] };
+    });
+  };
 
   // Stale-response guard
   const fetchIdRef = useRef(0);
@@ -183,6 +214,7 @@ export default function StudentRequestsPage() {
       { data: requestData, error: requestError },
       { data: counselorData },
       { data: teacherData },
+      { data: profileData },
     ] = await Promise.all([
       supabase
         .from('requests')
@@ -199,6 +231,11 @@ export default function StudentRequestsPage() {
         .select('*')
         .eq('school_id', user.schoolId)
         .eq('role', 'teacher'),
+      supabase
+        .from('student_academic_profiles')
+        .select('college_list, intended_major')
+        .eq('student_id', user.id)
+        .maybeSingle(),
     ]);
 
     if (fetchIdRef.current !== fetchId) return; // stale, another fetch started
@@ -211,6 +248,16 @@ export default function StudentRequestsPage() {
     const mappedRequests = (requestData || []).map(mapRequest);
     const mappedCounselors = (counselorData || []).map(mapProfileToUser);
     const mappedTeachers = (teacherData || []).map(mapProfileToUser);
+
+    if (profileData) {
+      const collegeList = Array.isArray(profileData.college_list)
+        ? (profileData.college_list as Array<{ name?: string }>)
+        : [];
+      setProfileDefaults({
+        targetColleges: collegeList.map((c) => c.name).filter(Boolean).join(', '),
+        intendedMajor: profileData.intended_major || '',
+      });
+    }
 
     // Write to localStorage synchronously right here — never miss this write
     writeCache(user.id, mappedRequests, mappedCounselors, mappedTeachers);
@@ -234,6 +281,18 @@ export default function StudentRequestsPage() {
   // ── Loading state: only show spinner if we have zero data AND fetching ──────
   const showLoading = !initialized || (isFetching && requests.length === 0);
 
+  // Prefill target colleges / intended major from the student's own Academic
+  // Profile the first time they open a recommendation letter request, so they
+  // don't have to type the same thing twice.
+  useEffect(() => {
+    if (newCategory !== RECOMMENDATION_CATEGORY || !profileDefaults) return;
+    setRecDetails((prev) => ({
+      ...prev,
+      targetColleges: prev.targetColleges || profileDefaults.targetColleges,
+      intendedMajor: prev.intendedMajor || profileDefaults.intendedMajor,
+    }));
+  }, [newCategory, profileDefaults]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -247,7 +306,13 @@ export default function StudentRequestsPage() {
     if (!newTitle.trim()) errors.title = 'Title is required';
     if (!newCategory) errors.category = 'Category is required';
     if (!newDescription.trim()) errors.description = 'Description is required';
-    if (isRecommendation && !newTeacherId) errors.teacher = 'Please select a teacher';
+    if (isRecommendation) {
+      if (!newTeacherId) errors.teacher = 'Please select a teacher';
+      if (!recDetails.courses.trim()) errors.courses = 'Let them know which class(es) they had you in';
+      if (!recDetails.reasonForChoosing.trim()) errors.reasonForChoosing = 'This helps them understand why you asked them';
+      if (!recDetails.deadline) errors.deadline = 'Deadline is required';
+      if (!recDetails.adjectives.some((a) => a.trim())) errors.adjectives = 'Give at least one word';
+    }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -287,6 +352,12 @@ export default function StudentRequestsPage() {
         student_name: `${user.firstName} ${user.lastName}`,
         student_id: user.id,
         school_id: user.schoolId,
+        recommendation_details: isRecommendation
+          ? {
+              ...recDetails,
+              adjectives: recDetails.adjectives.filter((a) => a.trim()),
+            }
+          : null,
       })
       .select('*')
       .single();
@@ -306,6 +377,7 @@ export default function StudentRequestsPage() {
     setNewCategory('');
     setNewDescription('');
     setNewTeacherId('');
+    setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
     setFormErrors({});
     setShowNewRequest(false);
     setSuccessMessage(
@@ -524,13 +596,150 @@ export default function StudentRequestsPage() {
               label="Description"
               placeholder={
                 newCategory === RECOMMENDATION_CATEGORY
-                  ? 'Let them know what the letter is for, any deadlines, and what you’d like them to highlight...'
+                  ? 'In one or two sentences, what is this letter for?'
                   : 'Provide details about your request...'
               }
               value={newDescription}
               onChange={(e) => { setNewDescription(e.target.value); setFormErrors(prev => ({ ...prev, description: '' })); }}
               error={formErrors.description}
             />
+
+            {newCategory === RECOMMENDATION_CATEGORY && (
+              <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Help them write a great letter</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    The more specific detail you give, the more personal and effective the letter will be. Based
+                    on the questions counselors and teachers actually use to write strong recommendations.
+                  </p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Course(s) you took with them"
+                    placeholder="e.g. AP Biology (Grade 11), Chemistry (Grade 10)"
+                    value={recDetails.courses}
+                    onChange={(e) => updateRecField('courses', e.target.value)}
+                    error={formErrors.courses}
+                  />
+                  <Input
+                    label="Deadline"
+                    type="date"
+                    value={recDetails.deadline}
+                    onChange={(e) => updateRecField('deadline', e.target.value)}
+                    error={formErrors.deadline}
+                  />
+                </div>
+
+                <Textarea
+                  label="Why did you choose this teacher?"
+                  placeholder="What makes them the right person to speak to who you are?"
+                  value={recDetails.reasonForChoosing}
+                  onChange={(e) => updateRecField('reasonForChoosing', e.target.value)}
+                  error={formErrors.reasonForChoosing}
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Three words that describe you
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[0, 1, 2].map((i) => (
+                      <Input
+                        key={i}
+                        placeholder={`Word ${i + 1}`}
+                        value={recDetails.adjectives[i] || ''}
+                        onChange={(e) => {
+                          const next = [...recDetails.adjectives];
+                          next[i] = e.target.value;
+                          updateRecField('adjectives', next);
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {formErrors.adjectives && (
+                    <p className="text-xs text-destructive mt-1">{formErrors.adjectives}</p>
+                  )}
+                </div>
+
+                <Textarea
+                  label="A project or piece of work in their class you're proud of"
+                  placeholder="What did you make or write, and why does it matter to you?"
+                  value={recDetails.proudProject}
+                  onChange={(e) => updateRecField('proudProject', e.target.value)}
+                />
+
+                <Textarea
+                  label="A lesson or discussion in their class you enjoyed (optional)"
+                  value={recDetails.favoriteLesson}
+                  onChange={(e) => updateRecField('favoriteLesson', e.target.value)}
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">
+                    Pick up to {MAX_RECOMMENDATION_ATTRIBUTES} qualities colleges look for, and tell a specific story about them
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                    {RECOMMENDATION_ATTRIBUTES.map((attribute) => {
+                      const checked = recDetails.attributes.includes(attribute);
+                      const disabled = !checked && recDetails.attributes.length >= MAX_RECOMMENDATION_ATTRIBUTES;
+                      return (
+                        <label
+                          key={attribute}
+                          className={`flex items-center gap-2 text-xs px-2.5 py-2 rounded-lg border cursor-pointer transition-colors ${
+                            checked
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : disabled
+                              ? 'border-border text-muted-foreground/50 cursor-not-allowed'
+                              : 'border-border text-foreground hover:bg-muted/40'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="accent-primary"
+                            checked={checked}
+                            disabled={disabled}
+                            onChange={() => toggleRecAttribute(attribute)}
+                          />
+                          {attribute}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <Textarea
+                    placeholder="Describe a specific moment that shows this — a real story is far more convincing than a general claim."
+                    value={recDetails.attributeStory}
+                    onChange={(e) => updateRecField('attributeStory', e.target.value)}
+                  />
+                </div>
+
+                <Textarea
+                  label="Something they might not know about you (optional)"
+                  value={recDetails.somethingTheyDontKnow}
+                  onChange={(e) => updateRecField('somethingTheyDontKnow', e.target.value)}
+                />
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Colleges / programs this is for"
+                    placeholder="e.g. MIT, Stanford, Oxford"
+                    value={recDetails.targetColleges}
+                    onChange={(e) => updateRecField('targetColleges', e.target.value)}
+                  />
+                  <Input
+                    label="Intended major or field"
+                    value={recDetails.intendedMajor}
+                    onChange={(e) => updateRecField('intendedMajor', e.target.value)}
+                  />
+                </div>
+
+                <Textarea
+                  label="Anything else they should know? (optional)"
+                  value={recDetails.additionalInfo}
+                  onChange={(e) => updateRecField('additionalInfo', e.target.value)}
+                />
+              </div>
+            )}
             <div className="flex justify-end gap-3">
               <Button variant="outline" type="button" onClick={() => {
                 setShowNewRequest(false);
@@ -538,6 +747,7 @@ export default function StudentRequestsPage() {
                 setNewCategory('');
                 setNewDescription('');
                 setNewTeacherId('');
+                setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
                 setFormErrors({});
                 setSubmitError('');
               }}>
@@ -634,6 +844,83 @@ export default function StudentRequestsPage() {
                       </p>
                       <p className="text-sm text-foreground whitespace-pre-wrap">{request.response}</p>
                     </div>
+                  )}
+
+                  {/* Recommendation letter details the student shared */}
+                  {request.recommendationDetails && (
+                    <details className="mt-3 group">
+                      <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                        View what you shared with {request.teacherName || 'them'}
+                      </summary>
+                      <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                        {request.recommendationDetails.courses && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Course(s)</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.courses}</dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.deadline && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Deadline</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.deadline}</dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.reasonForChoosing && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Why this teacher</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.reasonForChoosing}</dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.adjectives.length > 0 && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Three words</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.adjectives.join(', ')}</dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.proudProject && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Proud project</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.proudProject}</dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.favoriteLesson && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Favorite lesson</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.favoriteLesson}</dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.attributes.length > 0 && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">
+                              Qualities: {request.recommendationDetails.attributes.join(', ')}
+                            </dt>
+                            <dd className="text-foreground">{request.recommendationDetails.attributeStory}</dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.somethingTheyDontKnow && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">They might not know</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.somethingTheyDontKnow}</dd>
+                          </div>
+                        )}
+                        {(request.recommendationDetails.targetColleges || request.recommendationDetails.intendedMajor) && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Applying to</dt>
+                            <dd className="text-foreground">
+                              {[request.recommendationDetails.targetColleges, request.recommendationDetails.intendedMajor]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </dd>
+                          </div>
+                        )}
+                        {request.recommendationDetails.additionalInfo && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
+                            <dd className="text-foreground">{request.recommendationDetails.additionalInfo}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </details>
                   )}
 
                   {/* Attached Documents */}
