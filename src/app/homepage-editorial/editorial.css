@@ -1,0 +1,72 @@
+/* Scoped design system for the "Editorial" homepage concept. Namespaced
+   under .homepage-editorial so it can never leak into the live app. */
+
+.homepage-editorial {
+  --ed-ink: #111110;
+  --ed-paper: #efece4;
+  --ed-white: #ffffff;
+  --ed-stone: #ddd7c9;
+  --ed-orange: #f1592a;
+  --ed-orange-deep: #d94a1e;
+  font-family: var(--font-body), sans-serif;
+  background: var(--ed-white);
+  color: var(--ed-ink);
+}
+
+.homepage-editorial .ed-display {
+  font-family: var(--font-display), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.homepage-editorial .ed-hairline {
+  border-color: rgba(17, 17, 16, 0.14);
+}
+
+.homepage-editorial .ed-diamond {
+  background: var(--ed-stone);
+  transform: rotate(45deg);
+}
+
+@keyframes ed-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.homepage-editorial .ed-animate {
+  opacity: 0;
+}
+
+.homepage-editorial .ed-animate.ed-visible {
+  animation: ed-fade-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.homepage-editorial .ed-delay-1 {
+  animation-delay: 0.08s;
+}
+.homepage-editorial .ed-delay-2 {
+  animation-delay: 0.16s;
+}
+.homepage-editorial .ed-delay-3 {
+  animation-delay: 0.24s;
+}
+.homepage-editorial .ed-delay-4 {
+  animation-delay: 0.32s;
+}
+.homepage-editorial .ed-delay-5 {
+  animation-delay: 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homepage-editorial .ed-animate,
+  .homepage-editorial .ed-animate.ed-visible {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
