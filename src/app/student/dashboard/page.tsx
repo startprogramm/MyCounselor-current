@@ -366,7 +366,15 @@ export default function StudentDashboardPage() {
           : null;
       const schoolCounselors = supportUsers?.filter((member) => member.role === 'counselor') || [];
       const schoolTeachers = supportUsers?.filter((member) => member.role === 'teacher') || [];
-      const schoolParents = supportUsers?.filter((member) => member.role === 'parent') || [];
+      const studentFullNameForParents = `${user.firstName} ${user.lastName}`.toLowerCase().trim();
+      const schoolParents =
+        supportUsers?.filter(
+          (member) =>
+            member.role === 'parent' &&
+            (member.childrenNames || []).some(
+              (name) => name.toLowerCase().trim() === studentFullNameForParents
+            )
+        ) || [];
 
       if (supportUsers) {
         setCounselors(schoolCounselors);
