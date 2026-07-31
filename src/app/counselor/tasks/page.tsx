@@ -17,6 +17,9 @@ import {
   normalizeRequestStatus,
   type RequestStatus,
 } from '@/lib/request-status';
+import { parseRecommendationDetails, type RecommendationDetails } from '@/lib/recommendation-details';
+
+const RECOMMENDATION_CATEGORY = 'recommendation';
 
 interface CounselingRequest {
   id: number;
@@ -30,6 +33,7 @@ interface CounselingRequest {
   studentId?: string;
   response?: string;
   documents?: RequestDocument[];
+  recommendationDetails?: RecommendationDetails;
 }
 
 interface CounselorTasksCachePayload {
@@ -60,6 +64,7 @@ function mapRequest(row: {
   student_id: string;
   response: string | null;
   documents: unknown;
+  recommendation_details?: unknown;
 }): CounselingRequest {
   return {
     id: row.id,
@@ -73,6 +78,7 @@ function mapRequest(row: {
     studentId: row.student_id,
     response: row.response || undefined,
     documents: parseRequestDocuments(row.documents),
+    recommendationDetails: parseRecommendationDetails(row.recommendation_details),
   };
 }
 
@@ -551,6 +557,83 @@ export default function CounselorTasksPage() {
                     {getRequestStatusLabel(request.status)}
                   </span>
                 </div>
+
+                {/* Brag-sheet details the student shared for a recommendation letter */}
+                {request.category === RECOMMENDATION_CATEGORY && request.recommendationDetails && (
+                  <details className="mt-3 group">
+                    <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                      View what {request.studentName || 'the student'} shared
+                    </summary>
+                    <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                      {request.recommendationDetails.courses && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">How they know you / course(s)</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.courses}</dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.deadline && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Deadline</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.deadline}</dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.reasonForChoosing && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Why they chose you</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.reasonForChoosing}</dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.adjectives.length > 0 && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Three words</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.adjectives.join(', ')}</dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.proudProject && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Proud project</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.proudProject}</dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.favoriteLesson && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Favorite lesson / conversation</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.favoriteLesson}</dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.attributes.length > 0 && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Qualities to highlight: {request.recommendationDetails.attributes.join(', ')}
+                          </dt>
+                          <dd className="text-foreground">{request.recommendationDetails.attributeStory}</dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.somethingTheyDontKnow && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">They might not know</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.somethingTheyDontKnow}</dd>
+                        </div>
+                      )}
+                      {(request.recommendationDetails.targetColleges || request.recommendationDetails.intendedMajor) && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Applying to</dt>
+                          <dd className="text-foreground">
+                            {[request.recommendationDetails.targetColleges, request.recommendationDetails.intendedMajor]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </dd>
+                        </div>
+                      )}
+                      {request.recommendationDetails.additionalInfo && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
+                          <dd className="text-foreground">{request.recommendationDetails.additionalInfo}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </details>
+                )}
 
                 {/* Saved response preview (when not expanded) */}
                 {request.response && expandedId !== request.id && (

@@ -163,6 +163,8 @@ export default function StudentRequestsPage() {
   const [newCategory, setNewCategory] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newTeacherId, setNewTeacherId] = useState('');
+  const [newRecipientType, setNewRecipientType] = useState<'teacher' | 'counselor'>('teacher');
+  const [newCounselorRecipientId, setNewCounselorRecipientId] = useState('');
   const [recDetails, setRecDetails] = useState<RecommendationDetails>(EMPTY_RECOMMENDATION_DETAILS);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
@@ -307,8 +309,14 @@ export default function StudentRequestsPage() {
     if (!newCategory) errors.category = 'Category is required';
     if (!newDescription.trim()) errors.description = 'Description is required';
     if (isRecommendation) {
-      if (!newTeacherId) errors.teacher = 'Please select a teacher';
-      if (!recDetails.courses.trim()) errors.courses = 'Let them know which class(es) they had you in';
+      if (newRecipientType === 'teacher' && !newTeacherId) errors.recipient = 'Please select a teacher';
+      if (newRecipientType === 'counselor' && !newCounselorRecipientId) errors.recipient = 'Please select a counselor';
+      if (!recDetails.courses.trim()) {
+        errors.courses =
+          newRecipientType === 'counselor'
+            ? 'Let them know how they know you'
+            : 'Let them know which class(es) they had you in';
+      }
       if (!recDetails.reasonForChoosing.trim()) errors.reasonForChoosing = 'This helps them understand why you asked them';
       if (!recDetails.deadline) errors.deadline = 'Deadline is required';
       if (!recDetails.adjectives.some((a) => a.trim())) errors.adjectives = 'Give at least one word';
@@ -326,7 +334,11 @@ export default function StudentRequestsPage() {
     let assignedTeacher: User | null = null;
 
     if (isRecommendation) {
-      assignedTeacher = schoolTeachers.find((t) => t.id === newTeacherId) || null;
+      if (newRecipientType === 'counselor') {
+        assignedCounselor = schoolCounselors.find((c) => c.id === newCounselorRecipientId) || null;
+      } else {
+        assignedTeacher = schoolTeachers.find((t) => t.id === newTeacherId) || null;
+      }
     } else {
       const availableCounselors = schoolCounselors.filter((c) => c.approved === true);
       const counselorPool = availableCounselors.length > 0 ? availableCounselors : schoolCounselors;
@@ -377,12 +389,21 @@ export default function StudentRequestsPage() {
     setNewCategory('');
     setNewDescription('');
     setNewTeacherId('');
+    setNewCounselorRecipientId('');
+    setNewRecipientType('teacher');
     setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
     setFormErrors({});
     setShowNewRequest(false);
+    const recommendationRecipientName = assignedTeacher
+      ? `${assignedTeacher.firstName} ${assignedTeacher.lastName}`
+      : assignedCounselor
+      ? `${assignedCounselor.firstName} ${assignedCounselor.lastName}`
+      : newRecipientType === 'counselor'
+      ? 'your counselor'
+      : 'your teacher';
     setSuccessMessage(
       isRecommendation
-        ? `Request sent to ${assignedTeacher ? assignedTeacher.firstName + ' ' + assignedTeacher.lastName : 'your teacher'}!`
+        ? `Request sent to ${recommendationRecipientName}!`
         : assignedCounselor
         ? 'Request submitted successfully! Your counselor will review it shortly.'
         : 'Request submitted successfully! A counselor will be assigned soon.'
@@ -546,9 +567,14 @@ export default function StudentRequestsPage() {
                 No counselors registered yet. Your request will be saved and marked as unassigned.
               </div>
             )}
-            {newCategory === RECOMMENDATION_CATEGORY && schoolTeachers.length === 0 && (
+            {newCategory === RECOMMENDATION_CATEGORY && newRecipientType === 'teacher' && schoolTeachers.length === 0 && (
               <div className="p-3 rounded-lg border border-warning/30 bg-warning/10 text-sm text-warning">
                 No teachers are registered at your school yet, so there&apos;s no one to select.
+              </div>
+            )}
+            {newCategory === RECOMMENDATION_CATEGORY && newRecipientType === 'counselor' && schoolCounselors.length === 0 && (
+              <div className="p-3 rounded-lg border border-warning/30 bg-warning/10 text-sm text-warning">
+                No counselors are registered at your school yet, so there&apos;s no one to select.
               </div>
             )}
             <Input
@@ -563,8 +589,12 @@ export default function StudentRequestsPage() {
               value={newCategory}
               onChange={(e) => {
                 setNewCategory(e.target.value);
-                setFormErrors(prev => ({ ...prev, category: '', teacher: '' }));
-                if (e.target.value !== RECOMMENDATION_CATEGORY) setNewTeacherId('');
+                setFormErrors(prev => ({ ...prev, category: '', recipient: '' }));
+                if (e.target.value !== RECOMMENDATION_CATEGORY) {
+                  setNewTeacherId('');
+                  setNewCounselorRecipientId('');
+                  setNewRecipientType('teacher');
+                }
               }}
               error={formErrors.category}
               options={[
@@ -579,15 +609,47 @@ export default function StudentRequestsPage() {
             />
             {newCategory === RECOMMENDATION_CATEGORY && (
               <Select
+                label="Request from"
+                value={newRecipientType}
+                onChange={(e) => {
+                  const nextType = e.target.value as 'teacher' | 'counselor';
+                  setNewRecipientType(nextType);
+                  setNewTeacherId('');
+                  setNewCounselorRecipientId('');
+                  setFormErrors(prev => ({ ...prev, recipient: '' }));
+                }}
+                options={[
+                  { value: 'teacher', label: 'A teacher' },
+                  { value: 'counselor', label: 'My counselor' },
+                ]}
+              />
+            )}
+            {newCategory === RECOMMENDATION_CATEGORY && newRecipientType === 'teacher' && (
+              <Select
                 label="Teacher"
                 value={newTeacherId}
-                onChange={(e) => { setNewTeacherId(e.target.value); setFormErrors(prev => ({ ...prev, teacher: '' })); }}
-                error={formErrors.teacher}
+                onChange={(e) => { setNewTeacherId(e.target.value); setFormErrors(prev => ({ ...prev, recipient: '' })); }}
+                error={formErrors.recipient}
                 options={[
                   { value: '', label: 'Select a teacher' },
                   ...schoolTeachers.map((t) => ({
                     value: t.id,
                     label: `${t.firstName} ${t.lastName}${t.subject ? ` — ${t.subject}` : ''}`,
+                  })),
+                ]}
+              />
+            )}
+            {newCategory === RECOMMENDATION_CATEGORY && newRecipientType === 'counselor' && (
+              <Select
+                label="Counselor"
+                value={newCounselorRecipientId}
+                onChange={(e) => { setNewCounselorRecipientId(e.target.value); setFormErrors(prev => ({ ...prev, recipient: '' })); }}
+                error={formErrors.recipient}
+                options={[
+                  { value: '', label: 'Select a counselor' },
+                  ...schoolCounselors.map((c) => ({
+                    value: c.id,
+                    label: `${c.firstName} ${c.lastName}`,
                   })),
                 ]}
               />
@@ -616,8 +678,16 @@ export default function StudentRequestsPage() {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Input
-                    label="Course(s) you took with them"
-                    placeholder="e.g. AP Biology (Grade 11), Chemistry (Grade 10)"
+                    label={
+                      newRecipientType === 'counselor'
+                        ? 'How they know you'
+                        : 'Course(s) you took with them'
+                    }
+                    placeholder={
+                      newRecipientType === 'counselor'
+                        ? 'e.g. Advising since Grade 9, college planning meetings, clubs they run'
+                        : 'e.g. AP Biology (Grade 11), Chemistry (Grade 10)'
+                    }
                     value={recDetails.courses}
                     onChange={(e) => updateRecField('courses', e.target.value)}
                     error={formErrors.courses}
@@ -632,7 +702,11 @@ export default function StudentRequestsPage() {
                 </div>
 
                 <Textarea
-                  label="Why did you choose this teacher?"
+                  label={
+                    newRecipientType === 'counselor'
+                      ? 'Why did you choose them?'
+                      : 'Why did you choose this teacher?'
+                  }
                   placeholder="What makes them the right person to speak to who you are?"
                   value={recDetails.reasonForChoosing}
                   onChange={(e) => updateRecField('reasonForChoosing', e.target.value)}
@@ -663,14 +737,22 @@ export default function StudentRequestsPage() {
                 </div>
 
                 <Textarea
-                  label="A project or piece of work in their class you're proud of"
+                  label={
+                    newRecipientType === 'counselor'
+                      ? "A project or achievement you're proud of"
+                      : "A project or piece of work in their class you're proud of"
+                  }
                   placeholder="What did you make or write, and why does it matter to you?"
                   value={recDetails.proudProject}
                   onChange={(e) => updateRecField('proudProject', e.target.value)}
                 />
 
                 <Textarea
-                  label="A lesson or discussion in their class you enjoyed (optional)"
+                  label={
+                    newRecipientType === 'counselor'
+                      ? 'A conversation or meeting with them you found helpful (optional)'
+                      : 'A lesson or discussion in their class you enjoyed (optional)'
+                  }
                   value={recDetails.favoriteLesson}
                   onChange={(e) => updateRecField('favoriteLesson', e.target.value)}
                 />
@@ -747,6 +829,8 @@ export default function StudentRequestsPage() {
                 setNewCategory('');
                 setNewDescription('');
                 setNewTeacherId('');
+                setNewCounselorRecipientId('');
+                setNewRecipientType('teacher');
                 setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
                 setFormErrors({});
                 setSubmitError('');
@@ -850,7 +934,9 @@ export default function StudentRequestsPage() {
                   {request.recommendationDetails && (
                     <details className="mt-3 group">
                       <summary className="text-xs font-medium text-primary cursor-pointer select-none">
-                        View what you shared with {request.teacherName || 'them'}
+                        View what you shared with{' '}
+                        {request.teacherName ||
+                          (request.category === RECOMMENDATION_CATEGORY ? request.counselor : 'them')}
                       </summary>
                       <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
                         {request.recommendationDetails.courses && (
@@ -953,7 +1039,11 @@ export default function StudentRequestsPage() {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        {request.teacherName ? `${request.teacherName} (Teacher)` : request.counselor}
+                        {request.teacherName
+                          ? `${request.teacherName} (Teacher)`
+                          : request.category === RECOMMENDATION_CATEGORY
+                          ? `${request.counselor} (Counselor)`
+                          : request.counselor}
                       </span>
                       <span className="flex items-center gap-1">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
