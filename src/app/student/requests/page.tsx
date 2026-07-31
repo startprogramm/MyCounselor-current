@@ -21,6 +21,13 @@ import {
   parseRecommendationDetails,
   type RecommendationDetails,
 } from '@/lib/recommendation-details';
+import {
+  DOCUMENT_TYPES,
+  EMPTY_DOCUMENT_REQUEST_DETAILS,
+  getDocumentTypeLabel,
+  parseDocumentRequestDetails,
+  type DocumentRequestDetails,
+} from '@/lib/document-request-details';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +46,7 @@ interface CounselingRequest {
   teacherId?: string;
   teacherName?: string;
   recommendationDetails?: RecommendationDetails;
+  documentRequestDetails?: DocumentRequestDetails;
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -99,6 +107,7 @@ function mapRequest(row: {
   teacher_id?: string | null;
   teacher_name?: string | null;
   recommendation_details?: unknown;
+  document_request_details?: unknown;
 }): CounselingRequest {
   return {
     id: row.id,
@@ -115,10 +124,12 @@ function mapRequest(row: {
     teacherId: row.teacher_id || undefined,
     teacherName: row.teacher_name || undefined,
     recommendationDetails: parseRecommendationDetails(row.recommendation_details),
+    documentRequestDetails: parseDocumentRequestDetails(row.document_request_details),
   };
 }
 
 const RECOMMENDATION_CATEGORY = 'recommendation';
+const DOCUMENT_REQUEST_CATEGORY = 'document_request';
 
 function mapProfileToUser(profile: ProfileRow): User {
   return {
@@ -166,6 +177,7 @@ export default function StudentRequestsPage() {
   const [newRecipientType, setNewRecipientType] = useState<'teacher' | 'counselor'>('teacher');
   const [newCounselorRecipientId, setNewCounselorRecipientId] = useState('');
   const [recDetails, setRecDetails] = useState<RecommendationDetails>(EMPTY_RECOMMENDATION_DETAILS);
+  const [docDetails, setDocDetails] = useState<DocumentRequestDetails>(EMPTY_DOCUMENT_REQUEST_DETAILS);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -176,6 +188,14 @@ export default function StudentRequestsPage() {
     value: RecommendationDetails[K]
   ) => {
     setRecDetails((prev) => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const updateDocField = <K extends keyof DocumentRequestDetails>(
+    field: K,
+    value: DocumentRequestDetails[K]
+  ) => {
+    setDocDetails((prev) => ({ ...prev, [field]: value }));
     setFormErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
@@ -303,6 +323,7 @@ export default function StudentRequestsPage() {
     setSubmitError('');
 
     const isRecommendation = newCategory === RECOMMENDATION_CATEGORY;
+    const isDocumentRequest = newCategory === DOCUMENT_REQUEST_CATEGORY;
 
     const errors: Record<string, string> = {};
     if (!newTitle.trim()) errors.title = 'Title is required';
@@ -320,6 +341,11 @@ export default function StudentRequestsPage() {
       if (!recDetails.reasonForChoosing.trim()) errors.reasonForChoosing = 'This helps them understand why you asked them';
       if (!recDetails.deadline) errors.deadline = 'Deadline is required';
       if (!recDetails.adjectives.some((a) => a.trim())) errors.adjectives = 'Give at least one word';
+    }
+    if (isDocumentRequest) {
+      if (!docDetails.documentType) errors.documentType = 'Please select a document type';
+      if (!docDetails.destination.trim()) errors.destination = 'Let your counselor know where this needs to go';
+      if (!docDetails.deadline) errors.deadline = 'Deadline is required';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -370,6 +396,7 @@ export default function StudentRequestsPage() {
               adjectives: recDetails.adjectives.filter((a) => a.trim()),
             }
           : null,
+        document_request_details: isDocumentRequest ? docDetails : null,
       })
       .select('*')
       .single();
@@ -392,6 +419,7 @@ export default function StudentRequestsPage() {
     setNewCounselorRecipientId('');
     setNewRecipientType('teacher');
     setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
+    setDocDetails(EMPTY_DOCUMENT_REQUEST_DETAILS);
     setFormErrors({});
     setShowNewRequest(false);
     const recommendationRecipientName = assignedTeacher
@@ -484,6 +512,12 @@ export default function StudentRequestsPage() {
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7zM17 7a4 4 0 013.87 5.06M20 21h1a2 2 0 002-2 7 7 0 00-4-6.33" />
+          </svg>
+        );
+      case DOCUMENT_REQUEST_CATEGORY:
+        return (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2-8H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V9.828a2 2 0 00-.586-1.414l-3.828-3.828A2 2 0 0013.172 4z" />
           </svg>
         );
       default:
@@ -595,11 +629,15 @@ export default function StudentRequestsPage() {
                   setNewCounselorRecipientId('');
                   setNewRecipientType('teacher');
                 }
+                if (e.target.value !== DOCUMENT_REQUEST_CATEGORY) {
+                  setDocDetails(EMPTY_DOCUMENT_REQUEST_DETAILS);
+                }
               }}
               error={formErrors.category}
               options={[
                 { value: '', label: 'Select a category' },
                 { value: RECOMMENDATION_CATEGORY, label: 'Recommendation Letter' },
+                { value: DOCUMENT_REQUEST_CATEGORY, label: 'Transcript / Document Request' },
                 { value: 'academic', label: 'Academic Support' },
                 { value: 'college', label: 'College Planning' },
                 { value: 'career', label: 'Career Guidance' },
@@ -654,11 +692,54 @@ export default function StudentRequestsPage() {
                 ]}
               />
             )}
+            {newCategory === DOCUMENT_REQUEST_CATEGORY && (
+              <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+                <Select
+                  label="Document type"
+                  value={docDetails.documentType}
+                  onChange={(e) => updateDocField('documentType', e.target.value)}
+                  error={formErrors.documentType}
+                  options={[
+                    { value: '', label: 'Select a document type' },
+                    ...DOCUMENT_TYPES,
+                  ]}
+                />
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Where does this need to go?"
+                    placeholder="e.g. Common App, University of Oxford admissions"
+                    value={docDetails.destination}
+                    onChange={(e) => updateDocField('destination', e.target.value)}
+                    error={formErrors.destination}
+                  />
+                  <Input
+                    label="Needed by"
+                    type="date"
+                    value={docDetails.deadline}
+                    onChange={(e) => updateDocField('deadline', e.target.value)}
+                    error={formErrors.deadline}
+                  />
+                </div>
+                <Input
+                  label="Email, portal link, or address (optional)"
+                  placeholder="Specifics on how it should be delivered, if you have them"
+                  value={docDetails.deliveryDetail}
+                  onChange={(e) => updateDocField('deliveryDetail', e.target.value)}
+                />
+                <Textarea
+                  label="Anything else they should know? (optional)"
+                  value={docDetails.additionalInfo}
+                  onChange={(e) => updateDocField('additionalInfo', e.target.value)}
+                />
+              </div>
+            )}
             <Textarea
               label="Description"
               placeholder={
                 newCategory === RECOMMENDATION_CATEGORY
                   ? 'In one or two sentences, what is this letter for?'
+                  : newCategory === DOCUMENT_REQUEST_CATEGORY
+                  ? 'Anything that helps explain the request in your own words'
                   : 'Provide details about your request...'
               }
               value={newDescription}
@@ -832,6 +913,7 @@ export default function StudentRequestsPage() {
                 setNewCounselorRecipientId('');
                 setNewRecipientType('teacher');
                 setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
+                setDocDetails(EMPTY_DOCUMENT_REQUEST_DETAILS);
                 setFormErrors({});
                 setSubmitError('');
               }}>
@@ -1003,6 +1085,49 @@ export default function StudentRequestsPage() {
                           <div>
                             <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
                             <dd className="text-foreground">{request.recommendationDetails.additionalInfo}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </details>
+                  )}
+
+                  {/* Document request details the student shared */}
+                  {request.documentRequestDetails && (
+                    <details className="mt-3 group">
+                      <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                        View request details
+                      </summary>
+                      <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                        {request.documentRequestDetails.documentType && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Document</dt>
+                            <dd className="text-foreground">
+                              {getDocumentTypeLabel(request.documentRequestDetails.documentType)}
+                            </dd>
+                          </div>
+                        )}
+                        {request.documentRequestDetails.destination && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Destination</dt>
+                            <dd className="text-foreground">{request.documentRequestDetails.destination}</dd>
+                          </div>
+                        )}
+                        {request.documentRequestDetails.deadline && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Needed by</dt>
+                            <dd className="text-foreground">{request.documentRequestDetails.deadline}</dd>
+                          </div>
+                        )}
+                        {request.documentRequestDetails.deliveryDetail && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Delivery details</dt>
+                            <dd className="text-foreground">{request.documentRequestDetails.deliveryDetail}</dd>
+                          </div>
+                        )}
+                        {request.documentRequestDetails.additionalInfo && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
+                            <dd className="text-foreground">{request.documentRequestDetails.additionalInfo}</dd>
                           </div>
                         )}
                       </dl>

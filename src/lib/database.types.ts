@@ -86,6 +86,7 @@ export type Database = {
           response: string | null;
           documents: Json | null;
           recommendation_details: Json | null;
+          document_request_details: Json | null;
           created_at: string;
         };
         Insert: {
@@ -104,6 +105,7 @@ export type Database = {
           response?: string | null;
           documents?: Json | null;
           recommendation_details?: Json | null;
+          document_request_details?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -122,6 +124,7 @@ export type Database = {
           response?: string | null;
           documents?: Json | null;
           recommendation_details?: Json | null;
+          document_request_details?: Json | null;
           created_at?: string;
         };
         Relationships: [];
