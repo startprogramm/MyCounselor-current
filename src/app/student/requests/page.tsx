@@ -396,7 +396,7 @@ export default function StudentRequestsPage() {
               adjectives: recDetails.adjectives.filter((a) => a.trim()),
             }
           : null,
-        document_request_details: isDocumentRequest ? docDetails : null,
+        document_request_details: isDocumentRequest ? { ...docDetails } : null,
       })
       .select('*')
       .single();
@@ -694,6 +694,9 @@ export default function StudentRequestsPage() {
             )}
             {newCategory === DOCUMENT_REQUEST_CATEGORY && (
               <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+                <p className="text-xs text-muted-foreground">
+                  This request goes to your counselor — no need to pick a recipient.
+                </p>
                 <Select
                   label="Document type"
                   value={docDetails.documentType}
@@ -720,12 +723,6 @@ export default function StudentRequestsPage() {
                     error={formErrors.deadline}
                   />
                 </div>
-                <Input
-                  label="Email, portal link, or address (optional)"
-                  placeholder="Specifics on how it should be delivered, if you have them"
-                  value={docDetails.deliveryDetail}
-                  onChange={(e) => updateDocField('deliveryDetail', e.target.value)}
-                />
                 <Textarea
                   label="Anything else they should know? (optional)"
                   value={docDetails.additionalInfo}
@@ -1116,12 +1113,6 @@ export default function StudentRequestsPage() {
                           <div>
                             <dt className="text-xs font-medium text-muted-foreground">Needed by</dt>
                             <dd className="text-foreground">{request.documentRequestDetails.deadline}</dd>
-                          </div>
-                        )}
-                        {request.documentRequestDetails.deliveryDetail && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">Delivery details</dt>
-                            <dd className="text-foreground">{request.documentRequestDetails.deliveryDetail}</dd>
                           </div>
                         )}
                         {request.documentRequestDetails.additionalInfo && (

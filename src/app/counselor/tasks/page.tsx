@@ -677,12 +677,6 @@ export default function CounselorTasksPage() {
                           <dd className="text-foreground">{request.documentRequestDetails.deadline}</dd>
                         </div>
                       )}
-                      {request.documentRequestDetails.deliveryDetail && (
-                        <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Delivery details</dt>
-                          <dd className="text-foreground">{request.documentRequestDetails.deliveryDetail}</dd>
-                        </div>
-                      )}
                       {request.documentRequestDetails.additionalInfo && (
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>

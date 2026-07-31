@@ -5,7 +5,6 @@
 export interface DocumentRequestDetails {
   documentType: string;
   destination: string;
-  deliveryDetail: string;
   deadline: string;
   additionalInfo: string;
 }
@@ -13,7 +12,6 @@ export interface DocumentRequestDetails {
 export const EMPTY_DOCUMENT_REQUEST_DETAILS: DocumentRequestDetails = {
   documentType: '',
   destination: '',
-  deliveryDetail: '',
   deadline: '',
   additionalInfo: '',
 };
@@ -21,7 +19,6 @@ export const EMPTY_DOCUMENT_REQUEST_DETAILS: DocumentRequestDetails = {
 export const DOCUMENT_TYPES = [
   { value: 'transcript', label: 'Official transcript' },
   { value: 'enrollment_verification', label: 'Enrollment verification letter' },
-  { value: 'recommendation_transmittal', label: 'Send a recommendation letter already on file' },
   { value: 'other', label: 'Other document' },
 ];
 
@@ -33,15 +30,13 @@ export function parseDocumentRequestDetails(value: unknown): DocumentRequestDeta
   if (!value || typeof value !== 'object') return undefined;
   const raw = value as Partial<DocumentRequestDetails>;
 
-  const hasAnyContent =
-    raw.documentType || raw.destination || raw.deliveryDetail || raw.deadline || raw.additionalInfo;
+  const hasAnyContent = raw.documentType || raw.destination || raw.deadline || raw.additionalInfo;
 
   if (!hasAnyContent) return undefined;
 
   return {
     documentType: raw.documentType || '',
     destination: raw.destination || '',
-    deliveryDetail: raw.deliveryDetail || '',
     deadline: raw.deadline || '',
     additionalInfo: raw.additionalInfo || '',
   };
