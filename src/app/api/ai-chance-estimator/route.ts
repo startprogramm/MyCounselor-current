@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GEMINI_MODEL, getGeminiClient, missingKeyResponse } from '@/lib/gemini';
 import { getStudentSnapshot } from '@/lib/student-context';
+import { getSchoolKnowledge } from '@/lib/school-knowledge';
 
 const CHANCE_ESTIMATOR_SYSTEM = `You are a college admissions expert with deep knowledge of global university admissions — US, UK/UCAS, Canada, and Europe — including how Cambridge IGCSE/AS/A Level qualifications are evaluated by admissions offices, alongside US-style GPA and SAT/ACT. You analyze student profiles and estimate admission chances at specific colleges.
 
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
 
   const profileSummary = `
 Student Academic Profile:
+- Grade Level: ${snapshot.profile?.grade_level ?? 'Not provided'}
 - GPA (Weighted): ${p?.gpa_weighted ?? 'Not provided'}
 - GPA (Unweighted): ${p?.gpa_unweighted ?? 'Not provided'}
 - Class Rank: ${p?.class_rank ? `${p.class_rank} of ${p.class_size ?? '?'}` : 'Not provided'}
@@ -146,12 +148,17 @@ ${profileSummary}
 
 Please estimate this student's admissions chances at ${targetCollege}.`;
 
+  const schoolKnowledge = getSchoolKnowledge(snapshot.profile?.school_id);
+  const systemInstruction = schoolKnowledge
+    ? `${CHANCE_ESTIMATOR_SYSTEM}\n\nFacts specific to this student's school:\n${schoolKnowledge}`
+    : CHANCE_ESTIMATOR_SYSTEM;
+
   try {
     const response = await ai.models.generateContent({
       model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: userMessage }] }],
       config: {
-        systemInstruction: CHANCE_ESTIMATOR_SYSTEM,
+        systemInstruction,
         maxOutputTokens: 1536,
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA,

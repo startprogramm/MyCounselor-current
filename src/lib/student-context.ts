@@ -4,11 +4,13 @@ import type { Database } from '@/lib/database.types';
 type Profile = Database['public']['Tables']['profiles']['Row'];
 type AcademicProfile = Database['public']['Tables']['student_academic_profiles']['Row'];
 type Goal = Database['public']['Tables']['goals']['Row'];
+type Resource = Database['public']['Tables']['resources']['Row'];
 
 export interface StudentSnapshot {
-  profile: Pick<Profile, 'first_name' | 'grade_level' | 'school_name'> | null;
+  profile: Pick<Profile, 'first_name' | 'grade_level' | 'school_name' | 'school_id'> | null;
   academicProfile: AcademicProfile | null;
   activeGoals: Pick<Goal, 'title' | 'progress' | 'deadline' | 'priority'>[];
+  resources: Pick<Resource, 'title' | 'description' | 'category' | 'type'>[];
 }
 
 export async function getStudentSnapshot(studentId: string): Promise<StudentSnapshot> {
@@ -17,7 +19,7 @@ export async function getStudentSnapshot(studentId: string): Promise<StudentSnap
   const [profileRes, academicRes, goalsRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('first_name, grade_level, school_name')
+      .select('first_name, grade_level, school_name, school_id')
       .eq('id', studentId)
       .maybeSingle(),
     supabase
@@ -34,9 +36,21 @@ export async function getStudentSnapshot(studentId: string): Promise<StudentSnap
       .limit(5),
   ]);
 
+  const schoolId = profileRes.data?.school_id;
+  const resourcesRes = schoolId
+    ? await supabase
+        .from('resources')
+        .select('title, description, category, type')
+        .eq('school_id', schoolId)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(8)
+    : null;
+
   return {
     profile: profileRes.data ?? null,
     academicProfile: academicRes.data ?? null,
     activeGoals: goalsRes.data ?? [],
+    resources: resourcesRes?.data ?? [],
   };
 }

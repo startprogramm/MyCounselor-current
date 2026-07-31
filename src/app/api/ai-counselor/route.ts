@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GEMINI_MODEL, getGeminiClient, missingKeyResponse } from '@/lib/gemini';
 import { getStudentSnapshot } from '@/lib/student-context';
+import { getSchoolKnowledge } from '@/lib/school-knowledge';
 
 const BASE_SYSTEM_PROMPT = `You are the AI Counselor for MyCounselor, a school counseling platform. You are warm, empathetic, professional, and knowledgeable about:
 
@@ -69,13 +70,28 @@ async function buildSystemPrompt(studentId: string | undefined, fallback: UserCo
       lines.push(`Active goals they're tracking: ${goalLines}`);
     }
 
-    if (lines.length === 0) {
+    const schoolKnowledge = getSchoolKnowledge(snapshot.profile?.school_id);
+
+    let resourcesBlock = '';
+    if (snapshot.resources.length) {
+      const resourceLines = snapshot.resources
+        .map((r) => `- "${r.title}" (${r.category}): ${r.description}`)
+        .join('\n');
+      resourcesBlock = `\n\nResources this school's counselors have published (point students to specific ones by name when relevant, and mention they can find the full list at /student/guidance — don't invent resources that aren't listed here):\n${resourceLines}`;
+    }
+
+    if (lines.length === 0 && !schoolKnowledge && !resourcesBlock) {
       return fallback?.firstName
         ? `${BASE_SYSTEM_PROMPT}\n\nYou are currently speaking with ${fallback.firstName}${fallback.gradeLevel ? `, a ${fallback.gradeLevel} student` : ''}.`
         : BASE_SYSTEM_PROMPT;
     }
 
-    return `${BASE_SYSTEM_PROMPT}\n\nWhat you know about the student you're speaking with:\n${lines.map((l) => `- ${l}`).join('\n')}`;
+    const studentBlock = lines.length
+      ? `\n\nWhat you know about the student you're speaking with:\n${lines.map((l) => `- ${l}`).join('\n')}`
+      : '';
+    const schoolBlock = schoolKnowledge ? `\n\nFacts specific to this student's school:\n${schoolKnowledge}` : '';
+
+    return `${BASE_SYSTEM_PROMPT}${studentBlock}${schoolBlock}${resourcesBlock}`;
   } catch {
     // Student lookup is a nice-to-have — never block the chat on it failing.
     return fallback?.firstName

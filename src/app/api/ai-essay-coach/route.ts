@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GEMINI_MODEL, getGeminiClient, missingKeyResponse } from '@/lib/gemini';
 import { getStudentSnapshot } from '@/lib/student-context';
+import { getSchoolKnowledge } from '@/lib/school-knowledge';
 
 const ESSAY_COACH_SYSTEM = `You are an expert college admissions essay coach with 15+ years of experience helping students gain admission to top universities. You provide detailed, honest, constructive feedback that genuinely improves essays.
 
@@ -81,6 +82,7 @@ export async function POST(request: NextRequest) {
   }
 
   let contextBlock = '';
+  let schoolKnowledge = '';
   if (studentId) {
     try {
       const snapshot = await getStudentSnapshot(studentId);
@@ -88,10 +90,15 @@ export async function POST(request: NextRequest) {
       if (ap) {
         contextBlock = `\n\nStudent context:\n- Intended major: ${ap.intended_major || 'Not specified'}\n- Grade: ${gradeLevel || snapshot.profile?.grade_level || 'Not specified'}\n- Career interests: ${ap.career_interests?.join(', ') || 'Not specified'}\n- Target countries: ${ap.target_countries?.join(', ') || 'Not specified'}\n- Additional personal context: ${ap.additional_context || 'None provided'}`;
       }
+      schoolKnowledge = getSchoolKnowledge(snapshot.profile?.school_id);
     } catch {
       // Missing context shouldn't block essay feedback.
     }
   }
+
+  const systemInstruction = schoolKnowledge
+    ? `${ESSAY_COACH_SYSTEM}\n\nFacts specific to this student's school:\n${schoolKnowledge}`
+    : ESSAY_COACH_SYSTEM;
 
   const userMessage = `Essay Prompt: "${essayPrompt || 'Common App personal statement'}"
 
@@ -108,7 +115,7 @@ Please analyze this college essay.`;
       model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: userMessage }] }],
       config: {
-        systemInstruction: ESSAY_COACH_SYSTEM,
+        systemInstruction,
         maxOutputTokens: 2048,
         responseMimeType: 'application/json',
         responseSchema: RESPONSE_SCHEMA,
