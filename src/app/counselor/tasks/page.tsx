@@ -23,9 +23,21 @@ import {
   parseDocumentRequestDetails,
   type DocumentRequestDetails,
 } from '@/lib/document-request-details';
+import {
+  getAcademicHelpTypeLabel,
+  parseAcademicSupportDetails,
+  type AcademicSupportDetails,
+} from '@/lib/academic-support-details';
+import {
+  getCollegeHelpTypeLabel,
+  parseCollegePlanningDetails,
+  type CollegePlanningDetails,
+} from '@/lib/college-planning-details';
 
 const RECOMMENDATION_CATEGORY = 'recommendation';
 const DOCUMENT_REQUEST_CATEGORY = 'document_request';
+const ACADEMIC_CATEGORY = 'academic';
+const COLLEGE_CATEGORY = 'college';
 
 interface CounselingRequest {
   id: number;
@@ -41,6 +53,9 @@ interface CounselingRequest {
   documents?: RequestDocument[];
   recommendationDetails?: RecommendationDetails;
   documentRequestDetails?: DocumentRequestDetails;
+  academicSupportDetails?: AcademicSupportDetails;
+  collegePlanningDetails?: CollegePlanningDetails;
+  isUrgent?: boolean;
 }
 
 interface CounselorTasksCachePayload {
@@ -73,6 +88,9 @@ function mapRequest(row: {
   documents: unknown;
   recommendation_details?: unknown;
   document_request_details?: unknown;
+  academic_support_details?: unknown;
+  college_planning_details?: unknown;
+  is_urgent?: boolean | null;
 }): CounselingRequest {
   return {
     id: row.id,
@@ -88,6 +106,9 @@ function mapRequest(row: {
     documents: parseRequestDocuments(row.documents),
     recommendationDetails: parseRecommendationDetails(row.recommendation_details),
     documentRequestDetails: parseDocumentRequestDetails(row.document_request_details),
+    academicSupportDetails: parseAcademicSupportDetails(row.academic_support_details),
+    collegePlanningDetails: parseCollegePlanningDetails(row.college_planning_details),
+    isUrgent: row.is_urgent || false,
   };
 }
 
@@ -441,9 +462,13 @@ export default function CounselorTasksPage() {
     return 'FILE';
   };
 
-  const filteredRequests = filter === 'all'
+  const filteredRequests = (filter === 'all'
     ? requests
-    : requests.filter(r => r.status === filter);
+    : requests.filter(r => r.status === filter)
+  ).slice().sort((a, b) => {
+    if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
+    return 0;
+  });
   const hasAnyRequests = requests.length > 0;
 
   const taskCounts = {
@@ -560,9 +585,16 @@ export default function CounselorTasksPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className={`font-semibold ${request.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                      {request.title}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className={`font-semibold ${request.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                        {request.title}
+                      </h3>
+                      {request.isUrgent && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-destructive/10 text-destructive border border-destructive/20">
+                          Urgent
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {request.studentName || 'Unknown Student'}
                     </p>
@@ -681,6 +713,56 @@ export default function CounselorTasksPage() {
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
                           <dd className="text-foreground">{request.documentRequestDetails.additionalInfo}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </details>
+                )}
+
+                {/* Academic support details the student shared */}
+                {request.category === ACADEMIC_CATEGORY && request.academicSupportDetails && (
+                  <details className="mt-3 group">
+                    <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                      View request details
+                    </summary>
+                    <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                      {request.academicSupportDetails.helpType && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Kind of help</dt>
+                          <dd className="text-foreground">
+                            {getAcademicHelpTypeLabel(request.academicSupportDetails.helpType)}
+                          </dd>
+                        </div>
+                      )}
+                      {request.academicSupportDetails.subject && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Subject / course</dt>
+                          <dd className="text-foreground">{request.academicSupportDetails.subject}</dd>
+                        </div>
+                      )}
+                    </dl>
+                  </details>
+                )}
+
+                {/* College planning details the student shared */}
+                {request.category === COLLEGE_CATEGORY && request.collegePlanningDetails && (
+                  <details className="mt-3 group">
+                    <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                      View request details
+                    </summary>
+                    <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                      {request.collegePlanningDetails.helpType && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Kind of help</dt>
+                          <dd className="text-foreground">
+                            {getCollegeHelpTypeLabel(request.collegePlanningDetails.helpType)}
+                          </dd>
+                        </div>
+                      )}
+                      {request.collegePlanningDetails.colleges && (
+                        <div>
+                          <dt className="text-xs font-medium text-muted-foreground">Colleges</dt>
+                          <dd className="text-foreground">{request.collegePlanningDetails.colleges}</dd>
                         </div>
                       )}
                     </dl>

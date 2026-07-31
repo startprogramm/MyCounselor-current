@@ -28,6 +28,20 @@ import {
   parseDocumentRequestDetails,
   type DocumentRequestDetails,
 } from '@/lib/document-request-details';
+import {
+  ACADEMIC_HELP_TYPES,
+  EMPTY_ACADEMIC_SUPPORT_DETAILS,
+  getAcademicHelpTypeLabel,
+  parseAcademicSupportDetails,
+  type AcademicSupportDetails,
+} from '@/lib/academic-support-details';
+import {
+  COLLEGE_HELP_TYPES,
+  EMPTY_COLLEGE_PLANNING_DETAILS,
+  getCollegeHelpTypeLabel,
+  parseCollegePlanningDetails,
+  type CollegePlanningDetails,
+} from '@/lib/college-planning-details';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +61,9 @@ interface CounselingRequest {
   teacherName?: string;
   recommendationDetails?: RecommendationDetails;
   documentRequestDetails?: DocumentRequestDetails;
+  academicSupportDetails?: AcademicSupportDetails;
+  collegePlanningDetails?: CollegePlanningDetails;
+  isUrgent?: boolean;
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -108,6 +125,9 @@ function mapRequest(row: {
   teacher_name?: string | null;
   recommendation_details?: unknown;
   document_request_details?: unknown;
+  academic_support_details?: unknown;
+  college_planning_details?: unknown;
+  is_urgent?: boolean | null;
 }): CounselingRequest {
   return {
     id: row.id,
@@ -125,10 +145,16 @@ function mapRequest(row: {
     teacherName: row.teacher_name || undefined,
     recommendationDetails: parseRecommendationDetails(row.recommendation_details),
     documentRequestDetails: parseDocumentRequestDetails(row.document_request_details),
+    academicSupportDetails: parseAcademicSupportDetails(row.academic_support_details),
+    collegePlanningDetails: parseCollegePlanningDetails(row.college_planning_details),
+    isUrgent: row.is_urgent || false,
   };
 }
 
 const RECOMMENDATION_CATEGORY = 'recommendation';
+const ACADEMIC_CATEGORY = 'academic';
+const COLLEGE_CATEGORY = 'college';
+const PERSONAL_CATEGORY = 'personal';
 const DOCUMENT_REQUEST_CATEGORY = 'document_request';
 
 function mapProfileToUser(profile: ProfileRow): User {
@@ -178,6 +204,9 @@ export default function StudentRequestsPage() {
   const [newCounselorRecipientId, setNewCounselorRecipientId] = useState('');
   const [recDetails, setRecDetails] = useState<RecommendationDetails>(EMPTY_RECOMMENDATION_DETAILS);
   const [docDetails, setDocDetails] = useState<DocumentRequestDetails>(EMPTY_DOCUMENT_REQUEST_DETAILS);
+  const [academicDetails, setAcademicDetails] = useState<AcademicSupportDetails>(EMPTY_ACADEMIC_SUPPORT_DETAILS);
+  const [collegeDetails, setCollegeDetails] = useState<CollegePlanningDetails>(EMPTY_COLLEGE_PLANNING_DETAILS);
+  const [isUrgent, setIsUrgent] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -196,6 +225,22 @@ export default function StudentRequestsPage() {
     value: DocumentRequestDetails[K]
   ) => {
     setDocDetails((prev) => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const updateAcademicField = <K extends keyof AcademicSupportDetails>(
+    field: K,
+    value: AcademicSupportDetails[K]
+  ) => {
+    setAcademicDetails((prev) => ({ ...prev, [field]: value }));
+    setFormErrors((prev) => ({ ...prev, [field]: '' }));
+  };
+
+  const updateCollegeField = <K extends keyof CollegePlanningDetails>(
+    field: K,
+    value: CollegePlanningDetails[K]
+  ) => {
+    setCollegeDetails((prev) => ({ ...prev, [field]: value }));
     setFormErrors((prev) => ({ ...prev, [field]: '' }));
   };
 
@@ -324,6 +369,8 @@ export default function StudentRequestsPage() {
 
     const isRecommendation = newCategory === RECOMMENDATION_CATEGORY;
     const isDocumentRequest = newCategory === DOCUMENT_REQUEST_CATEGORY;
+    const isAcademic = newCategory === ACADEMIC_CATEGORY;
+    const isCollege = newCategory === COLLEGE_CATEGORY;
 
     const errors: Record<string, string> = {};
     if (!newTitle.trim()) errors.title = 'Title is required';
@@ -346,6 +393,12 @@ export default function StudentRequestsPage() {
       if (!docDetails.documentType) errors.documentType = 'Please select a document type';
       if (!docDetails.destination.trim()) errors.destination = 'Let your counselor know where this needs to go';
       if (!docDetails.deadline) errors.deadline = 'Deadline is required';
+    }
+    if (isAcademic && !academicDetails.helpType) {
+      errors.helpType = 'Please select the kind of help you need';
+    }
+    if (isCollege && !collegeDetails.helpType) {
+      errors.helpType = 'Please select the kind of help you need';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -397,6 +450,9 @@ export default function StudentRequestsPage() {
             }
           : null,
         document_request_details: isDocumentRequest ? { ...docDetails } : null,
+        academic_support_details: isAcademic ? { ...academicDetails } : null,
+        college_planning_details: isCollege ? { ...collegeDetails } : null,
+        is_urgent: newCategory === PERSONAL_CATEGORY ? isUrgent : false,
       })
       .select('*')
       .single();
@@ -420,6 +476,9 @@ export default function StudentRequestsPage() {
     setNewRecipientType('teacher');
     setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
     setDocDetails(EMPTY_DOCUMENT_REQUEST_DETAILS);
+    setAcademicDetails(EMPTY_ACADEMIC_SUPPORT_DETAILS);
+    setCollegeDetails(EMPTY_COLLEGE_PLANNING_DETAILS);
+    setIsUrgent(false);
     setFormErrors({});
     setShowNewRequest(false);
     const recommendationRecipientName = assignedTeacher
@@ -632,16 +691,25 @@ export default function StudentRequestsPage() {
                 if (e.target.value !== DOCUMENT_REQUEST_CATEGORY) {
                   setDocDetails(EMPTY_DOCUMENT_REQUEST_DETAILS);
                 }
+                if (e.target.value !== ACADEMIC_CATEGORY) {
+                  setAcademicDetails(EMPTY_ACADEMIC_SUPPORT_DETAILS);
+                }
+                if (e.target.value !== COLLEGE_CATEGORY) {
+                  setCollegeDetails(EMPTY_COLLEGE_PLANNING_DETAILS);
+                }
+                if (e.target.value !== PERSONAL_CATEGORY) {
+                  setIsUrgent(false);
+                }
               }}
               error={formErrors.category}
               options={[
                 { value: '', label: 'Select a category' },
                 { value: RECOMMENDATION_CATEGORY, label: 'Recommendation Letter' },
                 { value: DOCUMENT_REQUEST_CATEGORY, label: 'Transcript / Document Request' },
-                { value: 'academic', label: 'Academic Support' },
-                { value: 'college', label: 'College Planning' },
+                { value: ACADEMIC_CATEGORY, label: 'Academic Support' },
+                { value: COLLEGE_CATEGORY, label: 'College Planning' },
                 { value: 'career', label: 'Career Guidance' },
-                { value: 'personal', label: 'Personal Support' },
+                { value: PERSONAL_CATEGORY, label: 'Personal Support' },
                 { value: 'other', label: 'Other' },
               ]}
             />
@@ -729,6 +797,57 @@ export default function StudentRequestsPage() {
                   onChange={(e) => updateDocField('additionalInfo', e.target.value)}
                 />
               </div>
+            )}
+            {newCategory === ACADEMIC_CATEGORY && (
+              <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+                <Select
+                  label="What kind of help do you need?"
+                  value={academicDetails.helpType}
+                  onChange={(e) => updateAcademicField('helpType', e.target.value)}
+                  error={formErrors.helpType}
+                  options={[
+                    { value: '', label: 'Select an option' },
+                    ...ACADEMIC_HELP_TYPES,
+                  ]}
+                />
+                <Input
+                  label="Which subject or course? (optional)"
+                  placeholder="e.g. A Level Chemistry"
+                  value={academicDetails.subject}
+                  onChange={(e) => updateAcademicField('subject', e.target.value)}
+                />
+              </div>
+            )}
+            {newCategory === COLLEGE_CATEGORY && (
+              <div className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+                <Select
+                  label="What kind of help do you need?"
+                  value={collegeDetails.helpType}
+                  onChange={(e) => updateCollegeField('helpType', e.target.value)}
+                  error={formErrors.helpType}
+                  options={[
+                    { value: '', label: 'Select an option' },
+                    ...COLLEGE_HELP_TYPES,
+                  ]}
+                />
+                <Input
+                  label="Which colleges? (optional)"
+                  placeholder="e.g. MIT, Stanford, Oxford"
+                  value={collegeDetails.colleges}
+                  onChange={(e) => updateCollegeField('colleges', e.target.value)}
+                />
+              </div>
+            )}
+            {newCategory === PERSONAL_CATEGORY && (
+              <label className="flex items-center gap-2 text-sm text-foreground p-3 rounded-lg border border-border bg-muted/20 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="accent-primary"
+                  checked={isUrgent}
+                  onChange={(e) => setIsUrgent(e.target.checked)}
+                />
+                This is time-sensitive — I&apos;d like to talk to someone soon
+              </label>
             )}
             <Textarea
               label="Description"
@@ -911,6 +1030,9 @@ export default function StudentRequestsPage() {
                 setNewRecipientType('teacher');
                 setRecDetails(EMPTY_RECOMMENDATION_DETAILS);
                 setDocDetails(EMPTY_DOCUMENT_REQUEST_DETAILS);
+                setAcademicDetails(EMPTY_ACADEMIC_SUPPORT_DETAILS);
+                setCollegeDetails(EMPTY_COLLEGE_PLANNING_DETAILS);
+                setIsUrgent(false);
                 setFormErrors({});
                 setSubmitError('');
               }}>
@@ -991,7 +1113,14 @@ export default function StudentRequestsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="font-semibold text-foreground">{request.title}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground">{request.title}</h3>
+                        {request.isUrgent && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-destructive/10 text-destructive border border-destructive/20">
+                            Urgent
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground mt-1">{request.description}</p>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(request.status)}`}>
@@ -1119,6 +1248,56 @@ export default function StudentRequestsPage() {
                           <div>
                             <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
                             <dd className="text-foreground">{request.documentRequestDetails.additionalInfo}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </details>
+                  )}
+
+                  {/* Academic support details the student shared */}
+                  {request.academicSupportDetails && (
+                    <details className="mt-3 group">
+                      <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                        View request details
+                      </summary>
+                      <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                        {request.academicSupportDetails.helpType && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Kind of help</dt>
+                            <dd className="text-foreground">
+                              {getAcademicHelpTypeLabel(request.academicSupportDetails.helpType)}
+                            </dd>
+                          </div>
+                        )}
+                        {request.academicSupportDetails.subject && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Subject / course</dt>
+                            <dd className="text-foreground">{request.academicSupportDetails.subject}</dd>
+                          </div>
+                        )}
+                      </dl>
+                    </details>
+                  )}
+
+                  {/* College planning details the student shared */}
+                  {request.collegePlanningDetails && (
+                    <details className="mt-3 group">
+                      <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                        View request details
+                      </summary>
+                      <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                        {request.collegePlanningDetails.helpType && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Kind of help</dt>
+                            <dd className="text-foreground">
+                              {getCollegeHelpTypeLabel(request.collegePlanningDetails.helpType)}
+                            </dd>
+                          </div>
+                        )}
+                        {request.collegePlanningDetails.colleges && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Colleges</dt>
+                            <dd className="text-foreground">{request.collegePlanningDetails.colleges}</dd>
                           </div>
                         )}
                       </dl>

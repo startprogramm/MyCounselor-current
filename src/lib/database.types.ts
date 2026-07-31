@@ -87,6 +87,9 @@ export type Database = {
           documents: Json | null;
           recommendation_details: Json | null;
           document_request_details: Json | null;
+          academic_support_details: Json | null;
+          college_planning_details: Json | null;
+          is_urgent: boolean;
           created_at: string;
         };
         Insert: {
@@ -106,6 +109,9 @@ export type Database = {
           documents?: Json | null;
           recommendation_details?: Json | null;
           document_request_details?: Json | null;
+          academic_support_details?: Json | null;
+          college_planning_details?: Json | null;
+          is_urgent?: boolean;
           created_at?: string;
         };
         Update: {
@@ -125,6 +131,9 @@ export type Database = {
           documents?: Json | null;
           recommendation_details?: Json | null;
           document_request_details?: Json | null;
+          academic_support_details?: Json | null;
+          college_planning_details?: Json | null;
+          is_urgent?: boolean;
           created_at?: string;
         };
         Relationships: [];
