@@ -1,7 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { GEMINI_MODEL, getGeminiClient, missingKeyResponse } from '@/lib/gemini';
+import { getStudentSnapshot } from '@/lib/student-context';
 
-const SYSTEM_PROMPT = `You are an AI School Counselor assistant for MyCounselor, a school counseling platform. You are warm, empathetic, professional, and knowledgeable about:
+const BASE_SYSTEM_PROMPT = `You are the AI Counselor for MyCounselor, a school counseling platform. You are warm, empathetic, professional, and knowledgeable about:
 
 - Academic planning and course selection
 - College preparation, applications, and essay guidance
@@ -20,7 +21,8 @@ Guidelines:
 - Use a friendly but professional tone
 - If a student mentions a serious concern (mental health crisis, self-harm, abuse, safety), always prioritize their wellbeing. Encourage them to speak with their human school counselor or a trusted adult immediately, and provide crisis resources (988 Suicide & Crisis Lifeline: call or text 988)
 - You complement but do not replace the student's human school counselor — regularly remind them their counselor is available for deeper, personalized support
-- When you don't know something specific to their school or situation, say so and suggest they ask their counselor`;
+- When you don't know something specific to their school or situation, say so and suggest they ask their counselor
+- When you already know something about this student from the context below (their goals, intended major, grade), use it naturally to make advice specific to them — don't ask them to repeat information you already have`;
 
 interface MessageParam {
   role: 'user' | 'assistant';
@@ -32,23 +34,71 @@ interface UserContext {
   gradeLevel?: string;
 }
 
-export async function POST(request: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+async function buildSystemPrompt(studentId: string | undefined, fallback: UserContext | undefined) {
+  if (!studentId) {
+    return fallback?.firstName
+      ? `${BASE_SYSTEM_PROMPT}\n\nYou are currently speaking with ${fallback.firstName}${fallback.gradeLevel ? `, a ${fallback.gradeLevel} student` : ''}.`
+      : BASE_SYSTEM_PROMPT;
+  }
 
-  if (!apiKey || apiKey === 'your-anthropic-api-key-here') {
-    return NextResponse.json(
-      { error: 'AI Counselor is not configured yet. Please add your ANTHROPIC_API_KEY to the .env file.' },
-      { status: 503 }
-    );
+  try {
+    const snapshot = await getStudentSnapshot(studentId);
+    const lines: string[] = [];
+
+    if (snapshot.profile?.first_name) {
+      lines.push(
+        `Name: ${snapshot.profile.first_name}${snapshot.profile.grade_level ? ` (${snapshot.profile.grade_level})` : ''}${snapshot.profile.school_name ? ` at ${snapshot.profile.school_name}` : ''}`
+      );
+    }
+
+    const ap = snapshot.academicProfile;
+    if (ap?.intended_major) lines.push(`Intended major: ${ap.intended_major}`);
+    if (ap?.career_interests?.length)
+      lines.push(`Career interests: ${ap.career_interests.join(', ')}`);
+    if (ap?.target_countries?.length)
+      lines.push(`Target countries for college: ${ap.target_countries.join(', ')}`);
+    if (ap?.preferred_college_type)
+      lines.push(`Preferred college type: ${ap.preferred_college_type}`);
+
+    if (snapshot.activeGoals.length) {
+      const goalLines = snapshot.activeGoals
+        .map(
+          (g) => `"${g.title}" (${g.progress}% done, due ${g.deadline}, priority: ${g.priority})`
+        )
+        .join('; ');
+      lines.push(`Active goals they're tracking: ${goalLines}`);
+    }
+
+    if (lines.length === 0) {
+      return fallback?.firstName
+        ? `${BASE_SYSTEM_PROMPT}\n\nYou are currently speaking with ${fallback.firstName}${fallback.gradeLevel ? `, a ${fallback.gradeLevel} student` : ''}.`
+        : BASE_SYSTEM_PROMPT;
+    }
+
+    return `${BASE_SYSTEM_PROMPT}\n\nWhat you know about the student you're speaking with:\n${lines.map((l) => `- ${l}`).join('\n')}`;
+  } catch {
+    // Student lookup is a nice-to-have — never block the chat on it failing.
+    return fallback?.firstName
+      ? `${BASE_SYSTEM_PROMPT}\n\nYou are currently speaking with ${fallback.firstName}${fallback.gradeLevel ? `, a ${fallback.gradeLevel} student` : ''}.`
+      : BASE_SYSTEM_PROMPT;
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const ai = getGeminiClient();
+  if (!ai) {
+    return NextResponse.json(missingKeyResponse('AI Counselor'), { status: 503 });
   }
 
   let messages: MessageParam[];
   let userContext: UserContext | undefined;
+  let studentId: string | undefined;
 
   try {
     const body = await request.json();
     messages = body.messages;
     userContext = body.userContext;
+    studentId = body.studentId;
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
@@ -57,30 +107,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Messages array is required.' }, { status: 400 });
   }
 
-  const systemPrompt =
-    userContext?.firstName
-      ? `${SYSTEM_PROMPT}\n\nYou are currently speaking with ${userContext.firstName}${userContext.gradeLevel ? `, a ${userContext.gradeLevel} student` : ''}.`
-      : SYSTEM_PROMPT;
+  const systemInstruction = await buildSystemPrompt(studentId, userContext);
 
-  const client = new Anthropic({ apiKey });
+  const contents = messages.map((m) => ({
+    role: m.role === 'assistant' ? ('model' as const) : ('user' as const),
+    parts: [{ text: m.content }],
+  }));
 
   try {
-    const stream = await client.messages.stream({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
+    const stream = await ai.models.generateContentStream({
+      model: GEMINI_MODEL,
+      contents,
+      config: {
+        systemInstruction,
+        maxOutputTokens: 1024,
+      },
     });
 
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of stream) {
-            if (
-              chunk.type === 'content_block_delta' &&
-              chunk.delta.type === 'text_delta'
-            ) {
-              controller.enqueue(new TextEncoder().encode(chunk.delta.text));
+            if (chunk.text) {
+              controller.enqueue(new TextEncoder().encode(chunk.text));
             }
           }
         } catch (err) {

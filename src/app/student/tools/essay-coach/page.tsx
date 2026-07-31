@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 
@@ -36,9 +36,21 @@ function ScoreRing({ score, label, color }: { score: number; label: string; colo
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative w-16 h-16">
         <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeWidth="5" className="text-muted/40" />
           <circle
-            cx="32" cy="32" r={r} fill="none" strokeWidth="5"
+            cx="32"
+            cy="32"
+            r={r}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="5"
+            className="text-muted/40"
+          />
+          <circle
+            cx="32"
+            cy="32"
+            r={r}
+            fill="none"
+            strokeWidth="5"
             stroke={color}
             strokeDasharray={`${dash} ${circ}`}
             strokeLinecap="round"
@@ -60,24 +72,6 @@ export default function EssayCoachPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState<EssayFeedback | null>(null);
   const [error, setError] = useState('');
-  const [studentContext, setStudentContext] = useState<Record<string, unknown>>({});
-
-  // Load student profile context for AI personalization
-  useEffect(() => {
-    if (!user?.id) return;
-    fetch(`/api/student-profile?studentId=${user.id}`)
-      .then(r => r.json())
-      .then(({ profile }) => {
-        if (profile) setStudentContext({
-          intended_major: profile.intended_major,
-          career_interests: profile.career_interests,
-          target_countries: profile.target_countries,
-          additional_context: profile.additional_context,
-          gradeLevel: user.gradeLevel,
-        });
-      })
-      .catch(() => {});
-  }, [user?.id, user?.gradeLevel]);
 
   const wordCount = essay.trim().split(/\s+/).filter(Boolean).length;
 
@@ -94,7 +88,12 @@ export default function EssayCoachPage() {
       const res = await fetch('/api/ai-essay-coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ essay, essayPrompt, studentContext }),
+        body: JSON.stringify({
+          essay,
+          essayPrompt,
+          studentId: user?.id,
+          gradeLevel: user?.gradeLevel,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Analysis failed.');
@@ -106,20 +105,33 @@ export default function EssayCoachPage() {
     }
   }
 
-  const scoreColor = (s: number) => s >= 8 ? '#16A34A' : s >= 6 ? '#2563EB' : s >= 4 ? '#F97316' : '#EF4444';
+  const scoreColor = (s: number) =>
+    s >= 8 ? '#16A34A' : s >= 6 ? '#2563EB' : s >= 4 ? '#F97316' : '#EF4444';
 
   return (
     <div className="space-y-8 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/student/tools" className="text-muted-foreground hover:text-foreground transition-colors">
+        <Link
+          href="/student/tools"
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
         </Link>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">AI Essay Coach</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Paste your essay and get expert AI feedback in seconds</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
+            AI Essay Coach
+          </h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            Paste your essay and get expert AI feedback in seconds
+          </p>
         </div>
         <div className="ml-auto hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 text-violet-600 text-xs font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
@@ -149,8 +161,12 @@ export default function EssayCoachPage() {
             <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Your Essay
             </label>
-            <span className={`text-xs font-medium ${wordCount > 650 ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {wordCount} words {wordCount > 0 && `(${wordCount > 650 ? 'over' : 650 - wordCount + ' under'} 650 limit)`}
+            <span
+              className={`text-xs font-medium ${wordCount > 650 ? 'text-destructive' : 'text-muted-foreground'}`}
+            >
+              {wordCount} words{' '}
+              {wordCount > 0 &&
+                `(${wordCount > 650 ? 'over' : 650 - wordCount + ' under'} 650 limit)`}
             </span>
           </div>
           <textarea
@@ -185,7 +201,12 @@ export default function EssayCoachPage() {
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
               Analyze Essay
             </>
@@ -200,7 +221,10 @@ export default function EssayCoachPage() {
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-6">
               <div className="text-center">
-                <div className="text-5xl font-black" style={{ color: scoreColor(feedback.overallScore) }}>
+                <div
+                  className="text-5xl font-black"
+                  style={{ color: scoreColor(feedback.overallScore) }}
+                >
                   {feedback.overallScore.toFixed(1)}
                 </div>
                 <div className="text-sm text-muted-foreground font-medium mt-1">out of 10</div>
@@ -211,7 +235,9 @@ export default function EssayCoachPage() {
               </div>
             </div>
             <div className="mt-6 pt-5 border-t border-border">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-4">Score Breakdown</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                Score Breakdown
+              </p>
               <div className="flex justify-around">
                 {Object.entries(feedback.scoreBreakdown).map(([key, val]) => (
                   <ScoreRing
@@ -229,12 +255,17 @@ export default function EssayCoachPage() {
           <div className="grid sm:grid-cols-2 gap-5">
             <div className="rounded-2xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800 p-5">
               <p className="font-semibold text-green-800 dark:text-green-300 text-sm mb-3 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-green-500/20 flex items-center justify-center">✓</span>
+                <span className="w-6 h-6 rounded-lg bg-green-500/20 flex items-center justify-center">
+                  ✓
+                </span>
                 What's Working
               </p>
               <ul className="space-y-2">
                 {feedback.strengths.map((s, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-green-700 dark:text-green-300">
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-sm text-green-700 dark:text-green-300"
+                  >
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
                     {s}
                   </li>
@@ -244,12 +275,17 @@ export default function EssayCoachPage() {
 
             <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-5">
               <p className="font-semibold text-amber-800 dark:text-amber-300 text-sm mb-3 flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center">↑</span>
+                <span className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  ↑
+                </span>
                 Areas to Improve
               </p>
               <ul className="space-y-2">
                 {feedback.improvements.map((imp, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-300">
+                  <li
+                    key={i}
+                    className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-300"
+                  >
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 flex-shrink-0" />
                     {imp}
                   </li>
@@ -262,8 +298,18 @@ export default function EssayCoachPage() {
           {feedback.rewriteSuggestions.length > 0 && (
             <div className="rounded-2xl border border-border bg-card p-6">
               <p className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                <svg
+                  className="w-4 h-4 text-violet-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  />
                 </svg>
                 Suggested Rewrites
               </p>
@@ -271,13 +317,17 @@ export default function EssayCoachPage() {
                 {feedback.rewriteSuggestions.map((rw, i) => (
                   <div key={i} className="rounded-xl border border-border p-4 space-y-3">
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Original</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                        Original
+                      </p>
                       <p className="text-sm text-muted-foreground italic bg-muted/50 rounded-lg px-3 py-2">
                         &ldquo;{rw.original}&rdquo;
                       </p>
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 mb-1.5">Suggested</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 mb-1.5">
+                        Suggested
+                      </p>
                       <p className="text-sm text-foreground bg-green-500/5 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
                         &ldquo;{rw.suggested}&rdquo;
                       </p>

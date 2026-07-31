@@ -1,6 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import type { Database } from '@/lib/database.types';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 type AcademicProfileRow = Database['public']['Tables']['student_academic_profiles']['Row'];
 
@@ -13,7 +13,9 @@ function computeCompletionPct(data: Partial<AcademicProfileRow>): number {
     // Academics
     data.gpa_unweighted != null,
     data.gpa_weighted != null,
-    hasItems(data.igcse_subjects) || hasItems(data.as_level_subjects) || hasItems(data.a_level_courses),
+    hasItems(data.igcse_subjects) ||
+      hasItems(data.as_level_subjects) ||
+      hasItems(data.a_level_courses),
     // Tests
     data.sat_total != null || data.act_composite != null,
     !!data.english_test_type,
@@ -34,15 +36,6 @@ function computeCompletionPct(data: Partial<AcademicProfileRow>): number {
 
   const filled = checks.filter(Boolean).length;
   return Math.round((filled / checks.length) * 100);
-}
-
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !serviceKey) {
-    throw new Error('Supabase env vars missing');
-  }
-  return createClient<Database>(url, serviceKey);
 }
 
 // GET /api/student-profile?studentId=<uuid>

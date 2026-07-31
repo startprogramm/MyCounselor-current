@@ -13,10 +13,10 @@ interface Message {
 }
 
 const STARTER_PROMPTS = [
-  "How do I write a strong college application essay?",
+  'How do I write a strong college application essay?',
   "I'm feeling overwhelmed with schoolwork. What should I do?",
-  "Can you help me explore career options that match my interests?",
-  "What should I know about applying for scholarships?",
+  'Can you help me explore career options that match my interests?',
+  'What should I know about applying for scholarships?',
 ];
 
 function TypingIndicator() {
@@ -111,7 +111,7 @@ export default function AICounselorPage() {
         const response = await fetch('/api/ai-counselor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: apiMessages, userContext }),
+          body: JSON.stringify({ messages: apiMessages, userContext, studentId: user?.id }),
           signal: abortRef.current.signal,
         });
 
@@ -123,10 +123,7 @@ export default function AICounselorPage() {
         }
 
         const assistantId = crypto.randomUUID();
-        setMessages((prev) => [
-          ...prev,
-          { id: assistantId, role: 'assistant', content: '' },
-        ]);
+        setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }]);
 
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
@@ -142,9 +139,7 @@ export default function AICounselorPage() {
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, content: m.content + chunk } : m
-            )
+            prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m))
           );
         }
       } catch (err: unknown) {
@@ -198,8 +193,10 @@ export default function AICounselorPage() {
                 <Icon name="SparklesIcon" size={18} className="text-white" variant="solid" />
               </div>
               <div>
-                <h1 className="font-semibold text-foreground text-sm leading-tight">AI Counselor</h1>
-                <p className="text-xs text-muted-foreground">Powered by Claude</p>
+                <h1 className="font-semibold text-foreground text-sm leading-tight">
+                  AI Counselor
+                </h1>
+                <p className="text-xs text-muted-foreground">Powered by Gemini</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -225,7 +222,6 @@ export default function AICounselorPage() {
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-4 py-6">
-
             {/* Empty state */}
             {isEmpty && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -236,8 +232,8 @@ export default function AICounselorPage() {
                   Hi{user?.firstName ? `, ${user.firstName}` : ''}! I&apos;m your AI Counselor
                 </h2>
                 <p className="text-muted-foreground text-sm max-w-md mb-8">
-                  I can help with college prep, career exploration, study strategies, and more.
-                  Ask me anything — I&apos;m here to support your academic journey.
+                  I can help with college prep, career exploration, study strategies, and more. Ask
+                  me anything — I&apos;m here to support your academic journey.
                 </p>
 
                 <div className="grid sm:grid-cols-2 gap-3 w-full max-w-lg">
@@ -253,8 +249,8 @@ export default function AICounselorPage() {
                 </div>
 
                 <p className="text-xs text-muted-foreground mt-8 max-w-sm">
-                  For serious concerns, always reach out to your school counselor or call/text
-                  the 988 Suicide &amp; Crisis Lifeline.
+                  For serious concerns, always reach out to your school counselor or call/text the
+                  988 Suicide &amp; Crisis Lifeline.
                 </p>
               </div>
             )}
@@ -265,15 +261,18 @@ export default function AICounselorPage() {
             ))}
 
             {/* Typing indicator — shown while waiting for the first token */}
-            {isStreaming && messages[messages.length - 1]?.role === 'user' && (
-              <TypingIndicator />
-            )}
+            {isStreaming && messages[messages.length - 1]?.role === 'user' && <TypingIndicator />}
 
             {/* Error */}
             {error && (
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                  <Icon name="ExclamationCircleIcon" size={16} className="text-destructive" variant="outline" />
+                  <Icon
+                    name="ExclamationCircleIcon"
+                    size={16}
+                    className="text-destructive"
+                    variant="outline"
+                  />
                 </div>
                 <div className="bg-destructive/5 border border-destructive/20 rounded-2xl rounded-bl-sm px-4 py-3 text-sm text-destructive">
                   {error}
@@ -324,7 +323,12 @@ export default function AICounselorPage() {
                   className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
                   title="Send message"
                 >
-                  <Icon name="PaperAirplaneIcon" size={18} className="text-primary-foreground" variant="solid" />
+                  <Icon
+                    name="PaperAirplaneIcon"
+                    size={18}
+                    className="text-primary-foreground"
+                    variant="solid"
+                  />
                 </button>
               )}
             </form>

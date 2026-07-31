@@ -46,18 +46,18 @@ The `requests` table has a `documents` JSONB column used for counselor-to-studen
 
 ### AI features
 
-Three Next.js API routes under `src/app/api/` all call **Claude Haiku 4.5** (`claude-haiku-4-5-20251001`) directly via `@anthropic-ai/sdk` — no other model/provider is used anywhere in the app:
+Three Next.js API routes under `src/app/api/` all call **Gemini** (`gemini-3.6-flash`, see `GEMINI_MODEL` in `src/lib/gemini.ts`) via the `@google/genai` SDK — no other model/provider is used anywhere in the app:
 - `ai-counselor` — streaming chat completion (general counselor-persona assistant)
-- `ai-essay-coach` — single completion, returns structured JSON feedback on a student's essay
-- `ai-chance-estimator` — single completion, returns structured JSON admissions-chance analysis using the student's `student_academic_profiles` row
+- `ai-essay-coach` — single completion, returns structured JSON feedback on a student's essay (enforced via `responseSchema`, not regex-extracted from prose)
+- `ai-chance-estimator` — single completion, returns structured JSON admissions-chance analysis using the student's `student_academic_profiles` row (also via `responseSchema`)
 
-All three return a 503 if `ANTHROPIC_API_KEY` is unset. None of them implement rate limiting, retry/backoff, or per-user throttling — a request storm hits Anthropic's account-level rate limits directly with a generic error surfaced to the user.
+All three return a 503 if `GEMINI_API_KEY` is unset (checked via `getGeminiClient()` in `src/lib/gemini.ts`). None of them implement rate limiting, retry/backoff, or per-user throttling — a request storm hits Gemini's account-level rate limits directly with a generic error surfaced to the user.
 
-`src/app/api/student-profile/route.ts` is the one route that needs elevated DB access (upserting another table server-side): it uses `SUPABASE_SERVICE_ROLE_KEY`, falling back to the anon key if unset. Follow this same service-role pattern for any future server-side route that needs to bypass RLS.
+All three routes pull real student data server-side via `getStudentSnapshot()` (`src/lib/student-context.ts`) — given a `studentId`, it fetches the student's `profiles` row, `student_academic_profiles` row, and active (incomplete) `goals`, using the shared `getSupabaseAdmin()` helper (`src/lib/supabase-admin.ts`, service-role client). Routes look the student up server-side by ID rather than trusting a client-supplied profile blob, so the AI always reasons over current data and a tampered request body can't feed it fake academic stats. Follow this same service-role pattern (`getSupabaseAdmin()`) for any future server-side route that needs to bypass RLS.
 
 ### Environment variables
 
-`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`. No `.env`/`.env.local` is committed (gitignored) — these are configured directly in the Vercel project's environment variables.
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`. No `.env`/`.env.local` is committed (gitignored) — these are configured directly in the Vercel project's environment variables.
 
 ### Orphaned prototype routes — and one that isn't
 

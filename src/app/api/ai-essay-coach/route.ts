@@ -1,5 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { GEMINI_MODEL, getGeminiClient, missingKeyResponse } from '@/lib/gemini';
+import { getStudentSnapshot } from '@/lib/student-context';
 
 const ESSAY_COACH_SYSTEM = `You are an expert college admissions essay coach with 15+ years of experience helping students gain admission to top universities. You provide detailed, honest, constructive feedback that genuinely improves essays.
 
@@ -12,60 +13,85 @@ Your feedback must be structured, specific, and actionable. Analyze essays for:
 - Impact and memorability
 
 Always be encouraging but honest. Point out specific lines or sentences when giving feedback.
-Respond ONLY with valid JSON matching this exact schema:
-{
-  "overallScore": <number 1-10 with one decimal>,
-  "summary": "<2-3 sentence overall assessment>",
-  "strengths": ["<specific strength 1>", "<specific strength 2>", "<specific strength 3>"],
-  "improvements": ["<specific improvement 1>", "<specific improvement 2>", "<specific improvement 3>"],
-  "rewriteSuggestions": [
-    {
-      "original": "<quoted sentence or phrase from the essay>",
-      "suggested": "<improved version>",
-      "reason": "<why this change helps>"
-    }
+When student context is provided (intended major, career interests, target countries, goals), weigh whether the essay's themes actually connect to what this specific student is pursuing — call it out if the essay feels disconnected from their stated direction.`;
+
+const RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    overallScore: { type: 'NUMBER', description: '1-10 with one decimal' },
+    summary: { type: 'STRING', description: '2-3 sentence overall assessment' },
+    strengths: { type: 'ARRAY', items: { type: 'STRING' } },
+    improvements: { type: 'ARRAY', items: { type: 'STRING' } },
+    rewriteSuggestions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          original: { type: 'STRING' },
+          suggested: { type: 'STRING' },
+          reason: { type: 'STRING' },
+        },
+        required: ['original', 'suggested', 'reason'],
+      },
+    },
+    scoreBreakdown: {
+      type: 'OBJECT',
+      properties: {
+        voice: { type: 'NUMBER' },
+        structure: { type: 'NUMBER' },
+        impact: { type: 'NUMBER' },
+        grammar: { type: 'NUMBER' },
+      },
+      required: ['voice', 'structure', 'impact', 'grammar'],
+    },
+  },
+  required: [
+    'overallScore',
+    'summary',
+    'strengths',
+    'improvements',
+    'rewriteSuggestions',
+    'scoreBreakdown',
   ],
-  "scoreBreakdown": {
-    "voice": <number 1-10>,
-    "structure": <number 1-10>,
-    "impact": <number 1-10>,
-    "grammar": <number 1-10>
-  }
-}`;
+};
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-
-  if (!apiKey || apiKey === 'your-anthropic-api-key-here') {
-    return NextResponse.json(
-      { error: 'AI features are not configured. Add ANTHROPIC_API_KEY to your .env file.' },
-      { status: 503 }
-    );
+  const ai = getGeminiClient();
+  if (!ai) {
+    return NextResponse.json(missingKeyResponse('AI features'), { status: 503 });
   }
 
   let essay: string;
   let essayPrompt: string;
-  let studentContext: Record<string, unknown> | undefined;
+  let studentId: string | undefined;
+  let gradeLevel: string | undefined;
 
   try {
     const body = await request.json();
     essay = body.essay;
     essayPrompt = body.essayPrompt;
-    studentContext = body.studentContext;
+    studentId = body.studentId;
+    gradeLevel = body.gradeLevel;
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
   if (!essay || typeof essay !== 'string' || essay.trim().length < 50) {
-    return NextResponse.json(
-      { error: 'Essay must be at least 50 characters.' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'Essay must be at least 50 characters.' }, { status: 400 });
   }
 
-  const contextBlock = studentContext
-    ? `\n\nStudent context:\n- Intended major: ${studentContext.intended_major || 'Not specified'}\n- Grade: ${studentContext.gradeLevel || 'Not specified'}\n- Career interests: ${(studentContext.career_interests as string[] | undefined)?.join(', ') || 'Not specified'}\n- Target countries: ${(studentContext.target_countries as string[] | undefined)?.join(', ') || 'Not specified'}\n- Additional personal context: ${studentContext.additional_context || 'None provided'}`
-    : '';
+  let contextBlock = '';
+  if (studentId) {
+    try {
+      const snapshot = await getStudentSnapshot(studentId);
+      const ap = snapshot.academicProfile;
+      if (ap) {
+        contextBlock = `\n\nStudent context:\n- Intended major: ${ap.intended_major || 'Not specified'}\n- Grade: ${gradeLevel || snapshot.profile?.grade_level || 'Not specified'}\n- Career interests: ${ap.career_interests?.join(', ') || 'Not specified'}\n- Target countries: ${ap.target_countries?.join(', ') || 'Not specified'}\n- Additional personal context: ${ap.additional_context || 'None provided'}`;
+      }
+    } catch {
+      // Missing context shouldn't block essay feedback.
+    }
+  }
 
   const userMessage = `Essay Prompt: "${essayPrompt || 'Common App personal statement'}"
 
@@ -75,31 +101,21 @@ ${essay.trim()}
 ---
 ${contextBlock}
 
-Please analyze this college essay and provide structured JSON feedback.`;
-
-  const client = new Anthropic({ apiKey });
+Please analyze this college essay.`;
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      system: ESSAY_COACH_SYSTEM,
-      messages: [{ role: 'user', content: userMessage }],
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+      config: {
+        systemInstruction: ESSAY_COACH_SYSTEM,
+        maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+        responseSchema: RESPONSE_SCHEMA,
+      },
     });
 
-    const rawText =
-      response.content[0].type === 'text' ? response.content[0].text : '';
-
-    // Extract JSON from the response
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: 'AI returned an unexpected format. Please try again.' },
-        { status: 500 }
-      );
-    }
-
-    const feedback = JSON.parse(jsonMatch[0]);
+    const feedback = JSON.parse(response.text ?? '');
     return NextResponse.json({ feedback });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'An error occurred.';

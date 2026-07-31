@@ -1,5 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
+import { GEMINI_MODEL, getGeminiClient, missingKeyResponse } from '@/lib/gemini';
+import { getStudentSnapshot } from '@/lib/student-context';
 
 const CHANCE_ESTIMATOR_SYSTEM = `You are a college admissions expert with deep knowledge of global university admissions — US, UK/UCAS, Canada, and Europe — including how Cambridge IGCSE/AS/A Level qualifications are evaluated by admissions offices, alongside US-style GPA and SAT/ACT. You analyze student profiles and estimate admission chances at specific colleges.
 
@@ -11,52 +12,87 @@ Be realistic and data-driven. Base your estimates on:
 - The student's intended major and college fit
 - Whether grades are predicted (not yet final) — treat predicted grades as a reasonable but less certain signal than final results, and say so explicitly when relevant
 - If the student indicated they will need financial aid, factor in that many US colleges are need-aware for international applicants, and note this honestly in your assessment rather than ignoring it
+- Any goals the student is actively working toward (e.g. a test retake or new activity) — factor in that their profile may improve before they apply, and say so if relevant
 
 Tier definitions:
 - "Safety": 70%+ chance of admission
 - "Match": 30–70% chance
-- "Reach": 10–30% chance  
-- "Stretch": below 10% chance
+- "Reach": 10–30% chance
+- "Stretch": below 10% chance`;
 
-Respond ONLY with valid JSON matching this exact schema:
-{
-  "collegeName": "<normalized official college name>",
-  "chancePercent": <number 0-100>,
-  "tier": "Safety" | "Match" | "Reach" | "Stretch",
-  "acceptanceRate": "<published acceptance rate, e.g. '4%' or 'N/A'>",
-  "summary": "<2-3 sentence honest assessment>",
-  "strengths": ["<specific strength vs. this college>", ...],
-  "weaknesses": ["<specific weakness vs. this college>", ...],
-  "actions": [
-    {
-      "action": "<specific thing to do>",
-      "impact": "High" | "Medium" | "Low"
-    }
+const RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    collegeName: { type: 'STRING', description: 'normalized official college name' },
+    chancePercent: { type: 'NUMBER' },
+    tier: { type: 'STRING', enum: ['Safety', 'Match', 'Reach', 'Stretch'] },
+    acceptanceRate: {
+      type: 'STRING',
+      description: "published acceptance rate, e.g. '4%' or 'N/A'",
+    },
+    summary: { type: 'STRING', description: '2-3 sentence honest assessment' },
+    strengths: { type: 'ARRAY', items: { type: 'STRING' } },
+    weaknesses: { type: 'ARRAY', items: { type: 'STRING' } },
+    actions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          action: { type: 'STRING' },
+          impact: { type: 'STRING', enum: ['High', 'Medium', 'Low'] },
+        },
+        required: ['action', 'impact'],
+      },
+    },
+    averageProfile: {
+      type: 'OBJECT',
+      properties: {
+        gpa: { type: 'STRING' },
+        sat: { type: 'STRING' },
+        act: { type: 'STRING' },
+      },
+      required: ['gpa', 'sat', 'act'],
+    },
+  },
+  required: [
+    'collegeName',
+    'chancePercent',
+    'tier',
+    'acceptanceRate',
+    'summary',
+    'strengths',
+    'weaknesses',
+    'actions',
+    'averageProfile',
   ],
-  "averageProfile": {
-    "gpa": "<typical GPA range for admitted students>",
-    "sat": "<typical SAT range or N/A>",
-    "act": "<typical ACT range or N/A>"
-  }
-}`;
+};
+
+type CourseGrade = { subjectName: string; grade?: string; status?: string };
+
+function formatCourses(courses: unknown) {
+  return (
+    (courses as CourseGrade[] | undefined)
+      ?.map(
+        (c) =>
+          `${c.subjectName}${c.grade ? ` (${c.grade}${c.status === 'predicted' ? ', predicted' : ''})` : ''}`
+      )
+      .join(', ') || 'None listed'
+  );
+}
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-
-  if (!apiKey || apiKey === 'your-anthropic-api-key-here') {
-    return NextResponse.json(
-      { error: 'AI features are not configured. Add ANTHROPIC_API_KEY to your .env file.' },
-      { status: 503 }
-    );
+  const ai = getGeminiClient();
+  if (!ai) {
+    return NextResponse.json(missingKeyResponse('AI features'), { status: 503 });
   }
 
   let targetCollege: string;
-  let studentProfile: Record<string, unknown>;
+  let studentId: string;
 
   try {
     const body = await request.json();
     targetCollege = body.targetCollege;
-    studentProfile = body.studentProfile;
+    studentId = body.studentId;
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
@@ -65,69 +101,64 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'targetCollege is required.' }, { status: 400 });
   }
 
-  if (!studentProfile || typeof studentProfile !== 'object') {
-    return NextResponse.json({ error: 'studentProfile is required.' }, { status: 400 });
+  if (!studentId || typeof studentId !== 'string') {
+    return NextResponse.json({ error: 'studentId is required.' }, { status: 400 });
   }
 
-  type CourseGrade = { subjectName: string; grade?: string; status?: string };
-  const formatCourses = (courses: unknown) =>
-    (courses as CourseGrade[] | undefined)
-      ?.map((c) => `${c.subjectName}${c.grade ? ` (${c.grade}${c.status === 'predicted' ? ', predicted' : ''})` : ''}`)
-      .join(', ') || 'None listed';
+  const snapshot = await getStudentSnapshot(studentId);
+  const p = snapshot.academicProfile;
+
+  const goalsSummary = snapshot.activeGoals.length
+    ? snapshot.activeGoals
+        .map((g) => `"${g.title}" (${g.progress}% done, due ${g.deadline})`)
+        .join('; ')
+    : 'None currently tracked';
 
   const profileSummary = `
 Student Academic Profile:
-- GPA (Weighted): ${studentProfile.gpa_weighted ?? 'Not provided'}
-- GPA (Unweighted): ${studentProfile.gpa_unweighted ?? 'Not provided'}
-- Class Rank: ${studentProfile.class_rank ? `${studentProfile.class_rank} of ${studentProfile.class_size ?? '?'}` : 'Not provided'}
-- IGCSE Subjects: ${formatCourses(studentProfile.igcse_subjects)}
-- AS Level Subjects: ${formatCourses(studentProfile.as_level_subjects)}
-- A Level Subjects: ${formatCourses(studentProfile.a_level_courses)}
-- AP/IB Courses: ${(studentProfile.ap_courses_taken as string[] | undefined)?.join(', ') || 'None listed'}
-- SAT Total: ${studentProfile.sat_total ?? 'Not provided'}
-- SAT Math: ${studentProfile.sat_math ?? 'Not provided'}
-- SAT EBRW: ${studentProfile.sat_ebrw ?? 'Not provided'}
-- ACT Composite: ${studentProfile.act_composite ?? 'Not provided'}
-- English Proficiency: ${studentProfile.english_test_type ? `${studentProfile.english_test_type} ${studentProfile.english_test_score ?? ''}`.trim() : 'Not provided'}
-- Intended Major: ${studentProfile.intended_major ?? 'Undecided'}
-- Career Interests: ${(studentProfile.career_interests as string[] | undefined)?.join(', ') || 'Not specified'}
-- Preferred College Type: ${studentProfile.preferred_college_type ?? 'Not specified'}
-- Target Countries: ${(studentProfile.target_countries as string[] | undefined)?.join(', ') || 'Not specified'}
-- Extracurriculars (with time commitment): ${studentProfile.extracurriculars ? JSON.stringify(studentProfile.extracurriculars) : 'None listed'}
-- Honors & Awards: ${studentProfile.honors_awards ? JSON.stringify(studentProfile.honors_awards) : 'None listed'}
-- First-Generation College Student: ${studentProfile.first_generation === true ? 'Yes' : studentProfile.first_generation === false ? 'No' : 'Not specified'}
-- Likely Needs Financial Aid: ${studentProfile.financial_aid_need === 'yes' ? 'Yes' : studentProfile.financial_aid_need === 'no' ? 'No' : 'Not specified'}
-- Additional Context: ${studentProfile.additional_context || 'None provided'}
+- GPA (Weighted): ${p?.gpa_weighted ?? 'Not provided'}
+- GPA (Unweighted): ${p?.gpa_unweighted ?? 'Not provided'}
+- Class Rank: ${p?.class_rank ? `${p.class_rank} of ${p.class_size ?? '?'}` : 'Not provided'}
+- IGCSE Subjects: ${formatCourses(p?.igcse_subjects)}
+- AS Level Subjects: ${formatCourses(p?.as_level_subjects)}
+- A Level Subjects: ${formatCourses(p?.a_level_courses)}
+- AP/IB Courses: ${p?.ap_courses_taken?.join(', ') || 'None listed'}
+- SAT Total: ${p?.sat_total ?? 'Not provided'}
+- SAT Math: ${p?.sat_math ?? 'Not provided'}
+- SAT EBRW: ${p?.sat_ebrw ?? 'Not provided'}
+- ACT Composite: ${p?.act_composite ?? 'Not provided'}
+- English Proficiency: ${p?.english_test_type ? `${p.english_test_type} ${p.english_test_score ?? ''}`.trim() : 'Not provided'}
+- Intended Major: ${p?.intended_major ?? 'Undecided'}
+- Career Interests: ${p?.career_interests?.join(', ') || 'Not specified'}
+- Preferred College Type: ${p?.preferred_college_type ?? 'Not specified'}
+- Target Countries: ${p?.target_countries?.join(', ') || 'Not specified'}
+- Extracurriculars (with time commitment): ${p?.extracurriculars ? JSON.stringify(p.extracurriculars) : 'None listed'}
+- Honors & Awards: ${p?.honors_awards ? JSON.stringify(p.honors_awards) : 'None listed'}
+- First-Generation College Student: ${p?.first_generation === true ? 'Yes' : p?.first_generation === false ? 'No' : 'Not specified'}
+- Likely Needs Financial Aid: ${p?.financial_aid_need === 'yes' ? 'Yes' : p?.financial_aid_need === 'no' ? 'No' : 'Not specified'}
+- Additional Context: ${p?.additional_context || 'None provided'}
+- Active Goals: ${goalsSummary}
 `.trim();
 
   const userMessage = `Target College: ${targetCollege}
 
 ${profileSummary}
 
-Please estimate this student's admissions chances at ${targetCollege} and provide detailed JSON analysis.`;
-
-  const client = new Anthropic({ apiKey });
+Please estimate this student's admissions chances at ${targetCollege}.`;
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1536,
-      system: CHANCE_ESTIMATOR_SYSTEM,
-      messages: [{ role: 'user', content: userMessage }],
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+      config: {
+        systemInstruction: CHANCE_ESTIMATOR_SYSTEM,
+        maxOutputTokens: 1536,
+        responseMimeType: 'application/json',
+        responseSchema: RESPONSE_SCHEMA,
+      },
     });
 
-    const rawText =
-      response.content[0].type === 'text' ? response.content[0].text : '';
-
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return NextResponse.json(
-        { error: 'AI returned an unexpected format. Please try again.' },
-        { status: 500 }
-      );
-    }
-
-    const result = JSON.parse(jsonMatch[0]);
+    const result = JSON.parse(response.text ?? '');
     return NextResponse.json({ result });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'An error occurred.';
