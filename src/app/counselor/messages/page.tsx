@@ -2,18 +2,21 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+import { isSameCalendarDay } from '@/lib/chat-date';
+import ChatDateDivider from '@/components/messaging/ChatDateDivider';
+import MessageComposer from '@/components/messaging/MessageComposer';
 
 interface Message {
   id: number;
   sender: 'counselor' | 'contact';
   content: string;
   timestamp: string;
+  createdAt: string;
 }
 
 interface MessageRow {
@@ -105,6 +108,7 @@ export default function CounselorMessagesPage() {
 
   // ─── Loading / error ────────────────────────────────────────────────────────
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [hasLoadedChats, setHasLoadedChats] = useState(false);
 
@@ -263,6 +267,7 @@ export default function CounselorMessagesPage() {
         sender: (row as MessageRow).sender_role === 'counselor' ? 'counselor' : 'contact',
         content: (row as MessageRow).content,
         timestamp: formatMessageTime((row as MessageRow).created_at),
+        createdAt: (row as MessageRow).created_at,
       }));
 
       const lastMessage = messages[messages.length - 1];
@@ -414,6 +419,7 @@ export default function CounselorMessagesPage() {
         sender: row.sender_role === 'counselor' ? 'counselor' : 'contact',
         content: row.content,
         timestamp: formatMessageTime(row.created_at),
+        createdAt: row.created_at,
       }));
 
       const lastMessage = messages[messages.length - 1];
@@ -484,16 +490,18 @@ export default function CounselorMessagesPage() {
   });
 
   // ─── Send message ────────────────────────────────────────────────────────────
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat || !user) return;
 
     const messageToSend = newMessage.trim();
+    const optimisticId = Date.now();
+    const nowIso = new Date().toISOString();
     const optimistic: Message = {
-      id: Date.now(),
+      id: optimisticId,
       sender: 'counselor',
       content: messageToSend,
-      timestamp: formatMessageTime(new Date().toISOString()),
+      timestamp: formatMessageTime(nowIso),
+      createdAt: nowIso,
     };
 
     const appendMessage = (prev: ContactChat[]) =>
@@ -508,6 +516,7 @@ export default function CounselorMessagesPage() {
     else setParentChats(appendMessage);
 
     setNewMessage('');
+    setSendError(null);
 
     const { error } = await supabase.from('messages').insert({
       conversation_key: selectedChat.conversationKey,
@@ -517,7 +526,19 @@ export default function CounselorMessagesPage() {
     });
 
     if (error) {
-      await loadStudentChats();
+      const removeMessage = (prev: ContactChat[]) =>
+        prev.map(c =>
+          c.contact.id === selectedChat.contact.id
+            ? { ...c, messages: c.messages.filter(m => m.id !== optimisticId) }
+            : c
+        );
+
+      if (activeTab === 'students') setStudentChats(removeMessage);
+      else if (activeTab === 'teachers') setTeacherChats(removeMessage);
+      else setParentChats(removeMessage);
+
+      setNewMessage(messageToSend);
+      setSendError('Message failed to send. Please try again.');
       return;
     }
 
@@ -534,6 +555,7 @@ export default function CounselorMessagesPage() {
     else setSelectedParentId(contactId);
 
     setShowMobileList(false);
+    setSendError(null);
 
     const chat = activeChats.find(c => c.contact.id === contactId);
     if (chat?.unread) void markConversationAsRead(chat.conversationKey, activeTab);
@@ -570,7 +592,7 @@ export default function CounselorMessagesPage() {
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="h-screen min-h-0 flex flex-col overflow-hidden">
+    <div className="h-dvh min-h-0 flex flex-col overflow-hidden">
       {/* Page header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -626,7 +648,7 @@ export default function CounselorMessagesPage() {
                     <button
                       key={tab.key}
                       type="button"
-                      onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); }}
+                      onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); setSendError(null); }}
                       className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
                         activeTab === tab.key
                           ? 'border-primary text-primary bg-primary/5'
@@ -766,10 +788,15 @@ export default function CounselorMessagesPage() {
                       </div>
                     )}
 
-                    {selectedChat.messages.map(message => {
+                    {selectedChat.messages.map((message, index) => {
                       const isMine = message.sender === 'counselor';
+                      const previousMessage = selectedChat.messages[index - 1];
+                      const showDateDivider =
+                        !previousMessage || !isSameCalendarDay(previousMessage.createdAt, message.createdAt);
                       return (
-                        <div key={message.id} className={`flex items-end gap-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                        <React.Fragment key={message.id}>
+                        {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
+                        <div className={`flex items-end gap-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
                           {!isMine && (
                             <div className="w-8 h-8 rounded-full border border-border bg-card overflow-hidden flex items-center justify-center mb-1 flex-shrink-0 shadow-sm">
                               {selectedChat.contact.profileImage ? (
@@ -794,6 +821,7 @@ export default function CounselorMessagesPage() {
                             </p>
                           </div>
                         </div>
+                        </React.Fragment>
                       );
                     })}
                     <div ref={messagesEndRef} />
@@ -801,25 +829,18 @@ export default function CounselorMessagesPage() {
                 </div>
 
                 {/* Message input */}
-                <form onSubmit={handleSendMessage} className="px-4 py-4 sm:px-5 sm:py-5 border-t border-border bg-card/95">
-                  <div className="flex items-center gap-2 sm:gap-3 rounded-xl border border-input bg-background/90 px-2 sm:px-3 py-2 shadow-sm">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={e => setNewMessage(e.target.value)}
-                      placeholder={`Message ${selectedChat.contact.firstName}...`}
-                      className="flex-1 bg-transparent px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                    <Button type="submit" size="sm" disabled={!newMessage.trim()} className="rounded-full px-3.5 py-2" aria-label="Send message">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
-                    Keep communication professional and supportive.
-                  </p>
-                </form>
+                <MessageComposer
+                  value={newMessage}
+                  onChange={setNewMessage}
+                  onSend={handleSendMessage}
+                  placeholder={`Message ${selectedChat.contact.firstName}...`}
+                  error={sendError}
+                  footer={
+                    <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
+                      Keep communication professional and supportive.
+                    </p>
+                  }
+                />
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">

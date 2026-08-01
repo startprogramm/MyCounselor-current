@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar, { SidebarItem } from '@/components/layout/Sidebar';
 import { useAuth } from '@/context/AuthContext';
 import { getDashboardRouteForRole } from '@/lib/role-routes';
+import { supabase } from '@/lib/supabase';
+import { startVisibilityAwarePolling } from '@/lib/polling';
 
 const parentNavItems: SidebarItem[] = [
   {
@@ -85,6 +87,8 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
 
   const isFullyApproved = user?.studentConfirmed === true && user?.approved === true;
+  const [unreadMessages, setUnreadMessages] = useState(0);
+  const shouldPauseBadgePolling = pathname.startsWith('/parent/messages');
 
   useEffect(() => {
     if (isLoading) return;
@@ -106,6 +110,62 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
     }
   }, [isLoading, user, isFullyApproved, pathname, router]);
 
+  const computeUnreadMessages = useCallback(async () => {
+    if (!user?.id || !user?.schoolId) return;
+
+    const { data: counselorRows, error: counselorsError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('school_id', user.schoolId)
+      .eq('role', 'counselor');
+
+    if (counselorsError) return;
+
+    const counselorIds = (counselorRows || []).map((row) => row.id);
+    if (counselorIds.length === 0) {
+      setUnreadMessages(0);
+      return;
+    }
+
+    const keys = counselorIds.map((counselorId) => [counselorId, user.id].sort().join('__'));
+    const [{ data: messageRows }, { data: readRows }] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('conversation_key,sender_role,created_at')
+        .in('conversation_key', keys)
+        .eq('sender_role', 'counselor'),
+      supabase
+        .from('message_reads')
+        .select('conversation_key,last_read_at')
+        .eq('reader_id', user.id)
+        .in('conversation_key', keys),
+    ]);
+
+    const readByConversation = new Map<string, string>();
+    (readRows || []).forEach((row) => {
+      readByConversation.set(row.conversation_key, row.last_read_at);
+    });
+
+    const totalUnread = (messageRows || []).reduce((sum, row) => {
+      const lastReadAt = readByConversation.get(row.conversation_key);
+      if (!lastReadAt || new Date(row.created_at).getTime() > new Date(lastReadAt).getTime()) {
+        return sum + 1;
+      }
+      return sum;
+    }, 0);
+
+    setUnreadMessages(totalUnread);
+  }, [user?.id, user?.schoolId]);
+
+  useEffect(() => {
+    if (!user?.id || !isFullyApproved) return;
+
+    void computeUnreadMessages();
+    if (shouldPauseBadgePolling) return;
+
+    return startVisibilityAwarePolling(() => computeUnreadMessages(), 20000);
+  }, [user?.id, isFullyApproved, computeUnreadMessages, shouldPauseBadgePolling]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -122,7 +182,11 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
   }
 
   const visibleNavItems = isFullyApproved
-    ? parentNavItems
+    ? parentNavItems.map((item) =>
+        item.href === '/parent/messages'
+          ? { ...item, badge: unreadMessages || undefined }
+          : item
+      )
     : parentNavItems.filter(item => item.href === '/parent/dashboard');
 
   return (

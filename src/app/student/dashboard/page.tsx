@@ -428,25 +428,35 @@ export default function StudentDashboardPage() {
           setConversations([]);
         } else {
         const keys = activeCounselors.map((c) => buildConversationKey(user.id, c.id));
-        const { data: messageRows } = await supabase
-          .from('messages')
-          .select('*')
-          .in('conversation_key', keys)
-          .order('created_at', { ascending: true });
+        const [{ data: messageRows }, { data: readRows }] = await Promise.all([
+          supabase
+            .from('messages')
+            .select('*')
+            .in('conversation_key', keys)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('message_reads')
+            .select('conversation_key,last_read_at')
+            .eq('reader_id', user.id)
+            .in('conversation_key', keys),
+        ]);
+
+        const readByConversation = new Map<string, string>();
+        (readRows || []).forEach((row) => {
+          readByConversation.set(row.conversation_key, row.last_read_at);
+        });
 
         const nextConversations: Conversation[] = activeCounselors.map((counselor, index) => {
           const key = buildConversationKey(user.id, counselor.id);
           const rows = (messageRows || []).filter((row) => row.conversation_key === key);
-          const lastStudentIdx = [...rows]
-            .reverse()
-            .findIndex((row) => row.sender_role === 'student');
+          const lastReadAt = readByConversation.get(key);
+          const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
 
-          let unread = 0;
-          if (lastStudentIdx === -1) {
-            unread = rows.filter((row) => row.sender_role === 'counselor').length;
-          } else {
-            unread = lastStudentIdx;
-          }
+          const unread = rows.filter(
+            (row) =>
+              row.sender_role === 'counselor' &&
+              (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
+          ).length;
 
           return {
             id: index + 1,

@@ -3,18 +3,21 @@
 import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+import { isSameCalendarDay } from '@/lib/chat-date';
+import ChatDateDivider from '@/components/messaging/ChatDateDivider';
+import MessageComposer from '@/components/messaging/MessageComposer';
 
 interface Message {
   id: number;
   sender: 'student' | 'counselor';
   content: string;
   timestamp: string;
+  createdAt: string;
 }
 
 interface MessageRow {
@@ -87,6 +90,7 @@ function buildConversationsFromCounselors(
       sender: row.sender_role === 'counselor' ? 'counselor' : 'student',
       content: row.content,
       timestamp: formatMessageTime(row.created_at),
+      createdAt: row.created_at,
     }));
 
     const lastMessage = mappedMessages[mappedMessages.length - 1];
@@ -152,6 +156,7 @@ function StudentMessagesPageInner() {
   const appliedDeepLinkRef = useRef(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [selectedConvId, setSelectedConvId] = useState<number>(0);
@@ -462,17 +467,19 @@ function StudentMessagesPageInner() {
     void markConversationAsRead(selectedConversation.conversationKey);
   }, [selectedConversation?.conversationKey, selectedConversation?.unread, markConversationAsRead]);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation || !user) return;
 
     const messageToSend = newMessage.trim();
+    const optimisticId = Date.now();
+    const nowIso = new Date().toISOString();
 
     const optimisticMessage: Message = {
-      id: Date.now(),
+      id: optimisticId,
       sender: 'student',
       content: messageToSend,
-      timestamp: formatMessageTime(new Date().toISOString()),
+      timestamp: formatMessageTime(nowIso),
+      createdAt: nowIso,
     };
 
     setConversations((previous) =>
@@ -490,6 +497,7 @@ function StudentMessagesPageInner() {
     );
 
     setNewMessage('');
+    setSendError(null);
 
     const { error } = await supabase.from('messages').insert({
       conversation_key: selectedConversation.conversationKey,
@@ -499,13 +507,22 @@ function StudentMessagesPageInner() {
     });
 
     if (error) {
-      await loadConversations();
+      setConversations((previous) =>
+        previous.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? { ...conversation, messages: conversation.messages.filter((m) => m.id !== optimisticId) }
+            : conversation
+        )
+      );
+      setNewMessage(messageToSend);
+      setSendError('Message failed to send. Please try again.');
     }
   };
 
   const handleSelectConversation = (conversationId: number) => {
     setSelectedConvId(conversationId);
     setShowMobileList(false);
+    setSendError(null);
 
     const openedConversation = conversations.find((conversation) => conversation.id === conversationId);
     if (openedConversation?.unread) {
@@ -523,7 +540,7 @@ function StudentMessagesPageInner() {
   };
 
   return (
-    <div className="min-h-[72vh] flex flex-col">
+    <div className="h-dvh min-h-0 flex flex-col overflow-hidden">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Messages</h1>
@@ -773,11 +790,15 @@ function StudentMessagesPageInner() {
                       </div>
                     )}
 
-                    {selectedConversation.messages.map((message) => {
+                    {selectedConversation.messages.map((message, index) => {
                       const isStudentMessage = message.sender === 'student';
+                      const previousMessage = selectedConversation.messages[index - 1];
+                      const showDateDivider =
+                        !previousMessage || !isSameCalendarDay(previousMessage.createdAt, message.createdAt);
                       return (
+                        <React.Fragment key={message.id}>
+                        {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
                         <div
-                          key={message.id}
                           className={`flex items-end gap-2.5 ${isStudentMessage ? 'justify-end' : 'justify-start'}`}
                         >
                           {!isStudentMessage && (
@@ -817,50 +838,25 @@ function StudentMessagesPageInner() {
                             </p>
                           </div>
                         </div>
+                        </React.Fragment>
                       );
                     })}
                     <div ref={messagesEndRef} />
                   </div>
                 </div>
 
-                <form
-                  onSubmit={handleSendMessage}
-                  className="px-4 py-4 sm:px-5 sm:py-5 border-t border-border bg-card/95"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 rounded-xl border border-input bg-background/90 px-2 sm:px-3 py-2 shadow-sm">
-                    <input
-                      type="text"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Write a message..."
-                      className="flex-1 bg-transparent px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none"
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={!newMessage.trim()}
-                      className="rounded-full px-3.5 py-2"
-                      aria-label="Send message"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                        />
-                      </svg>
-                    </Button>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
-                    Your chat is private and only visible to approved counselors at your school.
-                  </p>
-                </form>
+                <MessageComposer
+                  value={newMessage}
+                  onChange={setNewMessage}
+                  onSend={handleSendMessage}
+                  placeholder="Write a message..."
+                  error={sendError}
+                  footer={
+                    <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
+                      Your chat is private and only visible to approved counselors at your school.
+                    </p>
+                  }
+                />
               </>
             )}
           </div>

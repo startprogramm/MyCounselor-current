@@ -175,38 +175,50 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     }
 
     if (user.schoolId) {
-      const [{ data: studentRows, error: studentsError }, { count: pendingParentsCount, error: parentsError }] =
-        await Promise.all([
-          supabase
-            .from('profiles')
-            .select('id,approved')
-            .eq('school_id', user.schoolId)
-            .eq('role', 'student'),
-          supabase
-            .from('profiles')
-            .select('id', { count: 'exact', head: true })
-            .eq('school_id', user.schoolId)
-            .eq('role', 'parent')
-            .eq('student_confirmed', true)
-            .eq('approved', false),
-        ]);
+      const [
+        { data: studentRows, error: studentsError },
+        { data: teacherRows, error: teachersError },
+        { data: parentRows, error: parentRowsError },
+        { count: pendingParentsCount, error: parentsError },
+      ] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id,approved')
+          .eq('school_id', user.schoolId)
+          .eq('role', 'student'),
+        supabase.from('profiles').select('id').eq('school_id', user.schoolId).eq('role', 'teacher'),
+        supabase.from('profiles').select('id').eq('school_id', user.schoolId).eq('role', 'parent'),
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('school_id', user.schoolId)
+          .eq('role', 'parent')
+          .eq('student_confirmed', true)
+          .eq('approved', false),
+      ]);
 
-      if (studentsError || parentsError) {
+      if (studentsError || teachersError || parentRowsError || parentsError) {
         setBadgeCounts(counts);
         setUrgentBadges(urgent);
         return;
       }
 
-      const studentIds = (studentRows || []).map((student) => student.id);
+      // Unread badge covers all three contact tabs (students, teachers, parents)
+      // on the Messages page, not just students.
+      const contactIds = [
+        ...(studentRows || []).map((row) => row.id),
+        ...(teacherRows || []).map((row) => row.id),
+        ...(parentRows || []).map((row) => row.id),
+      ];
 
-      if (studentIds.length > 0) {
-        const keys = studentIds.map((studentId) => [studentId, user.id].sort().join('__'));
+      if (contactIds.length > 0) {
+        const keys = contactIds.map((contactId) => [contactId, user.id].sort().join('__'));
         const [{ data: messageRows }, { data: readRows }] = await Promise.all([
           supabase
             .from('messages')
             .select('conversation_key,sender_role,created_at')
             .in('conversation_key', keys)
-            .eq('sender_role', 'student'),
+            .neq('sender_role', 'counselor'),
           supabase
             .from('message_reads')
             .select('conversation_key,last_read_at')
