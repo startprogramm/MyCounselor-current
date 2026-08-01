@@ -10,6 +10,7 @@ export interface SidebarItem {
   href: string;
   icon: React.ReactNode;
   badge?: string | number;
+  badgeVariant?: 'default' | 'urgent';
 }
 
 interface SidebarProps {
@@ -419,7 +420,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                               className={`
                                 px-2 py-0.5 rounded-full text-xs font-medium
                                 ${
-                                  isActive
+                                  item.badgeVariant === 'urgent'
+                                    ? 'bg-destructive/15 text-destructive'
+                                    : isActive
                                     ? 'bg-primary-foreground/20 text-primary-foreground'
                                     : 'bg-primary/10 text-primary'
                                 }

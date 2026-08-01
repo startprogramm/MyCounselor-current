@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { ContentCard } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input, { Textarea, Select } from '@/components/ui/Input';
@@ -52,6 +53,7 @@ interface CounselingRequest {
   status: RequestStatus;
   createdAt: string;
   counselor: string;
+  counselorId?: string;
   category: string;
   studentName?: string;
   studentId?: string;
@@ -116,6 +118,7 @@ function mapRequest(row: {
   status: string;
   created_at: string;
   counselor_name: string;
+  counselor_id?: string | null;
   category: string;
   student_name: string;
   student_id: string;
@@ -136,6 +139,7 @@ function mapRequest(row: {
     status: normalizeRequestStatus(row.status),
     createdAt: formatCreatedAt(row.created_at),
     counselor: row.counselor_name,
+    counselorId: row.counselor_id || undefined,
     category: row.category,
     studentName: row.student_name,
     studentId: row.student_id,
@@ -1131,9 +1135,21 @@ export default function StudentRequestsPage() {
                   {/* Response */}
                   {request.response && (
                     <div className="mt-3 p-3 bg-primary/5 border border-primary/10 rounded-lg">
-                      <p className="text-xs font-medium text-primary mb-1">
-                        {request.teacherName ? 'Teacher Response:' : 'Counselor Response:'}
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-xs font-medium text-primary mb-1">
+                          {request.teacherName ? 'Teacher Response:' : 'Counselor Response:'}
+                        </p>
+                        {!request.teacherName && request.counselorId && (
+                          <Link
+                            href={`/student/messages?counselorId=${request.counselorId}&draft=${encodeURIComponent(
+                              `Re: "${request.title}" — `
+                            )}`}
+                            className="text-xs font-medium text-primary hover:underline whitespace-nowrap flex-shrink-0"
+                          >
+                            Reply in Messages
+                          </Link>
+                        )}
+                      </div>
                       <p className="text-sm text-foreground whitespace-pre-wrap">{request.response}</p>
                     </div>
                   )}

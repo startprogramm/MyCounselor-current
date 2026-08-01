@@ -128,6 +128,7 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+  const [urgentBadges, setUrgentBadges] = useState<Record<string, boolean>>({});
 
   const isApproved = user?.approved === true;
   const shouldPauseBadgePolling =
@@ -160,15 +161,17 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     if (!user) return;
 
     const counts: Record<string, number> = {};
+    const urgent: Record<string, boolean> = {};
 
     const { data: pendingTasks } = await supabase
       .from('requests')
-      .select('id')
+      .select('id,is_urgent')
       .eq('counselor_id', user.id)
       .eq('status', 'pending');
 
     if ((pendingTasks || []).length > 0) {
       counts['/counselor/tasks'] = pendingTasks!.length;
+      urgent['/counselor/tasks'] = pendingTasks!.some((task) => task.is_urgent);
     }
 
     if (user.schoolId) {
@@ -190,6 +193,7 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
 
       if (studentsError || parentsError) {
         setBadgeCounts(counts);
+        setUrgentBadges(urgent);
         return;
       }
 
@@ -232,6 +236,7 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     }
 
     setBadgeCounts(counts);
+    setUrgentBadges(urgent);
   }, [user]);
 
   useEffect(() => {
@@ -262,6 +267,7 @@ export default function CounselorLayout({ children }: { children: React.ReactNod
     ? counselorNavItems.map(item => ({
         ...item,
         badge: badgeCounts[item.href] || undefined,
+        badgeVariant: urgentBadges[item.href] ? ('urgent' as const) : undefined,
       }))
     : counselorNavItems.filter(item => item.href === '/counselor/dashboard');
 

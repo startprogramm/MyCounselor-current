@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { useAuth, User } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -137,30 +138,18 @@ function mapProfileToUser(profile: ProfileRow): User {
   };
 }
 
-function generateAutoReply(message: string): string | null {
-  const lower = message.toLowerCase();
-
-  if (lower.includes('thank') || lower.includes('thanks')) {
-    return "You're welcome. Reach out anytime if you need support.";
-  }
-  if (lower.includes('help') || lower.includes('question')) {
-    return 'Of course. Share a bit more detail and I can guide you better.';
-  }
-  if (lower.includes('meeting') || lower.includes('appointment') || lower.includes('schedule')) {
-    return 'Absolutely. You can book a time from the Meetings page, or I can suggest a slot.';
-  }
-  if (lower.includes('college') || lower.includes('university') || lower.includes('application')) {
-    return 'Great question. Let us review your options together in a focused meeting.';
-  }
-  if (lower.includes('grade') || lower.includes('class') || lower.includes('course')) {
-    return 'Understood. I can help with an academic plan based on your current classes.';
-  }
-
-  return "Thanks for your message. I'll review this and reply with next steps shortly.";
+export default function StudentMessagesPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentMessagesPageInner />
+    </Suspense>
+  );
 }
 
-export default function StudentMessagesPage() {
+function StudentMessagesPageInner() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const appliedDeepLinkRef = useRef(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
@@ -234,6 +223,25 @@ export default function StudentMessagesPage() {
       selectedConvId,
     });
   }, [cacheKey, conversations, selectedConvId, hasLoadedConversations]);
+
+  // Deep link from a request (e.g. "Reply in Messages") — select the right
+  // counselor's conversation and pre-fill a draft, once conversations exist.
+  useEffect(() => {
+    if (appliedDeepLinkRef.current || conversations.length === 0) return;
+
+    const counselorId = searchParams.get('counselorId');
+    if (!counselorId) return;
+
+    const match = conversations.find((c) => c.counselorId === counselorId);
+    if (!match) return;
+
+    appliedDeepLinkRef.current = true;
+    setSelectedConvId(match.id);
+    setShowMobileList(false);
+
+    const draft = searchParams.get('draft');
+    if (draft) setNewMessage(draft);
+  }, [conversations, searchParams]);
 
   const selectedConversation =
     conversations.find((conversation) => conversation.id === selectedConvId) || conversations[0];
@@ -492,22 +500,7 @@ export default function StudentMessagesPage() {
 
     if (error) {
       await loadConversations();
-      return;
     }
-
-    setTimeout(async () => {
-      const reply = generateAutoReply(messageToSend);
-      if (!reply || !selectedConversation.counselorId) return;
-
-      await supabase.from('messages').insert({
-        conversation_key: selectedConversation.conversationKey,
-        sender_role: 'counselor',
-        sender_id: selectedConversation.counselorId,
-        content: reply,
-      });
-
-      await loadConversations();
-    }, 1500);
   };
 
   const handleSelectConversation = (conversationId: number) => {

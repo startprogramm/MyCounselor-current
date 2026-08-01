@@ -191,6 +191,7 @@ export default function ParentDashboardPage() {
         .from('requests')
         .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,student_name,student_id,school_id,response,created_at')
         .in('student_id', childIds)
+        .neq('category', 'personal')
         .order('created_at', { ascending: false })
         .limit(10),
       supabase
