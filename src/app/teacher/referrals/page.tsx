@@ -117,6 +117,12 @@ export default function TeacherReferralsPage() {
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
 
+  // AI recommendation-letter drafting state
+  const [draftingId, setDraftingId] = useState<number | null>(null);
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [draftErrors, setDraftErrors] = useState<Record<number, string>>({});
+  const [copiedDraftId, setCopiedDraftId] = useState<number | null>(null);
+
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('teacher-referrals', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
@@ -297,6 +303,45 @@ export default function TeacherReferralsPage() {
   const handleStatusChange = async (id: number, newStatus: RequestStatus) => {
     const result = await updateRequest(id, { status: newStatus });
     if (!result.ok) setSaveError(result.error || 'Unable to update status.');
+  };
+
+  const handleGenerateDraft = async (req: Referral) => {
+    if (draftingId) return;
+    setDraftingId(req.id);
+    setDraftErrors((prev) => ({ ...prev, [req.id]: '' }));
+
+    try {
+      const res = await fetch('/api/ai-recommendation-drafter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: req.id,
+          teacherName: user ? `${user.firstName} ${user.lastName}` : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Unable to generate a draft right now.');
+      setDrafts((prev) => ({ ...prev, [req.id]: data.draft }));
+    } catch (err) {
+      setDraftErrors((prev) => ({
+        ...prev,
+        [req.id]: err instanceof Error ? err.message : 'Unable to generate a draft right now.',
+      }));
+    } finally {
+      setDraftingId(null);
+    }
+  };
+
+  const handleCopyDraft = async (req: Referral) => {
+    const text = drafts[req.id];
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedDraftId(req.id);
+      window.setTimeout(() => setCopiedDraftId((id) => (id === req.id ? null : id)), 2000);
+    } catch {
+      // Clipboard API may be unavailable (e.g. insecure context) — nothing more we can do.
+    }
   };
 
   const getStatusVariant = (status: string) => {
@@ -596,6 +641,53 @@ export default function TeacherReferralsPage() {
                         )}
                       </div>
                     )}
+
+                    <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+                      <div className="px-3 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                            <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                            </svg>
+                            Draft this letter with AI
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Builds a first draft from what {req.studentName.split(' ')[0] || 'the student'} shared above, in your voice — read it over and personalize it before using it anywhere.
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          isLoading={draftingId === req.id}
+                          onClick={() => handleGenerateDraft(req)}
+                        >
+                          {drafts[req.id] ? 'Regenerate' : 'Generate draft'}
+                        </Button>
+                      </div>
+
+                      {draftErrors[req.id] && (
+                        <p className="px-3 pb-2.5 text-xs text-destructive">{draftErrors[req.id]}</p>
+                      )}
+
+                      {drafts[req.id] && (
+                        <div className="border-t border-primary/20 p-3 space-y-2">
+                          <textarea
+                            value={drafts[req.id]}
+                            onChange={(e) => setDrafts((prev) => ({ ...prev, [req.id]: e.target.value }))}
+                            rows={10}
+                            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm leading-relaxed resize-y"
+                          />
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <Button size="sm" onClick={() => handleCopyDraft(req)}>
+                              {copiedDraftId === req.id ? 'Copied!' : 'Copy draft'}
+                            </Button>
+                            <span className="text-xs text-muted-foreground">
+                              This is a starting point, not a final letter — verify every detail before sending.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     {req.response && expandedId !== req.id && (
                       <div className="mt-3 p-3 bg-muted/30 rounded-lg">
