@@ -13,6 +13,39 @@ import { parseRecommendationDetails, type RecommendationDetails } from '@/lib/re
 
 const RECOMMENDATION_CATEGORY = 'recommendation';
 
+type DeadlineTone = 'overdue' | 'soon' | 'plenty';
+
+interface DeadlineMeta {
+  formatted: string;
+  relative: string;
+  tone: DeadlineTone;
+}
+
+const DEADLINE_TONE_CLASSES: Record<DeadlineTone, string> = {
+  overdue: 'bg-destructive/10 text-destructive border-destructive/20',
+  soon: 'bg-warning/10 text-warning border-warning/20',
+  plenty: 'bg-muted/40 text-foreground border-border',
+};
+
+function getDeadlineMeta(deadline: string): DeadlineMeta | null {
+  if (!deadline) return null;
+  const target = new Date(`${deadline}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
+  const formatted = target.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+  if (diffDays < 0) {
+    const daysAgo = Math.abs(diffDays);
+    return { formatted, relative: `overdue by ${daysAgo} day${daysAgo === 1 ? '' : 's'}`, tone: 'overdue' };
+  }
+  if (diffDays === 0) return { formatted, relative: 'due today', tone: 'soon' };
+  if (diffDays <= 7) return { formatted, relative: `${diffDays} day${diffDays === 1 ? '' : 's'} left`, tone: 'soon' };
+  return { formatted, relative: `${diffDays} days left`, tone: 'plenty' };
+}
+
 interface Referral {
   id: number;
   title: string;
@@ -427,82 +460,141 @@ export default function TeacherReferralsPage() {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">Requested by: {req.studentName}</p>
-                    {req.description && <p className="text-sm text-muted-foreground mt-1">{req.description}</p>}
-                    <span className="text-xs text-muted-foreground mt-2 inline-block">{req.createdAt}</span>
+
+                    {req.recommendationDetails?.deadline && (() => {
+                      const meta = getDeadlineMeta(req.recommendationDetails!.deadline);
+                      if (!meta) return null;
+                      return (
+                        <div
+                          className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg border text-xs font-medium ${DEADLINE_TONE_CLASSES[meta.tone]}`}
+                        >
+                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>Letter needed by {meta.formatted}</span>
+                          <span className="opacity-70">· {meta.relative}</span>
+                        </div>
+                      );
+                    })()}
+
+                    {req.description && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium text-muted-foreground">What it's for, in their words</p>
+                        <p className="text-sm text-foreground">{req.description}</p>
+                      </div>
+                    )}
+                    <span className="text-xs text-muted-foreground mt-2 inline-block">Requested {req.createdAt}</span>
 
                     {req.recommendationDetails && (
-                      <dl className="mt-3 space-y-2.5 p-3 bg-muted/20 border border-border rounded-lg text-sm">
-                        {(req.recommendationDetails.courses || req.recommendationDetails.deadline) && (
-                          <div className="flex flex-wrap gap-x-6 gap-y-1">
+                      <div className="mt-3 rounded-lg border border-border bg-muted/20 divide-y divide-border text-sm overflow-hidden">
+                        <div className="px-3 py-2 bg-muted/30">
+                          <p className="text-xs text-muted-foreground">
+                            The student answered a few questions to help you write a stronger, more specific letter.
+                          </p>
+                        </div>
+
+                        {(req.recommendationDetails.courses || req.recommendationDetails.reasonForChoosing) && (
+                          <div className="p-3 space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">Context</p>
                             {req.recommendationDetails.courses && (
                               <div>
-                                <dt className="text-xs font-medium text-muted-foreground">Course(s)</dt>
-                                <dd className="text-foreground">{req.recommendationDetails.courses}</dd>
+                                <p className="text-xs font-medium text-foreground">Course(s) taken with you</p>
+                                <p className="text-[11px] text-muted-foreground">So you can recall which class and when</p>
+                                <p className="text-foreground mt-0.5">{req.recommendationDetails.courses}</p>
                               </div>
                             )}
-                            {req.recommendationDetails.deadline && (
+                            {req.recommendationDetails.reasonForChoosing && (
                               <div>
-                                <dt className="text-xs font-medium text-muted-foreground">Deadline</dt>
-                                <dd className="text-foreground">{req.recommendationDetails.deadline}</dd>
+                                <p className="text-xs font-medium text-foreground">Why they asked you specifically</p>
+                                <p className="text-foreground mt-0.5">{req.recommendationDetails.reasonForChoosing}</p>
                               </div>
                             )}
                           </div>
                         )}
-                        {req.recommendationDetails.reasonForChoosing && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">Why they chose you</dt>
-                            <dd className="text-foreground">{req.recommendationDetails.reasonForChoosing}</dd>
+
+                        {(req.recommendationDetails.adjectives.length > 0 ||
+                          req.recommendationDetails.proudProject ||
+                          req.recommendationDetails.favoriteLesson ||
+                          req.recommendationDetails.attributes.length > 0 ||
+                          req.recommendationDetails.somethingTheyDontKnow) && (
+                          <div className="p-3 space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+                              Material for the letter
+                            </p>
+                            {req.recommendationDetails.adjectives.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-foreground">How they'd describe themselves</p>
+                                <p className="text-foreground mt-0.5">{req.recommendationDetails.adjectives.join(', ')}</p>
+                              </div>
+                            )}
+                            {req.recommendationDetails.proudProject && (
+                              <div>
+                                <p className="text-xs font-medium text-foreground">A project or piece of work they're proud of</p>
+                                <p className="text-[11px] text-muted-foreground">A concrete example you can cite</p>
+                                <p className="text-foreground mt-0.5">{req.recommendationDetails.proudProject}</p>
+                              </div>
+                            )}
+                            {req.recommendationDetails.favoriteLesson && (
+                              <div>
+                                <p className="text-xs font-medium text-foreground">A lesson or moment in your class they enjoyed</p>
+                                <p className="text-foreground mt-0.5">{req.recommendationDetails.favoriteLesson}</p>
+                              </div>
+                            )}
+                            {req.recommendationDetails.attributes.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-foreground mb-1.5">
+                                  Qualities they'd like you to highlight
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {req.recommendationDetails.attributes.map((attribute) => (
+                                    <Badge key={attribute} variant="secondary" size="sm">{attribute}</Badge>
+                                  ))}
+                                </div>
+                                {req.recommendationDetails.attributeStory && (
+                                  <p className="text-foreground mt-1.5">
+                                    <span className="text-[11px] text-muted-foreground">Supporting story: </span>
+                                    {req.recommendationDetails.attributeStory}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {req.recommendationDetails.somethingTheyDontKnow && (
+                              <div>
+                                <p className="text-xs font-medium text-foreground">Something they think you might not know</p>
+                                <p className="text-[11px] text-muted-foreground">A personal detail to add color</p>
+                                <p className="text-foreground mt-0.5">{req.recommendationDetails.somethingTheyDontKnow}</p>
+                              </div>
+                            )}
                           </div>
                         )}
-                        {req.recommendationDetails.adjectives.length > 0 && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">Three words</dt>
-                            <dd className="text-foreground">{req.recommendationDetails.adjectives.join(', ')}</dd>
+
+                        {(req.recommendationDetails.targetColleges ||
+                          req.recommendationDetails.intendedMajor ||
+                          req.recommendationDetails.additionalInfo) && (
+                          <div className="p-3 space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+                              Where this is going
+                            </p>
+                            {(req.recommendationDetails.targetColleges || req.recommendationDetails.intendedMajor) && (
+                              <div>
+                                <p className="text-xs font-medium text-foreground">Applying to</p>
+                                <p className="text-[11px] text-muted-foreground">Tailor examples toward these, if relevant</p>
+                                <p className="text-foreground mt-0.5">
+                                  {[req.recommendationDetails.targetColleges, req.recommendationDetails.intendedMajor]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </p>
+                              </div>
+                            )}
+                            {req.recommendationDetails.additionalInfo && (
+                              <div>
+                                <p className="text-xs font-medium text-foreground">Anything else from the student</p>
+                                <p className="text-foreground mt-0.5">{req.recommendationDetails.additionalInfo}</p>
+                              </div>
+                            )}
                           </div>
                         )}
-                        {req.recommendationDetails.proudProject && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">A project they're proud of</dt>
-                            <dd className="text-foreground">{req.recommendationDetails.proudProject}</dd>
-                          </div>
-                        )}
-                        {req.recommendationDetails.favoriteLesson && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">A lesson they enjoyed</dt>
-                            <dd className="text-foreground">{req.recommendationDetails.favoriteLesson}</dd>
-                          </div>
-                        )}
-                        {req.recommendationDetails.attributes.length > 0 && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">
-                              Qualities to highlight: {req.recommendationDetails.attributes.join(', ')}
-                            </dt>
-                            <dd className="text-foreground">{req.recommendationDetails.attributeStory}</dd>
-                          </div>
-                        )}
-                        {req.recommendationDetails.somethingTheyDontKnow && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">Something you might not know</dt>
-                            <dd className="text-foreground">{req.recommendationDetails.somethingTheyDontKnow}</dd>
-                          </div>
-                        )}
-                        {(req.recommendationDetails.targetColleges || req.recommendationDetails.intendedMajor) && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">Applying to</dt>
-                            <dd className="text-foreground">
-                              {[req.recommendationDetails.targetColleges, req.recommendationDetails.intendedMajor]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </dd>
-                          </div>
-                        )}
-                        {req.recommendationDetails.additionalInfo && (
-                          <div>
-                            <dt className="text-xs font-medium text-muted-foreground">Anything else</dt>
-                            <dd className="text-foreground">{req.recommendationDetails.additionalInfo}</dd>
-                          </div>
-                        )}
-                      </dl>
+                      </div>
                     )}
 
                     {req.response && expandedId !== req.id && (
