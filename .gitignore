@@ -8,6 +8,9 @@
 # MCP server config (contains access tokens)
 .mcp.json
 
+# Supabase CLI local link cache
+supabase/.temp/
+
 # Node modules
 node_modules/
 package-lock.json

@@ -9,24 +9,28 @@ type SectionKey = 'opening' | 'body1' | 'body2' | 'closing';
 
 const ANGLE_GUIDANCE: Record<Angle, string> = {
   academic:
-    'Lean into academic rigor, intellectual curiosity, and habits of mind. Anchor every claim in the specific course, project, or lesson provided rather than generic praise.',
+    'Lean into academic rigor, intellectual curiosity, and habits of mind — what the student is like when they hit something hard in class. Anchor every claim in the specific course, project, or lesson provided rather than generic praise.',
   leadership:
-    'Lean into initiative, responsibility, and how the student influences or guides the people around them. Favor moments of self-directed action over passive good behavior.',
+    'Lean into initiative, responsibility, and how the student influences or guides the people around them — favor moments of self-directed action over passive good behavior. If the material hints at how peers or the group responded to them, use it.',
   challenge:
-    "Lean into honest growth: a real limitation, self-doubt, or setback the student mentioned, and how they worked through it anyway. Don't manufacture a struggle that wasn't given — use what's actually there, even if it's small.",
+    "Lean into honest growth: a real limitation, self-doubt, or setback the student mentioned, and how they worked through it anyway. Don't manufacture a struggle that wasn't given — use what's actually there, even if it's small. This kind of honest, specific admission reads as more credible than uncut praise, not less.",
   well_rounded:
     'Balance academic strength, personal character, and outside interests evenly — no single dimension should dominate the letter.',
 };
 
+const OPENING_CRAFT_NOTE =
+  "Do NOT open with 'It is my pleasure/privilege/honor to recommend/write...' or 'I am writing to recommend...' — these are the single most overused openers in this genre and admissions readers skim right past them after the first ten. Instead, open with something distinctive: a concrete trait, a specific moment, or a direct characterization, THEN establish the relationship (who you are, your subject/role, how and how long you've known the student).";
+
+const CLOSING_CRAFT_NOTE =
+  "Avoid the rote formulas 'I recommend [name] without reservation' and 'I am confident [name] will succeed' unless you're pairing them with something specific — an empty formula in the last line is what a rushed, low-effort letter sounds like.";
+
 const SECTION_GUIDANCE: Record<SectionKey, string> = {
-  opening:
-    "Write ONLY the opening (3-5 sentences): who you are, your subject/role, how and how long you've known the student, and one strong overall impression.",
+  opening: `Write ONLY the opening (3-5 sentences) and one strong overall impression. ${OPENING_CRAFT_NOTE}`,
   body1:
-    'Write ONLY body paragraph 1 (4-8 sentences): academic ability and habits of mind in your class, anchored in the specific course and, if given, the project or lesson mentioned.',
+    'Write ONLY body paragraph 1 (4-8 sentences): academic ability and habits of mind in your class, anchored in the specific course and, if given, the project or lesson mentioned. Show the pattern through what the student does (e.g. "she seeks out the harder problem") rather than just asserting a trait (e.g. "she is hardworking") — the concrete action is what makes the claim believable.',
   body2:
-    'Write ONLY body paragraph 2 (4-8 sentences): personal character, using the specific qualities the student chose and the story they told to support them.',
-  closing:
-    'Write ONLY the closing (2-4 sentences): a clear, confident endorsement and an offer to provide more information. If a target college or major was given, you may naturally note fit.',
+    "Write ONLY body paragraph 2 (4-8 sentences): personal character, using the specific qualities the student chose and the story they told to support them. Same rule — show it happening, don't just label it.",
+  closing: `Write ONLY the closing (2-4 sentences): a clear, confident endorsement and an offer to provide more information. ${CLOSING_CRAFT_NOTE} If a target college or major was given, you may naturally note fit.`,
 };
 
 const BASE_SYSTEM = `You are helping a teacher get a running start on a college recommendation letter for a student. You are drafting on the teacher's behalf, in their voice as the student's teacher.
@@ -34,6 +38,11 @@ const BASE_SYSTEM = `You are helping a teacher get a running start on a college 
 This is a FIRST DRAFT ONLY, meant to be read, fact-checked, and rewritten by the teacher before it goes anywhere. Never mention AI assistance within the letter itself.
 
 Ground every specific claim in the details provided below. Do not invent grades, awards, dates, or anecdotes that were not given to you. Where a section has little information, keep that part brief and general rather than fabricating specifics.
+
+What separates a strong letter from a forgettable one, based on how admissions offices actually read these:
+- Specificity beats adjectives. A claim like "hardworking" or "passionate" or "a quick learner" is worthless on its own — it could describe almost any applicant. Either follow it immediately with the concrete evidence from the details below, or cut the adjective and just show the evidence.
+- If you want to signal the student stands out relative to peers, keep it honestly scoped to what a single teacher can actually know from one class — "one of the more thoughtful students in this course" is credible; a fabricated career-spanning claim like "the best student I've taught in 20 years" is not, and you have no basis for it. Never invent a ranking, statistic, or years-of-experience claim that wasn't given to you.
+- A letter that only covers grades and academic performance is thin. Where the details support it, work in how the student engages with people around them, what seems to motivate them, and a genuinely specific, memorable impression — not just a list of the brag-sheet answers recited in order.
 
 Write in formal but warm prose, first person, as the teacher. No headers, bullet points, salutation ("Dear...") or signature block — those are added separately. Return only the requested paragraph(s).`;
 
@@ -147,7 +156,7 @@ export async function POST(request: NextRequest) {
   const instruction =
     mode === 'section'
       ? SECTION_GUIDANCE[section as SectionKey]
-      : 'Write the full letter as four separate parts (opening, body1, body2, closing), following the standard structure: opening establishes relationship and overall impression, body1 covers academic strengths, body2 covers personal character, closing is a clear endorsement.';
+      : `Write the full letter as four separate parts (opening, body1, body2, closing), following the standard structure: opening establishes relationship and overall impression, body1 covers academic strengths, body2 covers personal character, closing is a clear endorsement. For the opening: ${OPENING_CRAFT_NOTE} For the closing: ${CLOSING_CRAFT_NOTE}`;
 
   const userMessage = `Student: ${reqRow.student_name || 'the student'}
 Teacher writing the letter: ${teacherName || reqRow.teacher_name || 'the teacher'}
