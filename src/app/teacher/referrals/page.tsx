@@ -1,50 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { Card, ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 import { getRequestStatusLabel, normalizeRequestStatus, type RequestStatus } from '@/lib/request-status';
 import { parseRecommendationDetails, type RecommendationDetails } from '@/lib/recommendation-details';
+import { getDeadlineMeta, DEADLINE_TONE_CLASSES } from '@/lib/deadline';
+import RecommendationBragSheet from './RecommendationBragSheet';
 
 const RECOMMENDATION_CATEGORY = 'recommendation';
-
-type DeadlineTone = 'overdue' | 'soon' | 'plenty';
-
-interface DeadlineMeta {
-  formatted: string;
-  relative: string;
-  tone: DeadlineTone;
-}
-
-const DEADLINE_TONE_CLASSES: Record<DeadlineTone, string> = {
-  overdue: 'bg-destructive/10 text-destructive border-destructive/20',
-  soon: 'bg-warning/10 text-warning border-warning/20',
-  plenty: 'bg-muted/40 text-foreground border-border',
-};
-
-function getDeadlineMeta(deadline: string): DeadlineMeta | null {
-  if (!deadline) return null;
-  const target = new Date(`${deadline}T00:00:00`);
-  if (Number.isNaN(target.getTime())) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((target.getTime() - today.getTime()) / 86400000);
-  const formatted = target.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-
-  if (diffDays < 0) {
-    const daysAgo = Math.abs(diffDays);
-    return { formatted, relative: `overdue by ${daysAgo} day${daysAgo === 1 ? '' : 's'}`, tone: 'overdue' };
-  }
-  if (diffDays === 0) return { formatted, relative: 'due today', tone: 'soon' };
-  if (diffDays <= 7) return { formatted, relative: `${diffDays} day${diffDays === 1 ? '' : 's'} left`, tone: 'soon' };
-  return { formatted, relative: `${diffDays} days left`, tone: 'plenty' };
-}
 
 interface Referral {
   id: number;
@@ -117,11 +86,8 @@ export default function TeacherReferralsPage() {
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
 
-  // AI recommendation-letter drafting state
-  const [draftingId, setDraftingId] = useState<number | null>(null);
-  const [drafts, setDrafts] = useState<Record<number, string>>({});
-  const [draftErrors, setDraftErrors] = useState<Record<number, string>>({});
-  const [copiedDraftId, setCopiedDraftId] = useState<number | null>(null);
+  // Letter-workspace status per request (for the "Write this letter" button label)
+  const [letterDocStatus, setLetterDocStatus] = useState<Record<number, 'drafting' | 'final'>>({});
 
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('teacher-referrals', user.id, user.schoolId) : null),
@@ -189,6 +155,27 @@ export default function TeacherReferralsPage() {
     if (!isCacheHydrated) return;
     void loadReferrals();
   }, [isCacheHydrated, loadReferrals]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const recIds = referrals.filter((r) => r.category === RECOMMENDATION_CATEGORY).map((r) => r.id);
+    if (recIds.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('recommendation_letter_documents')
+        .select('request_id, status')
+        .in('request_id', recIds);
+      if (!cancelled && data) {
+        setLetterDocStatus(Object.fromEntries(data.map((d) => [d.request_id, d.status])));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, referrals]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,45 +290,6 @@ export default function TeacherReferralsPage() {
   const handleStatusChange = async (id: number, newStatus: RequestStatus) => {
     const result = await updateRequest(id, { status: newStatus });
     if (!result.ok) setSaveError(result.error || 'Unable to update status.');
-  };
-
-  const handleGenerateDraft = async (req: Referral) => {
-    if (draftingId) return;
-    setDraftingId(req.id);
-    setDraftErrors((prev) => ({ ...prev, [req.id]: '' }));
-
-    try {
-      const res = await fetch('/api/ai-recommendation-drafter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestId: req.id,
-          teacherName: user ? `${user.firstName} ${user.lastName}` : undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Unable to generate a draft right now.');
-      setDrafts((prev) => ({ ...prev, [req.id]: data.draft }));
-    } catch (err) {
-      setDraftErrors((prev) => ({
-        ...prev,
-        [req.id]: err instanceof Error ? err.message : 'Unable to generate a draft right now.',
-      }));
-    } finally {
-      setDraftingId(null);
-    }
-  };
-
-  const handleCopyDraft = async (req: Referral) => {
-    const text = drafts[req.id];
-    if (!text) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedDraftId(req.id);
-      window.setTimeout(() => setCopiedDraftId((id) => (id === req.id ? null : id)), 2000);
-    } catch {
-      // Clipboard API may be unavailable (e.g. insecure context) — nothing more we can do.
-    }
   };
 
   const getStatusVariant = (status: string) => {
@@ -531,163 +479,30 @@ export default function TeacherReferralsPage() {
                     <span className="text-xs text-muted-foreground mt-2 inline-block">Requested {req.createdAt}</span>
 
                     {req.recommendationDetails && (
-                      <div className="mt-3 rounded-lg border border-border bg-muted/20 divide-y divide-border text-sm overflow-hidden">
-                        <div className="px-3 py-2 bg-muted/30">
-                          <p className="text-xs text-muted-foreground">
-                            The student answered a few questions to help you write a stronger, more specific letter.
-                          </p>
-                        </div>
-
-                        {(req.recommendationDetails.courses || req.recommendationDetails.reasonForChoosing) && (
-                          <div className="p-3 space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">Context</p>
-                            {req.recommendationDetails.courses && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">Course(s) taken with you</p>
-                                <p className="text-[11px] text-muted-foreground">So you can recall which class and when</p>
-                                <p className="text-foreground mt-0.5">{req.recommendationDetails.courses}</p>
-                              </div>
-                            )}
-                            {req.recommendationDetails.reasonForChoosing && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">Why they asked you specifically</p>
-                                <p className="text-foreground mt-0.5">{req.recommendationDetails.reasonForChoosing}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {(req.recommendationDetails.adjectives.length > 0 ||
-                          req.recommendationDetails.proudProject ||
-                          req.recommendationDetails.favoriteLesson ||
-                          req.recommendationDetails.attributes.length > 0 ||
-                          req.recommendationDetails.somethingTheyDontKnow) && (
-                          <div className="p-3 space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
-                              Material for the letter
-                            </p>
-                            {req.recommendationDetails.adjectives.length > 0 && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">How they'd describe themselves</p>
-                                <p className="text-foreground mt-0.5">{req.recommendationDetails.adjectives.join(', ')}</p>
-                              </div>
-                            )}
-                            {req.recommendationDetails.proudProject && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">A project or piece of work they're proud of</p>
-                                <p className="text-[11px] text-muted-foreground">A concrete example you can cite</p>
-                                <p className="text-foreground mt-0.5">{req.recommendationDetails.proudProject}</p>
-                              </div>
-                            )}
-                            {req.recommendationDetails.favoriteLesson && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">A lesson or moment in your class they enjoyed</p>
-                                <p className="text-foreground mt-0.5">{req.recommendationDetails.favoriteLesson}</p>
-                              </div>
-                            )}
-                            {req.recommendationDetails.attributes.length > 0 && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground mb-1.5">
-                                  Qualities they'd like you to highlight
-                                </p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {req.recommendationDetails.attributes.map((attribute) => (
-                                    <Badge key={attribute} variant="secondary" size="sm">{attribute}</Badge>
-                                  ))}
-                                </div>
-                                {req.recommendationDetails.attributeStory && (
-                                  <p className="text-foreground mt-1.5">
-                                    <span className="text-[11px] text-muted-foreground">Supporting story: </span>
-                                    {req.recommendationDetails.attributeStory}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            {req.recommendationDetails.somethingTheyDontKnow && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">Something they think you might not know</p>
-                                <p className="text-[11px] text-muted-foreground">A personal detail to add color</p>
-                                <p className="text-foreground mt-0.5">{req.recommendationDetails.somethingTheyDontKnow}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {(req.recommendationDetails.targetColleges ||
-                          req.recommendationDetails.intendedMajor ||
-                          req.recommendationDetails.additionalInfo) && (
-                          <div className="p-3 space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
-                              Where this is going
-                            </p>
-                            {(req.recommendationDetails.targetColleges || req.recommendationDetails.intendedMajor) && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">Applying to</p>
-                                <p className="text-[11px] text-muted-foreground">Tailor examples toward these, if relevant</p>
-                                <p className="text-foreground mt-0.5">
-                                  {[req.recommendationDetails.targetColleges, req.recommendationDetails.intendedMajor]
-                                    .filter(Boolean)
-                                    .join(' · ')}
-                                </p>
-                              </div>
-                            )}
-                            {req.recommendationDetails.additionalInfo && (
-                              <div>
-                                <p className="text-xs font-medium text-foreground">Anything else from the student</p>
-                                <p className="text-foreground mt-0.5">{req.recommendationDetails.additionalInfo}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                      <div className="mt-3">
+                        <RecommendationBragSheet details={req.recommendationDetails} />
                       </div>
                     )}
 
-                    <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
-                      <div className="px-3 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+                    {req.category === RECOMMENDATION_CATEGORY && (
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 flex-wrap">
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                            <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                            </svg>
-                            Draft this letter with AI
-                          </p>
+                          <p className="text-sm font-medium text-foreground">Write this letter on MyCounselor</p>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Builds a first draft from what {req.studentName.split(' ')[0] || 'the student'} shared above, in your voice — read it over and personalize it before using it anywhere.
+                            Pick an angle, get AI help section by section, and download it when it's ready — no need for Google Docs.
                           </p>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          isLoading={draftingId === req.id}
-                          onClick={() => handleGenerateDraft(req)}
-                        >
-                          {drafts[req.id] ? 'Regenerate' : 'Generate draft'}
-                        </Button>
+                        <Link href={`/teacher/referrals/letter?requestId=${req.id}`}>
+                          <Button size="sm" variant="outline">
+                            {letterDocStatus[req.id] === 'final'
+                              ? 'Letter finalized →'
+                              : letterDocStatus[req.id] === 'drafting'
+                              ? 'Continue writing →'
+                              : 'Write this letter →'}
+                          </Button>
+                        </Link>
                       </div>
-
-                      {draftErrors[req.id] && (
-                        <p className="px-3 pb-2.5 text-xs text-destructive">{draftErrors[req.id]}</p>
-                      )}
-
-                      {drafts[req.id] && (
-                        <div className="border-t border-primary/20 p-3 space-y-2">
-                          <textarea
-                            value={drafts[req.id]}
-                            onChange={(e) => setDrafts((prev) => ({ ...prev, [req.id]: e.target.value }))}
-                            rows={10}
-                            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground text-sm leading-relaxed resize-y"
-                          />
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <Button size="sm" onClick={() => handleCopyDraft(req)}>
-                              {copiedDraftId === req.id ? 'Copied!' : 'Copy draft'}
-                            </Button>
-                            <span className="text-xs text-muted-foreground">
-                              This is a starting point, not a final letter — verify every detail before sending.
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    )}
 
                     {req.response && expandedId !== req.id && (
                       <div className="mt-3 p-3 bg-muted/30 rounded-lg">

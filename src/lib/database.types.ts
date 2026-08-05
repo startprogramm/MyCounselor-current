@@ -450,6 +450,60 @@ export type Database = {
         };
         Relationships: [];
       };
+      recommendation_letter_documents: {
+        Row: {
+          id: number;
+          request_id: number;
+          teacher_id: string;
+          student_id: string;
+          school_id: string;
+          angle: 'academic' | 'leadership' | 'challenge' | 'well_rounded' | null;
+          opening: string;
+          body1: string;
+          body2: string;
+          closing: string;
+          merged_content: string;
+          is_merged: boolean;
+          status: 'drafting' | 'final';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          request_id: number;
+          teacher_id: string;
+          student_id: string;
+          school_id: string;
+          angle?: 'academic' | 'leadership' | 'challenge' | 'well_rounded' | null;
+          opening?: string;
+          body1?: string;
+          body2?: string;
+          closing?: string;
+          merged_content?: string;
+          is_merged?: boolean;
+          status?: 'drafting' | 'final';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          request_id?: number;
+          teacher_id?: string;
+          student_id?: string;
+          school_id?: string;
+          angle?: 'academic' | 'leadership' | 'challenge' | 'well_rounded' | null;
+          opening?: string;
+          body1?: string;
+          body2?: string;
+          closing?: string;
+          merged_content?: string;
+          is_merged?: boolean;
+          status?: 'drafting' | 'final';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
