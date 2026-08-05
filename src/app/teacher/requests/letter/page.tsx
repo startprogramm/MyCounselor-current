@@ -338,8 +338,8 @@ function TeacherLetterWorkspaceInner() {
         <Card className="p-4 border-destructive/30 bg-destructive/5">
           <p className="text-sm text-destructive font-medium">{loadError || 'Something went wrong.'}</p>
         </Card>
-        <Link href="/teacher/referrals" className="text-sm text-primary hover:underline">
-          ← Back to Referrals
+        <Link href="/teacher/requests" className="text-sm text-primary hover:underline">
+          ← Back to Requests
         </Link>
       </div>
     );
@@ -351,8 +351,8 @@ function TeacherLetterWorkspaceInner() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-16">
       <div>
-        <Link href="/teacher/referrals" className="text-sm text-primary hover:underline">
-          ← Back to Referrals
+        <Link href="/teacher/requests" className="text-sm text-primary hover:underline">
+          ← Back to Requests
         </Link>
         <div className="flex items-start justify-between gap-3 mt-2 flex-wrap">
           <div>

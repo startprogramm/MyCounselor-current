@@ -38,8 +38,8 @@ const teacherNavItems: SidebarItem[] = [
     ),
   },
   {
-    label: 'Referrals',
-    href: '/teacher/referrals',
+    label: 'Requests',
+    href: '/teacher/requests',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path

@@ -9,12 +9,11 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
-interface Referral {
+interface RequestSummary {
   id: number;
   studentName: string;
-  concern: string;
+  title: string;
   status: string;
-  priority: string;
 }
 
 interface Meeting {
@@ -28,7 +27,7 @@ interface Meeting {
 
 interface TeacherDashboardCachePayload {
   studentCount: number;
-  referrals: Referral[];
+  requests: RequestSummary[];
   meetings: Meeting[];
   resourceCount: number;
   counselors: { name: string; title: string }[];
@@ -39,7 +38,7 @@ const TEACHER_DASHBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
 export default function TeacherDashboardPage() {
   const { user, getSchoolStudents, getSchoolCounselors } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
-  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [requests, setRequests] = useState<RequestSummary[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
   const [counselors, setCounselors] = useState<{ name: string; title: string }[]>([]);
@@ -54,7 +53,7 @@ export default function TeacherDashboardPage() {
 
   const applySnapshot = useCallback((snapshot: TeacherDashboardCachePayload) => {
     setStudentCount(snapshot.studentCount ?? 0);
-    setReferrals(snapshot.referrals || []);
+    setRequests(snapshot.requests || []);
     setMeetings(snapshot.meetings || []);
     setResourceCount(snapshot.resourceCount ?? 0);
     setCounselors(snapshot.counselors || []);
@@ -66,7 +65,7 @@ export default function TeacherDashboardPage() {
 
     if (!cacheKey) {
       setStudentCount(0);
-      setReferrals([]);
+      setRequests([]);
       setMeetings([]);
       setResourceCount(0);
       setCounselors([]);
@@ -94,7 +93,7 @@ export default function TeacherDashboardPage() {
 
     writeCachedData<TeacherDashboardCachePayload>(cacheKey, {
       studentCount,
-      referrals,
+      requests,
       meetings,
       resourceCount,
       counselors,
@@ -105,7 +104,7 @@ export default function TeacherDashboardPage() {
     hasWarmCache,
     hasLoadedFromServer,
     studentCount,
-    referrals,
+    requests,
     meetings,
     resourceCount,
     counselors,
@@ -127,13 +126,14 @@ export default function TeacherDashboardPage() {
       }))
     );
 
-    // Load referrals (requests made by this teacher)
-    const [referralsResult, meetingsResult, resourcesResult] = await Promise.all([
+    // Load recommendation-letter requests directed at this teacher
+    const [requestsResult, meetingsResult, resourcesResult] = await Promise.all([
       supabase
         .from('requests')
-        .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,student_name,student_id,school_id,response,created_at')
+        .select('id,title,status,teacher_id,student_name,student_id,school_id,created_at')
         .eq('school_id', user.schoolId)
-        .or(`teacher_id.eq.${user.id},counselor_id.eq.${user.id}`)
+        .eq('teacher_id', user.id)
+        .eq('category', 'recommendation')
         .order('created_at', { ascending: false })
         .limit(5),
       supabase
@@ -151,18 +151,17 @@ export default function TeacherDashboardPage() {
         .eq('status', 'published'),
     ]);
 
-    if (!referralsResult.error && referralsResult.data) {
-      setReferrals(
-        referralsResult.data.map((r) => ({
+    if (!requestsResult.error && requestsResult.data) {
+      setRequests(
+        requestsResult.data.map((r) => ({
           id: r.id,
           studentName: r.student_name || 'Unknown',
-          concern: r.title,
+          title: r.title,
           status: r.status,
-          priority: r.category === 'urgent' ? 'high' : r.category === 'academic' ? 'medium' : 'low',
         }))
       );
-    } else if (referralsResult.error) {
-      setLoadError(referralsResult.error.message || 'Unable to load referrals.');
+    } else if (requestsResult.error) {
+      setLoadError(requestsResult.error.message || 'Unable to load requests.');
     }
 
     if (!meetingsResult.error && meetingsResult.data) {
@@ -201,7 +200,7 @@ export default function TeacherDashboardPage() {
     day: 'numeric',
   });
 
-  const pendingReferrals = referrals.filter(r => r.status === 'pending' || r.status === 'in_progress');
+  const pendingRequests = requests.filter(r => r.status === 'pending' || r.status === 'in_progress');
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -210,15 +209,6 @@ export default function TeacherDashboardPage() {
       case 'completed': return 'success' as const;
       case 'approved': return 'success' as const;
       default: return 'secondary' as const;
-    }
-  };
-
-  const getPriorityDot = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-destructive';
-      case 'medium': return 'bg-amber-500';
-      case 'low': return 'bg-success';
-      default: return 'bg-muted';
     }
   };
 
@@ -261,9 +251,9 @@ export default function TeacherDashboardPage() {
           accentColor="warning"
         />
         <StatsCard
-          title="Pending Referrals"
-          value={pendingReferrals.length}
-          subtitle={pendingReferrals.length > 0 ? `${pendingReferrals.length} need attention` : 'All clear'}
+          title="Pending Requests"
+          value={pendingRequests.length}
+          subtitle={pendingRequests.length > 0 ? `${pendingRequests.length} need attention` : 'All clear'}
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
@@ -297,44 +287,38 @@ export default function TeacherDashboardPage() {
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Referrals */}
+        {/* Requests */}
         <ContentCard
-          title="Recent Referrals"
-          description="Student concerns you've submitted"
+          title="Recent Requests"
+          description="Requests from your students"
           action={
-            <Link href="/teacher/referrals" className="text-sm text-amber-500 hover:text-amber-600">
+            <Link href="/teacher/requests" className="text-sm text-amber-500 hover:text-amber-600">
               View all
             </Link>
           }
           className="lg:col-span-2"
         >
-          {referrals.length === 0 ? (
+          {requests.length === 0 ? (
             <div className="text-center py-6">
               <svg className="w-10 h-10 mx-auto text-muted-foreground mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
-              <p className="text-sm text-muted-foreground">No referrals yet</p>
-              <Link href="/teacher/referrals" className="text-sm text-amber-500 hover:text-amber-600 mt-1 inline-block">
-                Create a referral
-              </Link>
+              <p className="text-sm text-muted-foreground">No requests yet</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {referrals.map((item) => (
+              {requests.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 font-semibold text-sm">
-                        {item.studentName.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${getPriorityDot(item.priority)} border-2 border-background`} />
+                    <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 font-semibold text-sm">
+                      {item.studentName.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
                       <p className="font-medium text-foreground">{item.studentName}</p>
-                      <p className="text-sm text-muted-foreground">{item.concern}</p>
+                      <p className="text-sm text-muted-foreground">{item.title}</p>
                     </div>
                   </div>
                   <Badge variant={getStatusVariant(item.status)} size="sm">{item.status}</Badge>
@@ -407,13 +391,13 @@ export default function TeacherDashboardPage() {
         <ContentCard title="Quick Actions">
           <div className="grid grid-cols-2 gap-3">
             <Link
-              href="/teacher/referrals"
+              href="/teacher/requests"
               className="p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors text-center"
             >
               <svg className="w-8 h-8 mx-auto text-amber-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
-              <span className="text-sm font-medium text-foreground">New Referral</span>
+              <span className="text-sm font-medium text-foreground">View Requests</span>
             </Link>
             <Link
               href="/teacher/messages"
