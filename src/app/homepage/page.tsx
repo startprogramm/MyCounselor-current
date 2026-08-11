@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Header from '@/components/common/Header';
 import HomepageInteractive from './components/HomepageInteractive';
+import './letter.css';
+import { sourceSerif, sourceSans, jetbrainsMono, caveat } from './fonts';
 
 export const metadata: Metadata = {
   title: 'Homepage - MyCounselor',
@@ -9,9 +11,11 @@ export const metadata: Metadata = {
 
 export default function Homepage() {
   return (
-    <main className="min-h-screen bg-background">
+    <main
+      className={`min-h-screen bg-background ${sourceSerif.variable} ${sourceSans.variable} ${jetbrainsMono.variable} ${caveat.variable}`}
+    >
       <Header />
-      <div className="pt-16">
+      <div className="letter-page pt-16">
         <HomepageInteractive />
       </div>
     </main>

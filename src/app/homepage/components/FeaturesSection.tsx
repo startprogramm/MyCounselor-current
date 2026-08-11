@@ -71,65 +71,35 @@ const FeaturesSection = ({ className = '' }: FeaturesSectionProps) => {
   ];
 
   return (
-    <section
-      ref={sectionRef}
-      className={`relative overflow-hidden bg-background py-16 lg:py-24 dark:bg-slate-900/50 ${className}`}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-campus-grid opacity-10" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div
-          className={`text-center mb-12 animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
-        >
-          <div className="mb-4 inline-flex items-center space-x-2 rounded-full border border-primary/15 bg-primary/5 px-4 py-2 text-sm font-medium text-primary dark:border-primary/20 dark:bg-primary/15">
-            <Icon name="SparklesIcon" size={16} variant="solid" />
-            <span>Powerful Features</span>
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-bold text-foreground mb-4">
-            Technology That Amplifies Connection
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+    <section id="platform" ref={sectionRef} className={`bg-[var(--lt-paper-alt)] py-24 ${className}`}>
+      <div className={`lt-reveal mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 ${isVisible ? 'lt-visible' : ''}`}>
+        <div className="max-w-xl">
+          <p className="lt-mono text-[12px] text-[var(--lt-blue)]">What&rsquo;s enclosed</p>
+          <h2 className="mt-4 text-4xl">Technology That Amplifies Connection</h2>
+          <p className="mt-4 text-lg leading-relaxed text-[var(--lt-ink-soft)]">
             MyCounselor provides counselors with efficient tools to make meaningful impact while
             giving students accessible guidance when they need it most.
           </p>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, index) => (
-            <div
-              key={feature.id}
-              className={`group rounded-[1.4rem] border border-border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-brand dark:border-slate-700 dark:bg-slate-800/60 animate-on-scroll-scale stagger-${Math.min(index + 1, 6)} ${isVisible ? 'animate-visible' : ''}`}
-            >
-              {/* Icon */}
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-[#3a6c9b] to-[#5f8fbf] shadow-md transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                <Icon name={feature.icon as any} size={28} variant="solid" className="text-white" />
-              </div>
-
-              {/* Title */}
-              <h3 className="text-xl font-heading font-bold text-foreground mb-3 group-hover:text-primary transition-colors">
-                {feature.title}
-              </h3>
-
-              {/* Description */}
-              <p className="text-muted-foreground mb-4 leading-relaxed">{feature.description}</p>
-
-              {/* Benefits List */}
-              <ul className="space-y-2">
-                {feature.benefits.map((benefit, benefitIndex) => (
+        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature) => (
+            <div key={feature.id} className="lt-card p-7">
+              <span className="lt-dot lt-dot-blue h-11 w-11">
+                <Icon name={feature.icon} size={20} variant="solid" />
+              </span>
+              <h3 className="mt-5 text-xl">{feature.title}</h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-[var(--lt-ink-soft)]">
+                {feature.description}
+              </p>
+              <ul className="mt-5 space-y-2">
+                {feature.benefits.map((benefit) => (
                   <li
-                    key={benefitIndex}
-                    className="flex items-center text-sm text-muted-foreground group-hover:text-foreground transition-colors"
+                    key={benefit}
+                    className="flex items-baseline gap-2 text-sm text-[var(--lt-ink-soft)]"
                   >
-                    <Icon
-                      name="CheckCircleIcon"
-                      size={16}
-                      variant="solid"
-                      className="text-accent mr-2 flex-shrink-0"
-                    />
-                    <span>{benefit}</span>
+                    <span className="text-[var(--lt-blue)]">&middot;</span>
+                    {benefit}
                   </li>
                 ))}
               </ul>

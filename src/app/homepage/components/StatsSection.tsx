@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import Icon from '@/components/ui/AppIcon';
 import { useScrollAnimation } from '@/hooks/useScrollAnimation';
 
 interface Stat {
@@ -9,49 +8,30 @@ interface Stat {
   value: number;
   suffix: string;
   label: string;
-  icon: string;
   description: string;
+  dot: 'lt-dot-blue' | 'lt-dot-gold';
 }
 
 interface StatsSectionProps {
   className?: string;
 }
 
-// Animated counter component
-const AnimatedCounter = ({
-  end,
-  suffix,
-  isVisible,
-}: {
-  end: number;
-  suffix: string;
-  isVisible: boolean;
-}) => {
+const Counter = ({ end, suffix, start }: { end: number; suffix: string; start: boolean }) => {
   const [count, setCount] = useState(0);
-  const hasAnimated = useRef(false);
+  const done = useRef(false);
 
   useEffect(() => {
-    if (!isVisible || hasAnimated.current) return;
-    hasAnimated.current = true;
-
-    const duration = 2000;
-    const startTime = Date.now();
-
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      // Ease out quart for smooth deceleration
-      const easeOutQuart = 1 - Math.pow(1 - progress, 4);
-      setCount(Math.floor(end * easeOutQuart));
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
+    if (!start || done.current) return;
+    done.current = true;
+    const duration = 1600;
+    const t0 = Date.now();
+    const tick = () => {
+      const p = Math.min((Date.now() - t0) / duration, 1);
+      setCount(Math.floor(end * (1 - Math.pow(1 - p, 4))));
+      if (p < 1) requestAnimationFrame(tick);
     };
-
-    requestAnimationFrame(animate);
-  }, [isVisible, end]);
+    requestAnimationFrame(tick);
+  }, [start, end]);
 
   return (
     <span>
@@ -70,84 +50,47 @@ const StatsSection = ({ className = '' }: StatsSectionProps) => {
       value: 15000,
       suffix: '+',
       label: 'Active Students',
-      icon: 'UserGroupIcon',
       description: 'Students using the platform daily',
+      dot: 'lt-dot-gold',
     },
     {
       id: 2,
       value: 98,
       suffix: '%',
       label: 'Satisfaction Rate',
-      icon: 'HeartIcon',
       description: 'Positive feedback from users',
+      dot: 'lt-dot-blue',
     },
     {
       id: 3,
       value: 50000,
       suffix: '+',
       label: 'Appointments Completed',
-      icon: 'CalendarIcon',
       description: 'Successful counseling sessions',
+      dot: 'lt-dot-blue',
     },
     {
       id: 4,
       value: 24,
       suffix: '/7',
       label: 'Support Available',
-      icon: 'ClockIcon',
       description: 'Round-the-clock assistance',
+      dot: 'lt-dot-gold',
     },
   ];
 
   return (
-    <section
-      ref={sectionRef}
-      className={`relative overflow-hidden bg-gradient-to-br from-[#152f4a] via-[#1f466c] to-[#2d6392] py-16 text-white lg:py-24 dark:from-slate-900 dark:to-[#1D4F80] ${className}`}
-    >
-      <div className="absolute inset-0 bg-campus-grid opacity-20" />
-
-      {/* Decorative Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-float-delayed"></div>
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Header */}
-        <div
-          className={`text-center mb-12 animate-on-scroll ${isVisible ? 'animate-visible' : ''}`}
-        >
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-heading font-bold mb-4">
-            Trusted by Thousands
-          </h2>
-          <p className="text-lg text-white/90 max-w-2xl mx-auto">
-            Our platform has helped countless students achieve their goals through organized,
-            accessible counseling support.
-          </p>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat, index) => (
-            <div
-              key={stat.id}
-              className={`group rounded-[1.4rem] border border-white/20 bg-white/10 p-6 text-center backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/18 animate-on-scroll-scale stagger-${index + 1} ${isVisible ? 'animate-visible' : ''}`}
-            >
-              {/* Icon */}
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 mb-4 group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300">
-                <Icon name={stat.icon as any} size={32} variant="solid" />
+    <section ref={sectionRef} className={`bg-[var(--lt-blue)] py-20 ${className}`}>
+      <div className={`lt-reveal mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 ${isVisible ? 'lt-visible' : ''}`}>
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <div key={stat.id}>
+              <span className={`lt-dot ${stat.dot} mb-4 h-2 w-2`} />
+              <div className="text-4xl text-white">
+                <Counter end={stat.value} suffix={stat.suffix} start={isVisible} />
               </div>
-
-              {/* Animated Value */}
-              <div className="text-4xl lg:text-5xl font-heading font-bold mb-2 tabular-nums">
-                <AnimatedCounter end={stat.value} suffix={stat.suffix} isVisible={isVisible} />
-              </div>
-
-              {/* Label */}
-              <div className="text-lg font-semibold mb-2">{stat.label}</div>
-
-              {/* Description */}
-              <p className="text-sm text-white/80">{stat.description}</p>
+              <div className="mt-2 text-[15px] font-medium text-white/90">{stat.label}</div>
+              <p className="mt-1 text-sm text-white/60">{stat.description}</p>
             </div>
           ))}
         </div>
