@@ -1,0 +1,297 @@
+/*
+ * Design concept: "After Hours" — the page itself moves from night to
+ * morning as you scroll. Admissions work happens late — one more essay
+ * draft, one more form, a message sent at midnight because that's when the
+ * worry hit. The hero opens in that dark room under a single lamp; by the
+ * closing CTA the palette has warmed all the way to sunrise. It's the one
+ * structural idea the whole page is built around, so it's the only thing
+ * spent boldly — everything else (cards, buttons, type) stays quiet.
+ * Namespaced under .after-hours so it never touches the live app or any
+ * other design concept.
+ *
+ * Palette (the arc, in order of appearance down the page)
+ *   --ah-night      #14171F  hero — near-midnight, cool charcoal-navy
+ *   --ah-night-2    #1B1E27  roles — still night, one shade warmer (2am)
+ *   --ah-dusk       #3A2F35  stats — first warmth, deep plum-brown
+ *   --ah-cream      #F6EFE3  features/trust — morning arrives, warm paper
+ *   --ah-cream-2    #FBF6EC  testimonials — brighter paper, alt band
+ *   --ah-lamp       #F2A93B  the signature warm accent — the lamp at night,
+ *                             the sunrise band at the CTA. Same hue, two jobs.
+ *   --ah-ink-deep   #1F1712  footer — day's over, a warm dark bookend
+ *   --ah-paper      #EDE7D8  light text on every dark band
+ *   --ah-ink        #241C14  dark text on every light band
+ *   --ah-teal       #5FBFA6  small "someone's here" accent — status dots
+ *                             only, a deliberate cool note against the warm
+ *                             lamp so it never gets lonely as the one accent
+ *
+ * Signature: the lamp glow. A single warm radial glow, tight and small in
+ * the hero, widening one step at a time through the night sections, then
+ * gone entirely once the page reaches daylight — the light IS the
+ * background by then. The hero also carries the one genuinely live
+ * element: the visitor's real local time, so "still open" isn't a slogan.
+ */
+
+.after-hours {
+  --ah-night: #14171f;
+  --ah-night-2: #1b1e27;
+  --ah-dusk: #3a2f35;
+  --ah-cream: #f6efe3;
+  --ah-cream-2: #fbf6ec;
+  --ah-lamp: #f2a93b;
+  --ah-lamp-deep: #c97c1b;
+  --ah-ink-deep: #1f1712;
+  --ah-paper: #ede7d8;
+  --ah-ink: #241c14;
+  --ah-teal: #5fbfa6;
+  --ah-line-dark: rgba(237, 231, 216, 0.14);
+  --ah-line-light: rgba(36, 28, 20, 0.12);
+
+  background: var(--ah-night);
+  color: var(--ah-paper);
+  font-family: var(--font-body), 'Karla', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.after-hours * {
+  box-sizing: border-box;
+}
+
+.after-hours h1,
+.after-hours h2,
+.after-hours h3 {
+  font-family: var(--font-display), 'Spectral', serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.after-hours .ah-mono {
+  font-family: var(--font-mono), 'JetBrains Mono', monospace;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.after-hours .ah-display {
+  font-family: var(--font-display), 'Spectral', serif;
+}
+
+/* ── Phase bands ──────────────────────────────────────────────────────── */
+.ah-night {
+  background: var(--ah-night);
+  color: var(--ah-paper);
+}
+.ah-night-2 {
+  background: var(--ah-night-2);
+  color: var(--ah-paper);
+}
+.ah-dusk {
+  background: var(--ah-dusk);
+  color: var(--ah-paper);
+}
+.ah-cream {
+  background: var(--ah-cream);
+  color: var(--ah-ink);
+}
+.ah-cream-2 {
+  background: var(--ah-cream-2);
+  color: var(--ah-ink);
+}
+.ah-sun {
+  background: var(--ah-lamp);
+  color: var(--ah-ink-deep);
+}
+.ah-ink-deep {
+  background: var(--ah-ink-deep);
+  color: var(--ah-paper);
+}
+
+/* ── The lamp glow ────────────────────────────────────────────────────── */
+.ah-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(242, 169, 59, 0.55) 0%, rgba(242, 169, 59, 0) 70%);
+}
+.ah-glow-tight {
+  width: 30rem;
+  height: 30rem;
+  filter: blur(10px);
+}
+.ah-glow-wide {
+  width: 46rem;
+  height: 46rem;
+  background: radial-gradient(circle, rgba(242, 169, 59, 0.28) 0%, rgba(242, 169, 59, 0) 70%);
+  filter: blur(4px);
+}
+
+@keyframes ahLampOn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.ah-lamp-on {
+  animation: ahLampOn 1400ms ease-out both;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.ah-card {
+  border-radius: 18px;
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease;
+}
+.ah-card-dark {
+  background: rgba(237, 231, 216, 0.05);
+  border: 1px solid var(--ah-line-dark);
+}
+.ah-card-dark:hover {
+  transform: translateY(-3px);
+  border-color: rgba(242, 169, 59, 0.4);
+  background: rgba(237, 231, 216, 0.08);
+}
+.ah-card-light {
+  background: #fff;
+  border: 1px solid var(--ah-line-light);
+  box-shadow: 0 1px 2px rgba(36, 28, 20, 0.03), 0 10px 24px rgba(36, 28, 20, 0.05);
+}
+.ah-card-light:hover {
+  transform: translateY(-3px);
+  border-color: rgba(242, 169, 59, 0.5);
+}
+
+.ah-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.ah-badge-lamp {
+  background: rgba(242, 169, 59, 0.16);
+  color: var(--ah-lamp);
+}
+.ah-badge-ink {
+  background: rgba(36, 28, 20, 0.06);
+  color: var(--ah-ink);
+}
+
+.ah-dot {
+  display: inline-block;
+  border-radius: 50%;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.ah-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.75rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+.ah-btn:hover {
+  transform: translateY(-2px);
+}
+.ah-btn-lamp {
+  background: var(--ah-lamp);
+  color: var(--ah-ink-deep);
+  box-shadow: 0 8px 22px rgba(242, 169, 59, 0.25);
+}
+.ah-btn-lamp:hover {
+  background: #ffbe5c;
+}
+.ah-btn-outline-dark {
+  background: transparent;
+  color: var(--ah-paper);
+  border-color: var(--ah-line-dark);
+}
+.ah-btn-outline-dark:hover {
+  border-color: rgba(237, 231, 216, 0.4);
+  background: rgba(237, 231, 216, 0.06);
+}
+.ah-btn-ink {
+  background: var(--ah-ink-deep);
+  color: var(--ah-paper);
+}
+.ah-btn-ink:hover {
+  background: #2c2119;
+}
+.ah-btn-outline-light {
+  background: transparent;
+  color: var(--ah-ink-deep);
+  border-color: var(--ah-line-light);
+}
+.ah-btn-outline-light:hover {
+  border-color: rgba(36, 28, 20, 0.3);
+  background: rgba(36, 28, 20, 0.04);
+}
+
+.ah-link {
+  position: relative;
+  text-decoration: none;
+}
+.ah-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -2px;
+  height: 1px;
+  background: currentColor;
+  transition: right 220ms ease;
+}
+.ah-link:hover::after {
+  right: 0;
+}
+
+/* ── Reveal-on-scroll — one quiet fade ───────────────────────────────── */
+.ah-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 700ms ease,
+    transform 700ms ease;
+}
+.ah-reveal.ah-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ah-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .ah-lamp-on {
+    animation: none;
+  }
+  .ah-card-dark,
+  .ah-card-light,
+  .ah-btn {
+    transition: none;
+  }
+  .ah-card-dark:hover,
+  .ah-card-light:hover,
+  .ah-btn:hover {
+    transform: none;
+  }
+}
+
+.ah-focus:focus-visible {
+  outline: 2px solid var(--ah-lamp);
+  outline-offset: 2px;
+}
