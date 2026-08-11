@@ -35,7 +35,11 @@
   --lt-gold: #b8894b;
   --lt-line-on-blue: rgba(255, 255, 255, 0.3);
 
-  background: var(--lt-paper);
+  /* No background here on purpose: every section below sets its own
+     (paper/paper-alt/blue/ink), and painting one on this wrapper as well
+     bled warm cream through the fixed, translucent site Header's pt-16
+     gap — making the header itself look tinted/transparent instead of a
+     clean neutral bar. Leave this strip to the app's own bg-background. */
   color: var(--lt-ink);
   font-family: var(--font-letter-body), 'Source Sans 3', sans-serif;
   -webkit-font-smoothing: antialiased;
