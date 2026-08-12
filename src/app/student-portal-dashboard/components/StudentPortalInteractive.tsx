@@ -353,14 +353,14 @@ const StudentPortalInteractive = () => {
 
   if (!isHydrated) {
     return (
-      <div className="min-h-screen bg-[#F1F3F4] dark:bg-[#1F1F1F] pt-20 pb-12 px-4">
+      <div className="min-h-screen bg-[#F1F3F4] pt-20 pb-12 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
-            <div className="h-32 bg-white dark:bg-[#292929] rounded-xl" />
-            <div className="h-80 bg-white dark:bg-[#292929] rounded-xl" />
+            <div className="h-32 bg-white rounded-xl" />
+            <div className="h-80 bg-white rounded-xl" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="h-64 bg-white dark:bg-[#292929] rounded-xl" />
-              <div className="h-64 bg-white dark:bg-[#292929] rounded-xl" />
+              <div className="h-64 bg-white rounded-xl" />
+              <div className="h-64 bg-white rounded-xl" />
             </div>
           </div>
         </div>
@@ -369,17 +369,17 @@ const StudentPortalInteractive = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F1F3F4] dark:bg-[#1F1F1F] pt-20 pb-12 px-4">
+    <div className="min-h-screen bg-[#F1F3F4] pt-20 pb-12 px-4">
       <div className="max-w-7xl mx-auto space-y-8">
 
         {/* Welcome Section */}
-        <div className="bg-white dark:bg-[#292929] rounded-2xl p-6 md:p-8 shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
+        <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-[#DADCE0]">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-[#202124] dark:text-[#E8EAED]">
+              <h1 className="text-2xl md:text-3xl font-bold text-[#202124]">
                 Welcome to Student Portal
               </h1>
-              <p className="text-[#5F6368] dark:text-[#9AA0A6] mt-1">
+              <p className="text-[#5F6368] mt-1">
                 Your gateway to academic success and career planning
               </p>
             </div>
@@ -400,20 +400,20 @@ const StudentPortalInteractive = () => {
             <Link
               key={action.id}
               href={action.href}
-              className="bg-white dark:bg-[#292929] rounded-xl p-5 border border-[#DADCE0] dark:border-[#3C4043] hover:border-[#1A73E8] dark:hover:border-[#8AB4F8] hover:shadow-md transition-all group"
+              className="bg-white rounded-xl p-5 border border-[#DADCE0] hover:border-[#1A73E8] hover:shadow-md transition-all group"
             >
-              <div className="w-12 h-12 bg-[#E8F0FE] dark:bg-[#1A73E8]/20 rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#1A73E8] transition-colors">
+              <div className="w-12 h-12 bg-[#E8F0FE] rounded-lg flex items-center justify-center mb-3 group-hover:bg-[#1A73E8] transition-colors">
                 <Icon
                   name={action.icon}
                   size={24}
                   variant="outline"
-                  className="text-[#1A73E8] dark:text-[#8AB4F8] group-hover:text-white transition-colors"
+                  className="text-[#1A73E8] group-hover:text-white transition-colors"
                 />
               </div>
-              <h3 className="font-semibold text-[#202124] dark:text-[#E8EAED] mb-1">
+              <h3 className="font-semibold text-[#202124] mb-1">
                 {action.label}
               </h3>
-              <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+              <p className="text-sm text-[#5F6368]">
                 {action.description}
               </p>
             </Link>
@@ -426,26 +426,26 @@ const StudentPortalInteractive = () => {
           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-72 h-72 bg-[#1E8E3E]/20 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
 
-          <div className="relative bg-white/95 dark:bg-[#1F1F1F]/95 backdrop-blur-sm rounded-[22px] overflow-hidden">
+          <div className="relative bg-white/95 backdrop-blur-sm rounded-[22px] overflow-hidden">
             {/* Section Header */}
-            <div className="relative z-10 px-6 py-5 md:px-8 md:py-6 border-b border-[#DADCE0]/50 dark:border-[#3C4043]/50 bg-gradient-to-r from-white via-white to-[#F1F3F4] dark:from-[#292929] dark:via-[#292929] dark:to-[#1F1F1F]">
+            <div className="relative z-10 px-6 py-5 md:px-8 md:py-6 border-b border-[#DADCE0]/50 bg-gradient-to-r from-white via-white to-[#F1F3F4]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1A73E8] to-[#4285F4] flex items-center justify-center shadow-lg">
                     <Icon name={isUpperClass ? "AcademicCapIcon" : "RocketLaunchIcon"} size={24} className="text-white" variant="solid" />
                   </div>
                   <div>
-                    <h2 className="text-xl md:text-2xl font-bold text-[#202124] dark:text-[#E8EAED]">
+                    <h2 className="text-xl md:text-2xl font-bold text-[#202124]">
                       {isUpperClass ? 'Explore Universities' : 'Recommended Programs'}
                     </h2>
-                    <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                    <p className="text-sm text-[#5F6368]">
                       {isUpperClass
                         ? 'Your path to higher education starts here'
                         : 'Build skills that shape your future'}
                     </p>
                   </div>
                 </div>
-                <div className="hidden md:flex items-center gap-2 text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                <div className="hidden md:flex items-center gap-2 text-sm text-[#5F6368]">
                   <span>{currentSlide + 1} / {slides.length}</span>
                 </div>
               </div>
@@ -489,14 +489,14 @@ const StudentPortalInteractive = () => {
                     {/* Content Side */}
                     <div className="flex-1 p-6 md:p-10 flex flex-col justify-center order-2 md:order-1">
                       <div className="max-w-lg">
-                        <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1A73E8]/10 to-[#1E8E3E]/10 text-[#1A73E8] dark:text-[#8AB4F8] text-sm font-semibold rounded-full mb-4 border border-[#1A73E8]/20">
+                        <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1A73E8]/10 to-[#1E8E3E]/10 text-[#1A73E8] text-sm font-semibold rounded-full mb-4 border border-[#1A73E8]/20">
                           <span className="w-2 h-2 rounded-full bg-[#1E8E3E] animate-pulse" />
                           {slide.tag}
                         </span>
-                        <h3 className="text-3xl md:text-4xl font-bold text-[#202124] dark:text-[#E8EAED] mb-4 leading-tight">
+                        <h3 className="text-3xl md:text-4xl font-bold text-[#202124] mb-4 leading-tight">
                           {slide.title}
                         </h3>
-                        <p className="text-[#5F6368] dark:text-[#9AA0A6] text-lg mb-6 leading-relaxed">
+                        <p className="text-[#5F6368] text-lg mb-6 leading-relaxed">
                           {slide.subtitle}
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
@@ -510,7 +510,7 @@ const StudentPortalInteractive = () => {
                           </Link>
                           <button
                             onClick={handleLinkClick}
-                            className="inline-flex items-center gap-2 px-6 py-3 text-[#1A73E8] dark:text-[#8AB4F8] font-semibold rounded-xl border-2 border-[#1A73E8]/20 hover:border-[#1A73E8]/40 hover:bg-[#1A73E8]/5 transition-all duration-300 select-none"
+                            className="inline-flex items-center gap-2 px-6 py-3 text-[#1A73E8] font-semibold rounded-xl border-2 border-[#1A73E8]/20 hover:border-[#1A73E8]/40 hover:bg-[#1A73E8]/5 transition-all duration-300 select-none"
                           >
                             <Icon name="BookmarkIcon" size={18} variant="outline" />
                             Save for Later
@@ -538,14 +538,14 @@ const StudentPortalInteractive = () => {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent md:bg-gradient-to-l md:from-transparent md:via-transparent md:to-white/10" />
 
                         {/* Floating Stats Badge */}
-                        <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 bg-white/90 dark:bg-[#292929]/90 backdrop-blur-md rounded-xl px-4 py-2 shadow-lg">
+                        <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 bg-white/90 backdrop-blur-md rounded-xl px-4 py-2 shadow-lg">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#1E8E3E] to-[#34A853] flex items-center justify-center">
                               <Icon name="StarIcon" size={20} className="text-white" variant="solid" />
                             </div>
                             <div>
-                              <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6]">Highly Rated</p>
-                              <p className="font-bold text-[#202124] dark:text-[#E8EAED]">Top Choice</p>
+                              <p className="text-xs text-[#5F6368]">Highly Rated</p>
+                              <p className="font-bold text-[#202124]">Top Choice</p>
                             </div>
                           </div>
                         </div>
@@ -556,14 +556,14 @@ const StudentPortalInteractive = () => {
               ))}
 
               {/* Drag Hint */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[#5F6368] dark:text-[#9AA0A6] text-sm bg-white/80 dark:bg-[#292929]/80 backdrop-blur-sm px-4 py-2 rounded-full select-none pointer-events-none md:hidden">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 text-[#5F6368] text-sm bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full select-none pointer-events-none md:hidden">
                 <Icon name="ArrowsRightLeftIcon" size={16} variant="outline" />
                 <span>Swipe to explore</span>
               </div>
 
               {/* Indicators - visible on larger screens at bottom */}
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden md:flex items-center gap-4 bg-white/80 dark:bg-[#292929]/80 backdrop-blur-sm px-4 py-2 rounded-full">
-                <span className="text-xs text-[#5F6368] dark:text-[#9AA0A6] select-none">
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden md:flex items-center gap-4 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full">
+                <span className="text-xs text-[#5F6368] select-none">
                   <Icon name="HandRaisedIcon" size={14} variant="outline" className="inline mr-1" />
                   Drag to explore
                 </span>
@@ -578,7 +578,7 @@ const StudentPortalInteractive = () => {
                       className={`h-2 rounded-full transition-all duration-300 ${
                         index === currentSlide
                           ? 'w-8 bg-[#1A73E8]'
-                          : 'w-2 bg-[#DADCE0] dark:bg-[#3C4043] hover:bg-[#1A73E8]/50'
+                          : 'w-2 bg-[#DADCE0] hover:bg-[#1A73E8]/50'
                       }`}
                       aria-label={`Go to slide ${index + 1}`}
                     />
@@ -593,13 +593,13 @@ const StudentPortalInteractive = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* School Announcements */}
-          <div className="bg-white dark:bg-[#292929] rounded-2xl shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
-            <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043] flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-sm border border-[#DADCE0]">
+            <div className="p-4 md:p-6 border-b border-[#DADCE0] flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
+                <h2 className="text-xl font-bold text-[#202124]">
                   Announcements
                 </h2>
-                <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                <p className="text-sm text-[#5F6368]">
                   Important dates and updates
                 </p>
               </div>
@@ -609,19 +609,19 @@ const StudentPortalInteractive = () => {
               {announcements.map((item) => (
                 <div
                   key={item.id}
-                  className="flex gap-4 p-3 rounded-lg hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors cursor-pointer"
+                  className="flex gap-4 p-3 rounded-lg hover:bg-[#F1F3F4] transition-colors cursor-pointer"
                 >
                   <div className={`px-2 py-1 rounded text-xs font-medium capitalize h-fit ${getCategoryStyle(item.category)}`}>
                     {item.category}
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium text-[#202124] dark:text-[#E8EAED]">
+                    <h4 className="font-medium text-[#202124]">
                       {item.title}
                     </h4>
-                    <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6] mt-1">
+                    <p className="text-sm text-[#5F6368] mt-1">
                       {item.description}
                     </p>
-                    <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6] mt-2">
+                    <p className="text-xs text-[#5F6368] mt-2">
                       {item.date}
                     </p>
                   </div>
@@ -631,13 +631,13 @@ const StudentPortalInteractive = () => {
           </div>
 
           {/* Meet Your Counselors */}
-          <div className="bg-white dark:bg-[#292929] rounded-2xl shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
-            <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043] flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-sm border border-[#DADCE0]">
+            <div className="p-4 md:p-6 border-b border-[#DADCE0] flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
+                <h2 className="text-xl font-bold text-[#202124]">
                   Meet Your Counselors
                 </h2>
-                <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+                <p className="text-sm text-[#5F6368]">
                   Here to help you succeed
                 </p>
               </div>
@@ -647,7 +647,7 @@ const StudentPortalInteractive = () => {
               {counselors.map((counselor) => (
                 <div
                   key={counselor.id}
-                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-[#F1F3F4] dark:hover:bg-[#3C4043] transition-colors"
+                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-[#F1F3F4] transition-colors"
                 >
                   <img
                     src={counselor.image}
@@ -655,28 +655,28 @@ const StudentPortalInteractive = () => {
                     className="w-14 h-14 rounded-full object-cover"
                   />
                   <div className="flex-1">
-                    <h4 className="font-medium text-[#202124] dark:text-[#E8EAED]">
+                    <h4 className="font-medium text-[#202124]">
                       {counselor.name}
                     </h4>
-                    <p className="text-sm text-[#1A73E8] dark:text-[#8AB4F8]">
+                    <p className="text-sm text-[#1A73E8]">
                       {counselor.role}
                     </p>
-                    <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6]">
+                    <p className="text-xs text-[#5F6368]">
                       {counselor.specialty}
                     </p>
                   </div>
                   <Link
                     href={`mailto:${counselor.email}`}
-                    className="p-2 rounded-full hover:bg-[#E8F0FE] dark:hover:bg-[#1A73E8]/20 transition-colors"
+                    className="p-2 rounded-full hover:bg-[#E8F0FE] transition-colors"
                     title={`Email ${counselor.name}`}
                   >
-                    <Icon name="EnvelopeIcon" size={20} className="text-[#1A73E8] dark:text-[#8AB4F8]" variant="outline" />
+                    <Icon name="EnvelopeIcon" size={20} className="text-[#1A73E8]" variant="outline" />
                   </Link>
                 </div>
               ))}
               <Link
                 href="/appointment-scheduling-system"
-                className="block w-full text-center py-3 border border-[#1A73E8] text-[#1A73E8] dark:text-[#8AB4F8] dark:border-[#8AB4F8] rounded-lg hover:bg-[#E8F0FE] dark:hover:bg-[#1A73E8]/10 transition-colors font-medium"
+                className="block w-full text-center py-3 border border-[#1A73E8] text-[#1A73E8] rounded-lg hover:bg-[#E8F0FE] transition-colors font-medium"
               >
                 Schedule a Meeting
               </Link>
@@ -685,12 +685,12 @@ const StudentPortalInteractive = () => {
         </div>
 
         {/* Success Stories */}
-        <div className="bg-white dark:bg-[#292929] rounded-2xl shadow-sm border border-[#DADCE0] dark:border-[#3C4043]">
-          <div className="p-4 md:p-6 border-b border-[#DADCE0] dark:border-[#3C4043]">
-            <h2 className="text-xl font-bold text-[#202124] dark:text-[#E8EAED]">
+        <div className="bg-white rounded-2xl shadow-sm border border-[#DADCE0]">
+          <div className="p-4 md:p-6 border-b border-[#DADCE0]">
+            <h2 className="text-xl font-bold text-[#202124]">
               Success Stories
             </h2>
-            <p className="text-sm text-[#5F6368] dark:text-[#9AA0A6]">
+            <p className="text-sm text-[#5F6368]">
               See what our students have achieved
             </p>
           </div>
@@ -699,7 +699,7 @@ const StudentPortalInteractive = () => {
               {successStories.map((story) => (
                 <div
                   key={story.id}
-                  className="bg-[#F1F3F4] dark:bg-[#3C4043] rounded-xl p-5"
+                  className="bg-[#F1F3F4] rounded-xl p-5"
                 >
                   <div className="flex items-center gap-3 mb-4">
                     <img
@@ -708,18 +708,18 @@ const StudentPortalInteractive = () => {
                       className="w-12 h-12 rounded-full object-cover"
                     />
                     <div>
-                      <h4 className="font-medium text-[#202124] dark:text-[#E8EAED]">
+                      <h4 className="font-medium text-[#202124]">
                         {story.name}
                       </h4>
-                      <p className="text-xs text-[#5F6368] dark:text-[#9AA0A6]">
+                      <p className="text-xs text-[#5F6368]">
                         {story.year}
                       </p>
                     </div>
                   </div>
-                  <div className="inline-block px-3 py-1 bg-[#1E8E3E]/10 text-[#1E8E3E] dark:text-[#81C995] text-sm font-medium rounded-full mb-3">
+                  <div className="inline-block px-3 py-1 bg-[#1E8E3E]/10 text-[#1E8E3E] text-sm font-medium rounded-full mb-3">
                     {story.achievement}
                   </div>
-                  <p className="text-[#5F6368] dark:text-[#9AA0A6] text-sm italic">
+                  <p className="text-[#5F6368] text-sm italic">
                     "{story.quote}"
                   </p>
                 </div>

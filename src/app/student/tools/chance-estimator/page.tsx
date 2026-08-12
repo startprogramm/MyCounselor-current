@@ -31,29 +31,29 @@ const TIER_CONFIG = {
   Safety: {
     color: '#16A34A',
     bg: 'bg-green-500/10',
-    border: 'border-green-200 dark:border-green-800',
-    text: 'text-green-700 dark:text-green-300',
+    border: 'border-green-200',
+    text: 'text-green-700',
     label: 'Safety School',
   },
   Match: {
     color: '#2563EB',
     bg: 'bg-blue-500/10',
-    border: 'border-blue-200 dark:border-blue-800',
-    text: 'text-blue-700 dark:text-blue-300',
+    border: 'border-blue-200',
+    text: 'text-blue-700',
     label: 'Match School',
   },
   Reach: {
     color: '#F97316',
     bg: 'bg-orange-500/10',
-    border: 'border-orange-200 dark:border-orange-800',
-    text: 'text-orange-700 dark:text-orange-300',
+    border: 'border-orange-200',
+    text: 'text-orange-700',
     label: 'Reach School',
   },
   Stretch: {
     color: '#EF4444',
     bg: 'bg-red-500/10',
-    border: 'border-red-200 dark:border-red-800',
-    text: 'text-red-700 dark:text-red-300',
+    border: 'border-red-200',
+    text: 'text-red-700',
     label: 'Stretch School',
   },
 };
@@ -368,15 +368,15 @@ export default function ChanceEstimatorPage() {
 
               {/* Strengths & Weaknesses */}
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="rounded-2xl border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 p-5">
-                  <p className="font-semibold text-green-800 dark:text-green-300 text-sm mb-3">
+                <div className="rounded-2xl border border-green-200 bg-green-50 p-5">
+                  <p className="font-semibold text-green-800 text-sm mb-3">
                     Your Advantages
                   </p>
                   <ul className="space-y-2">
                     {result.strengths.map((s, i) => (
                       <li
                         key={i}
-                        className="flex items-start gap-2 text-sm text-green-700 dark:text-green-300"
+                        className="flex items-start gap-2 text-sm text-green-700"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
                         {s}
@@ -384,15 +384,15 @@ export default function ChanceEstimatorPage() {
                     ))}
                   </ul>
                 </div>
-                <div className="rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-5">
-                  <p className="font-semibold text-red-800 dark:text-red-300 text-sm mb-3">
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+                  <p className="font-semibold text-red-800 text-sm mb-3">
                     Areas of Concern
                   </p>
                   <ul className="space-y-2">
                     {result.weaknesses.map((w, i) => (
                       <li
                         key={i}
-                        className="flex items-start gap-2 text-sm text-red-700 dark:text-red-300"
+                        className="flex items-start gap-2 text-sm text-red-700"
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
                         {w}

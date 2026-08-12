@@ -38,21 +38,21 @@ export default function StudentToolsPage() {
 
       {/* Profile gate banner */}
       {profileStatus.loaded && !isUnlocked && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-5 flex items-start gap-4">
-          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex items-start gap-4">
+          <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
             <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
           <div>
-            <p className="font-semibold text-amber-900 dark:text-amber-200 text-sm">AI tools are locked</p>
-            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+            <p className="font-semibold text-amber-900 text-sm">AI tools are locked</p>
+            <p className="text-sm text-amber-700 mt-1">
               Complete {needed}% more of your Academic Profile on your dashboard to unlock these tools.
               The more info you provide, the more accurate and personalized the AI analysis will be.
             </p>
             <Link
               href="/student/dashboard"
-              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-amber-800 dark:text-amber-200 hover:underline"
+              className="inline-flex items-center gap-1.5 mt-3 text-sm font-medium text-amber-800 hover:underline"
             >
               Go to Dashboard → Update Profile
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

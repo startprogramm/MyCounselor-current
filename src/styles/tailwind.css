@@ -96,45 +96,6 @@
     --radius-lg: 1rem;
     --radius-xl: 1.5rem;
   }
-
-  /* ========================================
-     Dark Mode - Educational Theme
-     ======================================== */
-  .dark {
-    --color-background: #1f1f1f;
-    /* Dark but not pure black */
-    --color-foreground: #e8eaed;
-    /* Light text for readability */
-    --color-card: #292929;
-    /* Slightly elevated cards */
-    --color-card-foreground: #e8eaed;
-    --color-popover: #292929;
-    --color-popover-foreground: #e8eaed;
-
-    --color-muted: #3c4043;
-    /* Google's dark muted */
-    --color-muted-foreground: #9aa0a6;
-
-    --color-border: #3c4043;
-    --color-input: #3c4043;
-    --color-ring: #8ab4f8;
-    /* Lighter blue for dark mode */
-
-    --color-primary: #8ab4f8;
-    /* Light blue for dark mode */
-    --color-primary-foreground: #202124;
-
-    --color-secondary: #81c995;
-    /* Light green for dark mode */
-    --color-secondary-foreground: #202124;
-
-    --color-accent: #fdd663;
-    /* Light amber for dark mode */
-    --color-accent-foreground: #202124;
-
-    --color-brand-primary: #8ab4f8;
-    --color-brand-secondary: #81c995;
-  }
 }
 
 @layer base {
@@ -215,12 +176,6 @@
     background-position: -1px -1px;
   }
 
-  .dark .bg-campus-grid {
-    background-image:
-      linear-gradient(rgba(138, 180, 248, 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(138, 180, 248, 0.08) 1px, transparent 1px);
-  }
-
   .bg-soft-radial {
     background: radial-gradient(
       120% 120% at 0% 0%,
@@ -230,21 +185,8 @@
     );
   }
 
-  .dark .bg-soft-radial {
-    background: radial-gradient(
-      120% 120% at 0% 0%,
-      rgba(253, 214, 99, 0.2) 0%,
-      rgba(138, 180, 248, 0.14) 42%,
-      transparent 75%
-    );
-  }
-
   .bg-sky-wash {
     background: linear-gradient(180deg, #edf3f8 0%, #f7f9fc 100%);
-  }
-
-  .dark .bg-sky-wash {
-    background: linear-gradient(180deg, #17212d 0%, #1f2937 100%);
   }
 
   .panel-frost {
@@ -448,11 +390,6 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
-  .dark .glass {
-    background: rgba(15, 23, 42, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
   /* Focus Ring Styles for Accessibility */
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background;
@@ -481,40 +418,22 @@
       0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
-  .dark .card-shadow-light {
-    box-shadow: none;
-  }
-
-  /* Better text visibility in light mode */
+  /* Better text visibility */
   .text-visible {
     @apply text-slate-700;
-  }
-
-  .dark .text-visible {
-    @apply text-slate-300;
   }
 
   /* Enhanced link visibility */
   .link-visible {
     @apply text-blue-700 hover:text-blue-800;
   }
-
-  .dark .link-visible {
-    @apply text-blue-400 hover:text-blue-300;
-  }
 }
 
-/* Light mode specific improvements */
-@media (prefers-color-scheme: light) {
-  :root:not(.dark) {
-    /* Ensure good contrast in system light mode */
-    --color-muted-foreground: #475569;
-  }
-}
+:root {
+  /* Ensure good contrast */
+  --color-muted-foreground: #475569;
 
-/* Additional light mode enhancements */
-:root:not(.dark) {
-  /* Cards get subtle shadow in light mode */
+  /* Cards get a subtle shadow */
   .bg-card {
     box-shadow:
       0 1px 3px rgba(0, 0, 0, 0.05),
