@@ -1,0 +1,145 @@
+/*
+ * Design concept: "Trailhead" — a student's dashboard reframed as a hiking
+ * route instead of a to-do list. Goals, essays, and meetings become
+ * waypoints on a marked trail; readiness is elevation gained, not a percent
+ * bar. Grounded in the app's own "hopeful journey" language — this makes
+ * that literal instead of decorative. Scoped under .trailhead.
+ *
+ * Palette
+ *   --tr-paper     #F5F1E6  trail-map cream — page background
+ *   --tr-card      #FFFFFF  waypoint cards — lift off the map
+ *   --tr-ink       #2B2118  topo-map ink — primary text
+ *   --tr-ink-soft  #6B5D4D  softened ink — secondary text
+ *   --tr-moss      #4A6741  moss green — primary chrome (sidebar, nav)
+ *   --tr-moss-deep #34492C  pressed/active state of moss
+ *   --tr-blaze     #D97B29  trail-blaze orange — the ONE signature accent:
+ *                            the route line, "you are here", urgent flags
+ *
+ * Signature: the route line. A single continuous path connects every
+ * waypoint down the dashboard, with a marker showing exactly where the
+ * student stands on it today — literal progress, not a progress bar.
+ */
+
+.trailhead {
+  --tr-paper: #f5f1e6;
+  --tr-card: #ffffff;
+  --tr-ink: #2b2118;
+  --tr-ink-soft: #6b5d4d;
+  --tr-moss: #4a6741;
+  --tr-moss-deep: #34492c;
+  --tr-blaze: #d97b29;
+  --tr-line: rgba(43, 33, 24, 0.12);
+
+  background: var(--tr-paper);
+  color: var(--tr-ink);
+  font-family: var(--font-tr-body), 'Work Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.trailhead * {
+  box-sizing: border-box;
+}
+
+.trailhead h1,
+.trailhead h2,
+.trailhead h3 {
+  font-family: var(--font-tr-display), 'Space Grotesk', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.trailhead .tr-mono {
+  font-family: var(--font-tr-mono), 'JetBrains Mono', monospace;
+  letter-spacing: 0.06em;
+}
+
+/* Contour-line texture — quiet topo-map background */
+.tr-contours {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(circle at 15% 20%, transparent 0 38px, rgba(74, 103, 65, 0.07) 39px, rgba(74, 103, 65, 0.07) 41px, transparent 42px),
+    radial-gradient(circle at 85% 60%, transparent 0 60px, rgba(74, 103, 65, 0.06) 61px, rgba(74, 103, 65, 0.06) 63px, transparent 64px);
+  background-size: 100% 100%;
+}
+
+.tr-card {
+  background: var(--tr-card);
+  border: 1px solid var(--tr-line);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(43, 33, 24, 0.04), 0 8px 20px rgba(43, 33, 24, 0.06);
+}
+
+.tr-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(74, 103, 65, 0.1);
+  color: var(--tr-moss);
+  flex-shrink: 0;
+}
+
+.tr-badge-blaze {
+  background: rgba(217, 123, 41, 0.14);
+  color: var(--tr-blaze);
+}
+
+/* The route line + waypoint markers */
+.tr-route {
+  position: absolute;
+  left: 27px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--tr-blaze) 0,
+    var(--tr-blaze) 8px,
+    transparent 8px,
+    transparent 14px
+  );
+  border-radius: 2px;
+}
+
+.tr-waypoint-dot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 3px solid var(--tr-paper);
+  flex-shrink: 0;
+}
+
+.tr-waypoint-done {
+  background: var(--tr-moss);
+}
+.tr-waypoint-current {
+  background: var(--tr-blaze);
+  box-shadow: 0 0 0 4px rgba(217, 123, 41, 0.22);
+}
+.tr-waypoint-upcoming {
+  background: #d8d0bf;
+}
+
+.tr-link {
+  position: relative;
+  text-decoration: none;
+}
+.tr-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -2px;
+  height: 1px;
+  background: currentColor;
+  transition: right 200ms ease;
+}
+.tr-link:hover::after {
+  right: 0;
+}

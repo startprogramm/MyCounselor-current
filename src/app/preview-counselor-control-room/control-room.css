@@ -1,0 +1,125 @@
+/*
+ * Design concept: "Control Room" — a counselor isn't reading one file at a
+ * time, they're triaging a caseload. Built like an ops console instead of
+ * a document: dark panels, a status board where every student is a tile
+ * with a colored status light, mono readouts for counts/timestamps. The
+ * opposite instinct from the homepage's warm paper letter — this is the
+ * professional-operator register. Scoped under .control-room.
+ *
+ * Palette
+ *   --cr-void      #14181F  page background — near-black charcoal-navy
+ *   --cr-panel     #1C212B  tile/panel surface, one step up from void
+ *   --cr-line      rgba(255,255,255,.08)  hairlines between panels
+ *   --cr-text      #E7EAEF  primary text
+ *   --cr-text-soft #8B93A3  secondary text
+ *   --cr-blue      #4C8DFF  informational / primary actions
+ *   --cr-amber     #F5A623  needs-attention status light
+ *   --cr-green     #3DDC84  on-track status light
+ *
+ * Signature: the status board. Every student is a tile with a colored
+ * status light (not a table row) so a whole caseload can be scanned in one
+ * glance the way an operator scans a board, not read top to bottom.
+ */
+
+.control-room {
+  --cr-void: #14181f;
+  --cr-panel: #1c212b;
+  --cr-panel-2: #232a36;
+  --cr-line: rgba(255, 255, 255, 0.08);
+  --cr-text: #e7eaef;
+  --cr-text-soft: #8b93a3;
+  --cr-blue: #4c8dff;
+  --cr-amber: #f5a623;
+  --cr-green: #3ddc84;
+
+  background: var(--cr-void);
+  color: var(--cr-text);
+  font-family: var(--font-cr-sans), 'IBM Plex Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.control-room * {
+  box-sizing: border-box;
+}
+
+.control-room .cr-mono {
+  font-family: var(--font-cr-mono), 'IBM Plex Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+.cr-panel {
+  background: var(--cr-panel);
+  border: 1px solid var(--cr-line);
+  border-radius: 10px;
+}
+
+.cr-tile {
+  background: var(--cr-panel);
+  border: 1px solid var(--cr-line);
+  border-radius: 10px;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.cr-tile:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.cr-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.cr-dot-green {
+  background: var(--cr-green);
+  box-shadow: 0 0 0 3px rgba(61, 220, 132, 0.16);
+}
+.cr-dot-amber {
+  background: var(--cr-amber);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.18);
+}
+.cr-dot-quiet {
+  background: var(--cr-text-soft);
+  opacity: 0.5;
+}
+
+.cr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 11px;
+  font-weight: 500;
+}
+.cr-badge-amber {
+  background: rgba(245, 166, 35, 0.14);
+  color: var(--cr-amber);
+}
+.cr-badge-green {
+  background: rgba(61, 220, 132, 0.12);
+  color: var(--cr-green);
+}
+.cr-badge-blue {
+  background: rgba(76, 141, 255, 0.14);
+  color: var(--cr-blue);
+}
+
+@keyframes crPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.cr-live {
+  animation: crPulse 2.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cr-live {
+    animation: none;
+  }
+}

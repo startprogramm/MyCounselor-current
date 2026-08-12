@@ -1,0 +1,100 @@
+/*
+ * Design concept: "The Window" — a parent's relationship to this whole
+ * process is watching with care from just outside, which is literally how
+ * access works here (a two-step confirmation before they see anything).
+ * The dashboard is framed as a window into the student's world: content
+ * sits in "panes" separated by real mullion lines, and a pane with fresh
+ * news gets a soft warm glow, like a light turning on in a room at dusk.
+ * Scoped under .the-window.
+ *
+ * Palette
+ *   --wd-sky      #E8EEF2  page background — soft dusty evening blue-gray
+ *   --wd-frame    #FFFFFF  the window frame / mullion color
+ *   --wd-glass    #FBF6EC  interior warmth behind each pane
+ *   --wd-ink      #2A3540  deep blue-gray ink — primary text
+ *   --wd-ink-soft #64707C  softened ink — secondary text
+ *   --wd-lamp     #E8A857  warm lamp-amber — the ONE signature accent,
+ *                           used only for the "new" glow and small marks
+ *
+ * Signature: the glowing pane. New activity doesn't get a red dot badge —
+ * the whole pane it lives in picks up a warm amber glow at the edge, like
+ * someone switched a light on in that room.
+ */
+
+.the-window {
+  --wd-sky: #e8eef2;
+  --wd-frame: #ffffff;
+  --wd-glass: #fbf6ec;
+  --wd-ink: #2a3540;
+  --wd-ink-soft: #64707c;
+  --wd-lamp: #e8a857;
+  --wd-mullion: rgba(42, 53, 64, 0.14);
+
+  background: var(--wd-sky);
+  color: var(--wd-ink);
+  font-family: var(--font-wd-body), 'Mulish', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.the-window * {
+  box-sizing: border-box;
+}
+
+.the-window h1,
+.the-window h2,
+.the-window h3 {
+  font-family: var(--font-wd-display), 'Petrona', serif;
+}
+
+.wd-pane {
+  position: relative;
+  background: var(--wd-glass);
+  border: 1px solid var(--wd-mullion);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(42, 53, 64, 0.04), 0 10px 22px rgba(42, 53, 64, 0.06);
+}
+
+.wd-pane-glow {
+  border-color: rgba(232, 168, 87, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(232, 168, 87, 0.25),
+    0 0 24px rgba(232, 168, 87, 0.22),
+    0 10px 22px rgba(42, 53, 64, 0.06);
+}
+
+.wd-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--wd-lamp);
+  box-shadow: 0 0 0 3px rgba(232, 168, 87, 0.25);
+}
+
+.wd-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(42, 53, 64, 0.06);
+  color: var(--wd-ink);
+  flex-shrink: 0;
+}
+
+.wd-link {
+  position: relative;
+  text-decoration: none;
+}
+.wd-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -2px;
+  height: 1px;
+  background: currentColor;
+  transition: right 200ms ease;
+}
+.wd-link:hover::after {
+  right: 0;
+}

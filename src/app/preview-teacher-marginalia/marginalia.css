@@ -1,0 +1,109 @@
+/*
+ * Design concept: "Marginalia" — what a teacher actually does is read a
+ * student's work and write in the margins. The dashboard leans into that
+ * literally: cream paper, request cards look like a paper with a note
+ * clipped to the corner, urgent items get a real red-pen underline instead
+ * of a colored badge. Chalkboard green carries the chrome — a staffroom
+ * nod, distinct from the homepage's ink-navy. Scoped under .marginalia.
+ *
+ * Palette
+ *   --mg-paper     #F7F3E9  old-paper cream — page background
+ *   --mg-card      #FFFFFF  the "paper" a request sits on
+ *   --mg-ink       #2B2A28  near-black ink — primary text
+ *   --mg-ink-soft  #6B6862  softened ink — secondary text
+ *   --mg-chalk     #3F5D4E  blackboard green — sidebar / chrome
+ *   --mg-red       #B23A2E  red pen — used ONLY for "needs your attention"
+ *   --mg-highlight #F2D06B  highlighter — used only for the margin-note box
+ *
+ * Signature: the clipped note. Every request card has a small rotated tab
+ * in the corner, like a paperclip or sticky flag, and urgent ones get an
+ * actual hand-drawn-feeling underline in red instead of a badge.
+ */
+
+.marginalia {
+  --mg-paper: #f7f3e9;
+  --mg-card: #ffffff;
+  --mg-ink: #2b2a28;
+  --mg-ink-soft: #6b6862;
+  --mg-chalk: #3f5d4e;
+  --mg-chalk-deep: #2c4236;
+  --mg-red: #b23a2e;
+  --mg-highlight: #f2d06b;
+  --mg-line: rgba(43, 42, 40, 0.12);
+
+  background: var(--mg-paper);
+  color: var(--mg-ink);
+  font-family: var(--font-mg-body), 'Karla', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.marginalia * {
+  box-sizing: border-box;
+}
+
+.marginalia h1,
+.marginalia h2,
+.marginalia h3 {
+  font-family: var(--font-mg-display), 'Lora', serif;
+}
+
+.marginalia .mg-script {
+  font-family: var(--font-mg-script), 'Caveat', cursive;
+  font-weight: 600;
+}
+
+.mg-card {
+  position: relative;
+  background: var(--mg-card);
+  border: 1px solid var(--mg-line);
+  border-radius: 4px 12px 12px 12px;
+  box-shadow: 0 1px 2px rgba(43, 42, 40, 0.05), 0 8px 18px rgba(43, 42, 40, 0.07);
+}
+
+/* The clipped-corner tab */
+.mg-clip {
+  position: absolute;
+  top: -10px;
+  left: 18px;
+  width: 34px;
+  height: 18px;
+  background: var(--mg-chalk);
+  border-radius: 3px;
+  transform: rotate(-4deg);
+  box-shadow: 0 2px 4px rgba(43, 42, 40, 0.25);
+}
+.mg-clip-red {
+  background: var(--mg-red);
+}
+
+.mg-underline {
+  text-decoration: underline;
+  text-decoration-color: var(--mg-red);
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.mg-note {
+  background: rgba(242, 208, 107, 0.28);
+  border-left: 3px solid var(--mg-highlight);
+  border-radius: 2px 8px 8px 2px;
+}
+
+.mg-link {
+  position: relative;
+  text-decoration: none;
+}
+.mg-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -2px;
+  height: 1px;
+  background: currentColor;
+  transition: right 200ms ease;
+}
+.mg-link:hover::after {
+  right: 0;
+}
