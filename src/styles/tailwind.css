@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
@@ -9,33 +9,37 @@
 @layer base {
   :root {
     /* ========================================
-       EDUCATIONAL COLOR PALETTE - Google Classroom Inspired
-       Clean, Professional, Easy on the Eyes
+       "THE LETTER" PALETTE - warm paper, ink-navy,
+       the app's own mark blue. Same hues as the
+       homepage's letter.css, applied as the site's
+       actual design tokens so every page that already
+       uses bg-card/text-foreground/font-heading etc.
+       inherits the identity for free.
        ======================================== */
 
-    /* Background Colors - Clean & Light */
-    --color-background: #f1f3f4;
-    /* Light gray background - Google style */
-    --color-foreground: #202124;
-    /* Dark text - excellent readability */
-    --color-card: #ffffff;
-    /* Pure white cards - clean separation */
-    --color-card-foreground: #202124;
-    --color-popover: #ffffff;
-    --color-popover-foreground: #202124;
+    /* Background Colors - warm paper, not cool gray */
+    --color-background: #f6f2e8;
+    /* Letter paper */
+    --color-foreground: #16233e;
+    /* Ink navy - excellent readability */
+    --color-card: #fffdf8;
+    /* Near-white paper - cards lift off the background */
+    --color-card-foreground: #16233e;
+    --color-popover: #fffdf8;
+    --color-popover-foreground: #16233e;
 
     /* Muted Colors */
-    --color-muted: #e8eaed;
-    /* Soft gray for muted backgrounds */
-    --color-muted-foreground: #5f6368;
-    /* Google's secondary text gray */
+    --color-muted: #efe9da;
+    /* Paper-alt for muted/alternating backgrounds */
+    --color-muted-foreground: #5b647a;
+    /* Softened ink */
 
     /* Border & Input */
-    --color-border: #dadce0;
-    /* Subtle, clean borders */
-    --color-input: #dadce0;
+    --color-border: rgba(22, 35, 62, 0.14);
+    /* Ink-tinted so it reads on both paper and white cards */
+    --color-input: rgba(22, 35, 62, 0.14);
     --color-ring: #1a73e8;
-    /* Google blue for focus */
+    /* Mark blue for focus */
 
     /* Primary Colors - Trustworthy Blue */
     --color-primary: #1a73e8;
@@ -67,7 +71,7 @@
     /* Warning Colors */
     --color-warning: #f9ab00;
     /* Google yellow */
-    --color-warning-foreground: #202124;
+    --color-warning-foreground: #16233e;
 
     /* Brand Colors - Educational Theme */
     --color-brand-primary: #1a73e8;
@@ -117,11 +121,7 @@
   h4,
   h5,
   h6 {
-    font-family: 'Inter', sans-serif;
-  }
-
-  button {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Source Serif 4', serif;
   }
 
   code,
@@ -430,9 +430,6 @@
 }
 
 :root {
-  /* Ensure good contrast */
-  --color-muted-foreground: #475569;
-
   /* Cards get a subtle shadow */
   .bg-card {
     box-shadow:

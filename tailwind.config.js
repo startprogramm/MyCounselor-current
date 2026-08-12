@@ -77,7 +77,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Source Sans 3', 'sans-serif'],
-        heading: ['Inter', 'sans-serif'],
+        heading: ['Source Serif 4', 'serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
       spacing: {
