@@ -11,6 +11,7 @@ import type { Database } from '@/lib/database.types';
 import { startVisibilityAwarePolling } from '@/lib/polling';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 import AcademicProfileSection from '@/components/student/AcademicProfileSection';
+import ProfilePuzzle from '@/components/student/ProfilePuzzle';
 import {
   getRequestStatusLabel,
   normalizeRequestStatus,
@@ -785,6 +786,9 @@ export default function StudentDashboardPage() {
           </Link>
         ))}
       </div>
+
+      {/* Profile Puzzle */}
+      <ProfilePuzzle />
 
       {/* Academic Profile Section */}
       <AcademicProfileSection />

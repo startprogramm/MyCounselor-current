@@ -375,6 +375,8 @@ export type Database = {
           additional_context: string | null;
           personal_statement: string | null;
           completion_pct: number;
+          essay_readiness_score: number | null;
+          essay_readiness_computed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -410,6 +412,8 @@ export type Database = {
           additional_context?: string | null;
           personal_statement?: string | null;
           completion_pct?: number;
+          essay_readiness_score?: number | null;
+          essay_readiness_computed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -445,6 +449,8 @@ export type Database = {
           additional_context?: string | null;
           personal_statement?: string | null;
           completion_pct?: number;
+          essay_readiness_score?: number | null;
+          essay_readiness_computed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
