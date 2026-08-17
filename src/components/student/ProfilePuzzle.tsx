@@ -98,9 +98,7 @@ export default function ProfilePuzzle() {
       if (cancelled) return;
       setProfile(profileRes.data ?? null);
       setRecRequested(recCountRes.count ?? 0);
-      setRecStatuses(
-        (recStatusRes.data as { request_id: number; status: string }[] | null)?.map((r) => r.status) ?? []
-      );
+      setRecStatuses(recStatusRes.data?.map((r) => r.status) ?? []);
       setLoaded(true);
     })();
 

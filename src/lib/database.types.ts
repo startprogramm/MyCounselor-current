@@ -515,7 +515,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      my_recommendation_letter_statuses: {
+        Args: Record<string, never>;
+        Returns: { request_id: number; status: string }[];
+      };
     };
     Enums: {
       [_ in never]: never;
