@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './trailhead.css';
 import { spaceGrotesk, workSans, jetbrainsMono } from './fonts';
 import Icon from '@/components/ui/AppIcon';
+import ProfilePuzzle from './ProfilePuzzle';
 
 export const metadata: Metadata = {
   title: 'Trailhead Concept - Student Dashboard - MyCounselor',
@@ -86,6 +87,11 @@ export default function TrailheadPreview() {
                 <Icon name="FlagIcon" size={14} variant="solid" />
                 Next: meeting Thursday
               </div>
+            </div>
+
+            {/* Profile puzzle */}
+            <div className="mt-8">
+              <ProfilePuzzle />
             </div>
 
             {/* Stats row */}
