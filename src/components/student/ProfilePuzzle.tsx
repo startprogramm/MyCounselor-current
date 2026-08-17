@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { ContentCard } from '@/components/ui/Card';
@@ -89,14 +89,30 @@ function tierFor(score: number | null): Tier {
   return score >= 65 ? 'solid' : 'blurry';
 }
 
+// Every student gets their own signature hue, derived deterministically
+// from their account id — stable across visits, different from everyone
+// else's. No two students' puzzles look alike.
+function signatureHue(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return hash % 360;
+}
+
+function hsl(hue: number, saturation: number, lightness: number): string {
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
 // Hue speaks to narrative fit; clarity (below) speaks to strength.
-// Recommendations never gets red/green — a student can't see letter
-// content, so there's nothing to judge it against the throughline for.
-function hueVar(piece: GridPiece): string {
-  if (piece.isRecommendations) return 'var(--color-primary)';
-  if (piece.consistency === 'aligned') return 'var(--color-success)';
+// "Off-theme" stays a fixed red regardless of a student's signature color
+// — it's the one signal that needs to read instantly, even to a counselor
+// scanning many different students' puzzles. Everything else uses the
+// student's own color, at low saturation until it's actually been judged.
+function pieceColor(piece: GridPiece, hue: number): string {
   if (piece.consistency === 'off_theme') return 'var(--color-destructive)';
-  return 'var(--color-primary)'; // not yet evaluated
+  if (piece.consistency === 'aligned') return hsl(hue, 65, 50);
+  return hsl(hue, 32, 62); // not yet evaluated, incl. Recommendations
 }
 
 const BAND_BADGE: Record<PuzzleBand, 'default' | 'destructive' | 'warning' | 'primary' | 'success'> = {
@@ -109,6 +125,7 @@ const BAND_BADGE: Record<PuzzleBand, 'default' | 'destructive' | 'warning' | 'pr
 
 export default function ProfilePuzzle() {
   const { user } = useAuth();
+  const hue = useMemo(() => signatureHue(user?.id ?? ''), [user?.id]);
   const [profile, setProfile] = useState<AcademicProfileRow | null>(null);
   const [recRequested, setRecRequested] = useState(0);
   const [recStatuses, setRecStatuses] = useState<string[]>([]);
@@ -213,12 +230,12 @@ export default function ProfilePuzzle() {
               </defs>
               {pieces.map((piece) => {
                 const tier = tierFor(piece.score);
-                const hue = hueVar(piece);
+                const fill = tier === 'empty' ? 'var(--color-muted)' : pieceColor(piece, hue);
                 return (
                   <path
                     key={piece.key}
                     d={piecePath(piece.row, piece.col)}
-                    fill={tier === 'empty' ? 'var(--color-muted)' : hue}
+                    fill={fill}
                     fillOpacity={tier === 'solid' ? 1 : tier === 'blurry' ? 0.4 : 1}
                     filter={tier === 'blurry' ? 'url(#pp-blur)' : undefined}
                     stroke="var(--color-card)"
@@ -248,23 +265,24 @@ export default function ProfilePuzzle() {
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-success" /> Fits your story
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: hsl(hue, 65, 50) }} /> Fits your
+              story
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-destructive" /> Off-theme
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-primary/40 blur-[1px]" /> Still developing
+              <span className="h-2.5 w-2.5 rounded-full blur-[1px]" style={{ background: hsl(hue, 32, 62) }} />{' '}
+              Still developing
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-primary" /> Solid
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: hsl(hue, 65, 50) }} /> Solid
             </span>
           </div>
-          {!anyEvaluated && (
-            <p className="mt-2 text-center text-[11px] text-muted-foreground">
-              Narrative-fit scoring (green/red) is coming soon — pieces are neutral until then.
-            </p>
-          )}
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            This is your color — every student's puzzle is tinted differently.
+            {!anyEvaluated && ' Narrative-fit scoring (this color vs. red) is coming soon; pieces stay pale until then.'}
+          </p>
         </div>
 
         {/* Legend */}
