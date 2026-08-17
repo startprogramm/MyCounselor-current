@@ -4,12 +4,21 @@ type AcademicProfileRow = Database['public']['Tables']['student_academic_profile
 
 export type PuzzleBand = 'Not Started' | 'Just Starting' | 'Developing' | 'Solid' | 'Standout';
 
+/**
+ * Whether this piece reinforces the same throughline as the rest of the
+ * profile (e.g. a robotics award for a CS-intending student) or pulls
+ * against it (e.g. a chemistry-focused honor for the same student).
+ * null = not yet evaluated — the narrative-fit AI pass hasn't run.
+ */
+export type PuzzleConsistency = 'aligned' | 'off_theme' | null;
+
 export interface PuzzlePiece {
   key: string;
   label: string;
   icon: string;
   score: number | null; // 0-100, null = no data yet
   band: PuzzleBand;
+  consistency: PuzzleConsistency;
   note: string;
 }
 
@@ -69,6 +78,7 @@ export function scoreAcademicRigor(p: AcademicProfileRow | null): PuzzlePiece {
     key: 'academics',
     label: 'Academic Rigor',
     icon: 'AcademicCapIcon',
+    consistency: null as PuzzleConsistency,
   };
 
   const avgPoints =
@@ -107,7 +117,7 @@ export function scoreAcademicRigor(p: AcademicProfileRow | null): PuzzlePiece {
 
 /** Standardized Testing — SAT/ACT, with English proficiency as a fallback signal. */
 export function scoreTesting(p: AcademicProfileRow | null): PuzzlePiece {
-  const base = { key: 'testing', label: 'Standardized Testing', icon: 'ChartBarIcon' };
+  const base = { key: 'testing', label: 'Standardized Testing', icon: 'ChartBarIcon', consistency: null as PuzzleConsistency };
 
   const scores: number[] = [];
   if (p?.sat_total != null) scores.push(clamp(((p.sat_total - 400) / 1200) * 100));
@@ -166,7 +176,7 @@ function activityDepth(a: Extracurricular): number {
 
 /** Extracurricular Depth — top 3 activities only, so a long shallow list doesn't score as well as a few real ones. */
 export function scoreExtracurriculars(p: AcademicProfileRow | null): PuzzlePiece {
-  const base = { key: 'extracurriculars', label: 'Extracurricular Depth', icon: 'BoltIcon' };
+  const base = { key: 'extracurriculars', label: 'Extracurricular Depth', icon: 'BoltIcon', consistency: null as PuzzleConsistency };
   const activities = (p?.extracurriculars as Extracurricular[] | null) ?? [];
 
   if (activities.length === 0) {
@@ -207,7 +217,7 @@ const HONOR_WEIGHT: Record<string, number> = {
 
 /** Honors & Distinction — externally-validated recognition, weighted by level. */
 export function scoreHonors(p: AcademicProfileRow | null): PuzzlePiece {
-  const base = { key: 'honors', label: 'Honors & Distinction', icon: 'TrophyIcon' };
+  const base = { key: 'honors', label: 'Honors & Distinction', icon: 'TrophyIcon', consistency: null as PuzzleConsistency };
   const awards = (p?.honors_awards as HonorAward[] | null) ?? [];
 
   if (awards.length === 0) {
@@ -232,7 +242,7 @@ export function scoreHonors(p: AcademicProfileRow | null): PuzzlePiece {
 
 /** Essay & Voice — the persisted score from the student's latest Essay Coach run. */
 export function scoreEssay(p: AcademicProfileRow | null): PuzzlePiece {
-  const base = { key: 'essay', label: 'Essay & Voice', icon: 'PencilSquareIcon' };
+  const base = { key: 'essay', label: 'Essay & Voice', icon: 'PencilSquareIcon', consistency: null as PuzzleConsistency };
 
   if (p?.essay_readiness_score == null) {
     return {
