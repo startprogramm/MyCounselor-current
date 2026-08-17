@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { ContentCard } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/AppIcon';
 import {
   scoredPieces,
@@ -17,6 +18,33 @@ import {
 import type { Database } from '@/lib/database.types';
 
 type AcademicProfileRow = Database['public']['Tables']['student_academic_profiles']['Row'];
+
+interface NarrativeFitVerdict {
+  verdict: 'aligned' | 'off_theme' | 'not_enough_data';
+  reasoning: string;
+}
+
+interface NarrativeFitResult {
+  throughline: string;
+  throughlineConfidence: 'Clear' | 'Emerging' | 'Unclear';
+  pieces: {
+    extracurriculars: NarrativeFitVerdict;
+    honors: NarrativeFitVerdict;
+    essay: NarrativeFitVerdict;
+  };
+  computedAt?: string;
+}
+
+// Only these three pieces carry enough "content" to have a theme at all —
+// a GPA or a secured recommendation doesn't have a narrative to be off of.
+function applyNarrativeFit(pieces: PuzzlePiece[], fit: NarrativeFitResult | null): PuzzlePiece[] {
+  if (!fit) return pieces;
+  return pieces.map((piece) => {
+    const verdict = (fit.pieces as Record<string, NarrativeFitVerdict | undefined>)[piece.key];
+    if (!verdict || verdict.verdict === 'not_enough_data') return piece;
+    return { ...piece, consistency: verdict.verdict };
+  });
+}
 
 /*
  * Real interlocking jigsaw geometry — 2 rows x 3 columns, generated rather
@@ -130,6 +158,8 @@ export default function ProfilePuzzle() {
   const [recRequested, setRecRequested] = useState(0);
   const [recStatuses, setRecStatuses] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [evaluating, setEvaluating] = useState(false);
+  const [evalMessage, setEvalMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -170,8 +200,34 @@ export default function ProfilePuzzle() {
     );
   }
 
-  const scored: PuzzlePiece[] = scoredPieces(profile);
+  const narrativeFit = (profile?.narrative_fit as unknown as NarrativeFitResult | null) ?? null;
+  const scored: PuzzlePiece[] = applyNarrativeFit(scoredPieces(profile), narrativeFit);
   const recommendations: RecommendationCoverage = scoreRecommendations(recRequested, recStatuses);
+
+  const handleEvaluate = async () => {
+    if (!user?.id) return;
+    setEvaluating(true);
+    setEvalMessage(null);
+    try {
+      const res = await fetch('/api/ai-narrative-fit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setEvalMessage(data.error || 'Something went wrong — try again in a moment.');
+      } else if (!data.result) {
+        setEvalMessage(data.reason || 'Add more to your profile before evaluating your story.');
+      } else {
+        setProfile((prev) => (prev ? { ...prev, narrative_fit: data.result } : prev));
+      }
+    } catch {
+      setEvalMessage('Something went wrong — try again in a moment.');
+    } finally {
+      setEvaluating(false);
+    }
+  };
 
   const layout: [number, number][] = [
     [0, 0],
@@ -218,6 +274,40 @@ export default function ProfilePuzzle() {
         <span className="text-sm font-medium text-muted-foreground">{startedCount} of 6 started</span>
       }
     >
+      <div className="mb-5 flex flex-col gap-3 rounded-xl border border-border bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          {narrativeFit ? (
+            <>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-foreground">Your throughline</p>
+                <Badge
+                  variant={
+                    narrativeFit.throughlineConfidence === 'Clear'
+                      ? 'success'
+                      : narrativeFit.throughlineConfidence === 'Emerging'
+                        ? 'warning'
+                        : 'default'
+                  }
+                  size="sm"
+                >
+                  {narrativeFit.throughlineConfidence}
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{narrativeFit.throughline}</p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              See whether your activities, honors, and essay tell one consistent story — or pull in
+              different directions.
+            </p>
+          )}
+          {evalMessage && <p className="mt-1 text-xs text-warning">{evalMessage}</p>}
+        </div>
+        <Button size="sm" variant="outline" onClick={handleEvaluate} isLoading={evaluating} className="flex-shrink-0">
+          {narrativeFit ? 'Re-evaluate' : 'Evaluate my story'}
+        </Button>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-[1.1fr,1fr] lg:items-start">
         {/* The puzzle */}
         <div>
@@ -281,23 +371,31 @@ export default function ProfilePuzzle() {
           </div>
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
             This is your color — every student's puzzle is tinted differently.
-            {!anyEvaluated && ' Narrative-fit scoring (this color vs. red) is coming soon; pieces stay pale until then.'}
+            {!anyEvaluated && ' Run "Evaluate my story" above to see your activities, honors, and essay judged for fit.'}
           </p>
         </div>
 
         {/* Legend */}
         <div className="flex flex-col divide-y divide-border">
-          {pieces.map((piece) => (
-            <div key={piece.key} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{piece.label}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{piece.note}</p>
+          {pieces.map((piece) => {
+            const verdict = narrativeFit
+              ? (narrativeFit.pieces as Record<string, NarrativeFitVerdict | undefined>)[piece.key]
+              : undefined;
+            return (
+              <div key={piece.key} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">{piece.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{piece.note}</p>
+                  {verdict && verdict.verdict !== 'not_enough_data' && (
+                    <p className="mt-1 text-xs italic text-muted-foreground">&ldquo;{verdict.reasoning}&rdquo;</p>
+                  )}
+                </div>
+                <Badge variant={BAND_BADGE[piece.band]} size="sm" className="flex-shrink-0">
+                  {piece.band}
+                </Badge>
               </div>
-              <Badge variant={BAND_BADGE[piece.band]} size="sm" className="flex-shrink-0">
-                {piece.band}
-              </Badge>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </ContentCard>

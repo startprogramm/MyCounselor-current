@@ -377,6 +377,7 @@ export type Database = {
           completion_pct: number;
           essay_readiness_score: number | null;
           essay_readiness_computed_at: string | null;
+          narrative_fit: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -414,6 +415,7 @@ export type Database = {
           completion_pct?: number;
           essay_readiness_score?: number | null;
           essay_readiness_computed_at?: string | null;
+          narrative_fit?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -451,6 +453,7 @@ export type Database = {
           completion_pct?: number;
           essay_readiness_score?: number | null;
           essay_readiness_computed_at?: string | null;
+          narrative_fit?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
