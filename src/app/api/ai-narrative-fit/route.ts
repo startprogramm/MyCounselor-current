@@ -122,11 +122,17 @@ export async function POST(request: NextRequest) {
   const hasEssay = !!p?.personal_statement && p.personal_statement.trim().length >= 50;
   const hasDirection = !!p?.intended_major;
 
-  const signalCount = [hasActivities, hasHonors, hasEssay, hasDirection].filter(Boolean).length;
-  if (signalCount < 2) {
+  const missing: string[] = [];
+  if (!hasDirection) missing.push('Intended major');
+  if (!hasActivities) missing.push('At least one extracurricular activity');
+  if (!hasHonors) missing.push('At least one honor or award');
+  if (!hasEssay) missing.push('Your personal statement');
+
+  if (missing.length > 0) {
     return NextResponse.json({
       result: null,
-      reason: 'Not enough profile data yet — add at least two of intended major, activities, honors, or your essay.',
+      reason: 'Fill in the rest of your Academic Profile before evaluating your story.',
+      missing,
     });
   }
 

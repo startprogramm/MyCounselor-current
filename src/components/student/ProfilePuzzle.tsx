@@ -204,6 +204,22 @@ export default function ProfilePuzzle() {
   const scored: PuzzlePiece[] = applyNarrativeFit(scoredPieces(profile), narrativeFit);
   const recommendations: RecommendationCoverage = scoreRecommendations(recRequested, recStatuses);
 
+  // The AI needs the whole picture to judge fairly — evaluating a half-filled
+  // profile would either overclaim a throughline from thin data or unfairly
+  // flag pieces that just haven't been filled in yet as "off-theme."
+  const missingForEvaluation: string[] = [];
+  if (!profile?.intended_major) missingForEvaluation.push('Intended major');
+  if (!Array.isArray(profile?.extracurriculars) || profile.extracurriculars.length === 0) {
+    missingForEvaluation.push('At least one extracurricular activity');
+  }
+  if (!Array.isArray(profile?.honors_awards) || profile.honors_awards.length === 0) {
+    missingForEvaluation.push('At least one honor or award');
+  }
+  if (!profile?.personal_statement || profile.personal_statement.trim().length < 50) {
+    missingForEvaluation.push('Your personal statement');
+  }
+  const canEvaluate = missingForEvaluation.length === 0;
+
   const handleEvaluate = async () => {
     if (!user?.id) return;
     setEvaluating(true);
@@ -295,15 +311,36 @@ export default function ProfilePuzzle() {
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{narrativeFit.throughline}</p>
             </>
-          ) : (
+          ) : canEvaluate ? (
             <p className="text-sm text-muted-foreground">
               See whether your activities, honors, and essay tell one consistent story — or pull in
               different directions.
             </p>
+          ) : (
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Finish your Academic Profile to evaluate your story — a partial profile can&apos;t be judged
+                fairly.
+              </p>
+              <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                {missingForEvaluation.map((item) => (
+                  <li key={item} className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           {evalMessage && <p className="mt-1 text-xs text-warning">{evalMessage}</p>}
         </div>
-        <Button size="sm" variant="outline" onClick={handleEvaluate} isLoading={evaluating} className="flex-shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleEvaluate}
+          isLoading={evaluating}
+          disabled={!canEvaluate}
+          className="flex-shrink-0"
+        >
           {narrativeFit ? 'Re-evaluate' : 'Evaluate my story'}
         </Button>
       </div>
