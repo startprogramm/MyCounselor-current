@@ -4,10 +4,12 @@ import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback } fro
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useAuth, User } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
 
 interface TeacherStudentsCachePayload {
   students: User[];
+  waitingStudentIds: string[];
 }
 
 const TEACHER_STUDENTS_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -15,6 +17,7 @@ const TEACHER_STUDENTS_CACHE_TTL_MS = 2 * 60 * 1000;
 export default function TeacherStudentsPage() {
   const { user, getSchoolStudents } = useAuth();
   const [students, setStudents] = useState<User[]>([]);
+  const [waitingStudentIds, setWaitingStudentIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [hasWarmCache, setHasWarmCache] = useState(false);
   const [isCacheHydrated, setIsCacheHydrated] = useState(false);
@@ -30,6 +33,7 @@ export default function TeacherStudentsPage() {
 
     if (!cacheKey) {
       setStudents([]);
+      setWaitingStudentIds(new Set());
       setHasWarmCache(false);
       setIsCacheHydrated(true);
       return;
@@ -38,6 +42,7 @@ export default function TeacherStudentsPage() {
     const cached = readCachedData<TeacherStudentsCachePayload>(cacheKey, TEACHER_STUDENTS_CACHE_TTL_MS);
     if (cached.found && cached.data) {
       setStudents(cached.data.students || []);
+      setWaitingStudentIds(new Set(cached.data.waitingStudentIds || []));
       setHasWarmCache(true);
       setIsCacheHydrated(true);
       return;
@@ -51,19 +56,34 @@ export default function TeacherStudentsPage() {
     if (!cacheKey || !isCacheHydrated) return;
     if (!hasWarmCache && !hasLoadedFromServer) return;
 
-    writeCachedData<TeacherStudentsCachePayload>(cacheKey, { students });
-  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, students]);
+    writeCachedData<TeacherStudentsCachePayload>(cacheKey, {
+      students,
+      waitingStudentIds: Array.from(waitingStudentIds),
+    });
+  }, [cacheKey, isCacheHydrated, hasWarmCache, hasLoadedFromServer, students, waitingStudentIds]);
 
-  const loadStudents = useCallback(() => {
-    if (!user?.schoolId) return;
+  const loadStudents = useCallback(async () => {
+    if (!user?.id || !user?.schoolId) return;
     const all = getSchoolStudents(user.schoolId);
     setStudents(all.filter((s) => s.approved));
+
+    const { data, error } = await supabase
+      .from('requests')
+      .select('student_id,status')
+      .eq('school_id', user.schoolId)
+      .eq('teacher_id', user.id)
+      .eq('category', 'recommendation')
+      .in('status', ['pending', 'in_progress']);
+
+    if (!error && data) {
+      setWaitingStudentIds(new Set(data.map((r) => r.student_id)));
+    }
     setHasLoadedFromServer(true);
-  }, [user?.schoolId, getSchoolStudents]);
+  }, [user?.id, user?.schoolId, getSchoolStudents]);
 
   useEffect(() => {
     if (!isCacheHydrated) return;
-    loadStudents();
+    void loadStudents();
   }, [isCacheHydrated, loadStudents]);
 
   const filtered = students.filter(s =>
@@ -113,9 +133,14 @@ export default function TeacherStudentsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">{student.firstName} {student.lastName}</p>
                   <p className="text-sm text-muted-foreground truncate">{student.email}</p>
-                  {student.gradeLevel && (
-                    <Badge variant="secondary" size="sm" className="mt-1">Grade {student.gradeLevel}</Badge>
-                  )}
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    {student.gradeLevel && (
+                      <Badge variant="secondary" size="sm">Grade {student.gradeLevel}</Badge>
+                    )}
+                    {waitingStudentIds.has(student.id) && (
+                      <Badge variant="warning" size="sm">Waiting on you</Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </Card>

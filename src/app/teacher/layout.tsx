@@ -100,7 +100,9 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const router = useRouter();
   const pathname = usePathname();
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const shouldPauseBadgePolling = pathname.startsWith('/teacher/messages');
+  const [pendingRequests, setPendingRequests] = useState(0);
+  const shouldPauseMessagesPolling = pathname.startsWith('/teacher/messages');
+  const shouldPauseRequestsPolling = pathname.startsWith('/teacher/requests');
 
   useEffect(() => {
     if (isLoading) return;
@@ -162,14 +164,37 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     setUnreadMessages(totalUnread);
   }, [user?.id, user?.schoolId]);
 
+  const computePendingRequests = useCallback(async () => {
+    if (!user?.id || !user?.schoolId) return;
+
+    const { count, error } = await supabase
+      .from('requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('school_id', user.schoolId)
+      .eq('teacher_id', user.id)
+      .eq('category', 'recommendation')
+      .in('status', ['pending', 'in_progress']);
+
+    if (!error) setPendingRequests(count || 0);
+  }, [user?.id, user?.schoolId]);
+
   useEffect(() => {
     if (!user?.id) return;
 
     void computeUnreadMessages();
-    if (shouldPauseBadgePolling) return;
+    if (shouldPauseMessagesPolling) return;
 
     return startVisibilityAwarePolling(() => computeUnreadMessages(), 20000);
-  }, [user?.id, computeUnreadMessages, shouldPauseBadgePolling]);
+  }, [user?.id, computeUnreadMessages, shouldPauseMessagesPolling]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    void computePendingRequests();
+    if (shouldPauseRequestsPolling) return;
+
+    return startVisibilityAwarePolling(() => computePendingRequests(), 20000);
+  }, [user?.id, computePendingRequests, shouldPauseRequestsPolling]);
 
   if (isLoading) {
     return (
@@ -186,11 +211,11 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     return null;
   }
 
-  const visibleNavItems = teacherNavItems.map((item) =>
-    item.href === '/teacher/messages'
-      ? { ...item, badge: unreadMessages || undefined }
-      : item
-  );
+  const visibleNavItems = teacherNavItems.map((item) => {
+    if (item.href === '/teacher/messages') return { ...item, badge: unreadMessages || undefined };
+    if (item.href === '/teacher/requests') return { ...item, badge: pendingRequests || undefined };
+    return item;
+  });
 
   return (
     <div className="min-h-screen bg-background">

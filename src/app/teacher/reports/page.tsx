@@ -9,7 +9,7 @@ import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-
 
 interface TeacherReportsCachePayload {
   stats: {
-    totalStudents: number;
+    studentsHelped: number;
     totalReferrals: number;
     pendingReferrals: number;
     completedReferrals: number;
@@ -20,9 +20,9 @@ interface TeacherReportsCachePayload {
 const TEACHER_REPORTS_CACHE_TTL_MS = 2 * 60 * 1000;
 
 export default function TeacherReportsPage() {
-  const { user, getSchoolStudents } = useAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState({
-    totalStudents: 0,
+    studentsHelped: 0,
     totalReferrals: 0,
     pendingReferrals: 0,
     completedReferrals: 0,
@@ -43,7 +43,7 @@ export default function TeacherReportsPage() {
 
     if (!cacheKey) {
       setStats({
-        totalStudents: 0,
+        studentsHelped: 0,
         totalReferrals: 0,
         pendingReferrals: 0,
         completedReferrals: 0,
@@ -78,21 +78,19 @@ export default function TeacherReportsPage() {
   const loadReports = useCallback(async () => {
     if (!user?.id || !user?.schoolId) return;
 
-    const students = getSchoolStudents(user.schoolId);
-    const approvedCount = students.filter((s) => s.approved).length;
-
     const { data: requests, error } = await supabase
       .from('requests')
-      .select('id,title,description,status,category,counselor_name,counselor_id,teacher_id,student_name,student_id,school_id,response,created_at')
+      .select('id,title,description,status,category,teacher_id,student_name,student_id,school_id,response,created_at')
       .eq('school_id', user.schoolId)
-      .or(`teacher_id.eq.${user.id},counselor_id.eq.${user.id}`)
+      .eq('teacher_id', user.id)
       .order('created_at', { ascending: false });
 
     if (!error && requests) {
       const allRequests = requests;
+      const studentsHelped = new Set(allRequests.map((r) => r.student_id)).size;
 
       setStats({
-        totalStudents: approvedCount,
+        studentsHelped,
         totalReferrals: allRequests.length,
         pendingReferrals: allRequests.filter((r) => r.status === 'pending' || r.status === 'in_progress').length,
         completedReferrals: allRequests.filter((r) => r.status === 'completed' || r.status === 'approved').length,
@@ -112,7 +110,7 @@ export default function TeacherReportsPage() {
     }
 
     setLoadError(error?.message || 'Unable to load report data.');
-  }, [user?.id, user?.schoolId, getSchoolStudents]);
+  }, [user?.id, user?.schoolId]);
 
   useEffect(() => {
     if (!isCacheHydrated) return;
@@ -144,8 +142,8 @@ export default function TeacherReportsPage() {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
-          title="School Students"
-          value={stats.totalStudents}
+          title="Students You've Written For"
+          value={stats.studentsHelped}
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -188,7 +186,7 @@ export default function TeacherReportsPage() {
       <ContentCard title="Recent Activity">
         {recentActivity.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-sm text-muted-foreground">No activity to show yet. Submit referrals to see your history here.</p>
+            <p className="text-sm text-muted-foreground">No activity to show yet. Recommendation letter requests you receive will show up here.</p>
           </div>
         ) : (
           <div className="space-y-3">
