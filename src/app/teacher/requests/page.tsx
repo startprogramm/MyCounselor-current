@@ -70,6 +70,10 @@ export default function TeacherRequestsPage() {
   // Letter-workspace status per request (for the "Write this letter" button label)
   const [letterDocStatus, setLetterDocStatus] = useState<Record<number, 'drafting' | 'final'>>({});
 
+  // Which requests need a look vs. are done, so the list can lead with what's urgent
+  const [filter, setFilter] = useState<'needs_attention' | 'completed' | 'all'>('needs_attention');
+  const [expandedNotesId, setExpandedNotesId] = useState<number | null>(null);
+
   const cacheKey = useMemo(
     () => (user?.id ? makeUserCacheKey('teacher-requests', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
@@ -221,11 +225,29 @@ export default function TeacherRequestsPage() {
     }
   };
 
+  const isDone = (r: StudentRequest) => r.status === 'completed' || r.status === 'approved';
+  const needsAttentionCount = requests.filter((r) => !isDone(r)).length;
+  const completedCount = requests.filter(isDone).length;
+
+  const urgencyRank = (r: StudentRequest) => {
+    const meta = r.recommendationDetails?.deadline ? getDeadlineMeta(r.recommendationDetails.deadline) : null;
+    if (!meta) return 3;
+    if (meta.tone === 'overdue') return 0;
+    if (meta.tone === 'soon') return 1;
+    return 2;
+  };
+
+  const visibleRequests = (
+    filter === 'needs_attention' ? requests.filter((r) => !isDone(r))
+    : filter === 'completed' ? requests.filter(isDone)
+    : requests
+  ).slice().sort((a, b) => urgencyRank(a) - urgencyRank(b));
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Requests</h1>
-        <p className="text-muted-foreground mt-1">Respond to requests students send you directly</p>
+        <p className="text-muted-foreground mt-1">Recommendation letters your students have asked you to write</p>
       </div>
 
       {loadError && (
@@ -246,6 +268,33 @@ export default function TeacherRequestsPage() {
         </Card>
       )}
 
+      {requests.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {([
+            { key: 'needs_attention' as const, label: 'Needs Attention', count: needsAttentionCount },
+            { key: 'completed' as const, label: 'Completed', count: completedCount },
+            { key: 'all' as const, label: 'All', count: requests.length },
+          ]).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                filter === tab.key
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {tab.label}
+              <span className={`px-2 py-0.5 rounded-full text-xs ${
+                filter === tab.key ? 'bg-white/20' : 'bg-background'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <ContentCard title="Requests From Students">
         {requests.length === 0 ? (
           <div className="text-center py-8">
@@ -254,133 +303,180 @@ export default function TeacherRequestsPage() {
             </svg>
             <p className="font-medium text-foreground">No requests yet</p>
             <p className="text-sm text-muted-foreground mt-1">
-              When a student asks you directly for something — like a recommendation letter — it will show up here.
+              When a student asks you for a recommendation letter, it will show up here.
             </p>
+          </div>
+        ) : visibleRequests.length === 0 ? (
+          <div className="text-center py-8">
+            <svg className="w-10 h-10 mx-auto text-success mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="font-medium text-foreground">You're all caught up</p>
+            <p className="text-sm text-muted-foreground mt-1">No letters need your attention right now.</p>
+            <Button size="sm" variant="outline" className="mt-3" onClick={() => setFilter('all')}>
+              View all requests
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
-            {requests.map((req) => (
-              <Card key={req.id} className="p-4" hover>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="font-medium text-foreground">{req.title}</p>
-                      <Badge variant={getStatusVariant(req.status)} size="sm">{getRequestStatusLabel(req.status)}</Badge>
-                      <Badge variant="accent" size="sm">Recommendation Letter</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Requested by: {req.studentName}</p>
+            {visibleRequests.map((req) => {
+              const deadlineMeta = req.recommendationDetails?.deadline
+                ? getDeadlineMeta(req.recommendationDetails.deadline)
+                : null;
+              const isFinalized = letterDocStatus[req.id] === 'final';
+              const needsStatusNudge = isFinalized && !isDone(req);
 
-                    {req.recommendationDetails?.deadline && (() => {
-                      const meta = getDeadlineMeta(req.recommendationDetails!.deadline);
-                      if (!meta) return null;
-                      return (
-                        <div
-                          className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg border text-xs font-medium ${DEADLINE_TONE_CLASSES[meta.tone]}`}
+              return (
+                <Card key={req.id} className="p-4" hover>
+                  {/* Who, when, and how urgent */}
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 flex-shrink-0 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 font-semibold text-sm">
+                        {req.studentName.split(' ').map((n) => n[0]).join('')}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{req.studentName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{req.title} · Requested {req.createdAt}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {deadlineMeta && (
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${DEADLINE_TONE_CLASSES[deadlineMeta.tone]}`}
                         >
                           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          <span>Letter needed by {meta.formatted}</span>
-                          <span className="opacity-70">· {meta.relative}</span>
-                        </div>
-                      );
-                    })()}
-
-                    {req.description && (
-                      <div className="mt-2">
-                        <p className="text-xs font-medium text-muted-foreground">What it's for, in their words</p>
-                        <p className="text-sm text-foreground">{req.description}</p>
-                      </div>
-                    )}
-                    <span className="text-xs text-muted-foreground mt-2 inline-block">Requested {req.createdAt}</span>
-
-                    {req.recommendationDetails && (
-                      <div className="mt-3">
-                        <RecommendationBragSheet details={req.recommendationDetails} />
-                      </div>
-                    )}
-
-                    <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 flex-wrap">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">Write this letter on MyCounselor</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Pick an angle, get AI help section by section, and download it when it's ready — no need for Google Docs.
-                        </p>
-                      </div>
-                      <Link href={`/teacher/requests/letter?requestId=${req.id}`}>
-                        <Button size="sm" variant="outline">
-                          {letterDocStatus[req.id] === 'final'
-                            ? 'Letter finalized →'
-                            : letterDocStatus[req.id] === 'drafting'
-                            ? 'Continue writing →'
-                            : 'Write this letter →'}
-                        </Button>
-                      </Link>
-                    </div>
-
-                    {req.response && expandedId !== req.id && (
-                      <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Your response:</p>
-                        <p className="text-sm text-foreground line-clamp-2">{req.response}</p>
-                      </div>
-                    )}
-
-                    {expandedId === req.id && (
-                      <div className="mt-3 space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-1">
-                            Write your response
-                          </label>
-                          <textarea
-                            value={responseText}
-                            onChange={(e) => setResponseText(e.target.value)}
-                            placeholder="Let the student know where things stand..."
-                            rows={3}
-                            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground resize-none"
-                          />
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            isLoading={isSaving}
-                            disabled={!responseText.trim()}
-                            onClick={() => handleSaveResponse(req.id)}
-                          >
-                            Save Response
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleExpand(req)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-2 mt-3">
-                      {expandedId !== req.id && (
-                        <Button size="sm" variant="outline" onClick={() => handleExpand(req)}>
-                          {req.response ? 'Edit Response' : 'Respond'}
-                        </Button>
+                          Due {deadlineMeta.formatted} · {deadlineMeta.relative}
+                        </span>
                       )}
-                      {req.status === 'pending' && (
-                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(req.id, 'in_progress')}>
-                          Mark In Progress
-                        </Button>
-                      )}
-                      {req.status === 'in_progress' && (
-                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(req.id, 'completed')}>
-                          Mark Completed
-                        </Button>
-                      )}
-                      {req.status !== 'completed' && req.status !== 'pending' && req.status !== 'in_progress' && (
-                        <Button size="sm" variant="outline" onClick={() => handleStatusChange(req.id, 'completed')}>
-                          Mark Completed
-                        </Button>
-                      )}
+                      <Badge variant={getStatusVariant(req.status)} size="sm">{getRequestStatusLabel(req.status)}</Badge>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+
+                  {req.description && (
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-muted-foreground">What it's for, in their words</p>
+                      <p className="text-sm text-foreground">{req.description}</p>
+                    </div>
+                  )}
+
+                  {req.recommendationDetails && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => setExpandedNotesId(expandedNotesId === req.id ? null : req.id)}
+                        className="flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700"
+                      >
+                        <svg
+                          className={`w-4 h-4 transition-transform ${expandedNotesId === req.id ? 'rotate-90' : ''}`}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                        {expandedNotesId === req.id ? 'Hide' : 'Read'} what {req.studentName.split(' ')[0]} told you
+                      </button>
+                      {expandedNotesId === req.id && (
+                        <div className="mt-2">
+                          <RecommendationBragSheet details={req.recommendationDetails} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Primary action */}
+                  <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 flex-wrap">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">Write this letter on MyCounselor</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Pick an angle, get AI help section by section, and download it when it's ready.
+                      </p>
+                    </div>
+                    <Link href={`/teacher/requests/letter?requestId=${req.id}`}>
+                      <Button size="sm" variant="primary">
+                        {isFinalized
+                          ? 'Letter finalized →'
+                          : letterDocStatus[req.id] === 'drafting'
+                          ? 'Continue writing →'
+                          : 'Write this letter →'}
+                      </Button>
+                    </Link>
+                  </div>
+
+                  {needsStatusNudge && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-success">
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Letter's done — mark this request completed so it drops off your list.</span>
+                    </div>
+                  )}
+
+                  {req.response && expandedId !== req.id && (
+                    <div className="mt-3 p-3 bg-muted/30 rounded-lg">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Your note to the student:</p>
+                      <p className="text-sm text-foreground line-clamp-2">{req.response}</p>
+                    </div>
+                  )}
+
+                  {expandedId === req.id && (
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1">
+                          Send a quick note to the student
+                        </label>
+                        <textarea
+                          value={responseText}
+                          onChange={(e) => setResponseText(e.target.value)}
+                          placeholder="Let the student know where things stand..."
+                          rows={3}
+                          className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground resize-none"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          isLoading={isSaving}
+                          disabled={!responseText.trim()}
+                          onClick={() => handleSaveResponse(req.id)}
+                        >
+                          Save Note
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleExpand(req)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-border">
+                    {expandedId !== req.id && (
+                      <button
+                        onClick={() => handleExpand(req)}
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        {req.response ? 'Edit your note to the student' : 'Add a note for the student'}
+                      </button>
+                    )}
+                    {req.status === 'pending' && (
+                      <button
+                        onClick={() => handleStatusChange(req.id, 'in_progress')}
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Mark in progress
+                      </button>
+                    )}
+                    {!isDone(req) && req.status !== 'pending' && (
+                      <button
+                        onClick={() => handleStatusChange(req.id, 'completed')}
+                        className={`text-xs font-medium ${needsStatusNudge ? 'text-success hover:text-success/80' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        Mark completed
+                      </button>
+                    )}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
       </ContentCard>
