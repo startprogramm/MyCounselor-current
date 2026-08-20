@@ -365,10 +365,10 @@ export default function TeacherRequestsPage() {
                     <div className="mt-3">
                       <button
                         onClick={() => setExpandedNotesId(expandedNotesId === req.id ? null : req.id)}
-                        className="flex items-center gap-1.5 text-sm font-medium text-amber-600 hover:text-amber-700"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors"
                       >
                         <svg
-                          className={`w-4 h-4 transition-transform ${expandedNotesId === req.id ? 'rotate-90' : ''}`}
+                          className={`w-3.5 h-3.5 transition-transform ${expandedNotesId === req.id ? 'rotate-90' : ''}`}
                           fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         >
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -448,11 +448,11 @@ export default function TeacherRequestsPage() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-border">
+                  <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border">
                     {expandedId !== req.id && (
                       <button
                         onClick={() => handleExpand(req)}
-                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
                       >
                         {req.response ? 'Edit your note to the student' : 'Add a note for the student'}
                       </button>
@@ -460,7 +460,7 @@ export default function TeacherRequestsPage() {
                     {req.status === 'pending' && (
                       <button
                         onClick={() => handleStatusChange(req.id, 'in_progress')}
-                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
                       >
                         Mark in progress
                       </button>
@@ -468,7 +468,11 @@ export default function TeacherRequestsPage() {
                     {!isDone(req) && req.status !== 'pending' && (
                       <button
                         onClick={() => handleStatusChange(req.id, 'completed')}
-                        className={`text-xs font-medium ${needsStatusNudge ? 'text-success hover:text-success/80' : 'text-muted-foreground hover:text-foreground'}`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          needsStatusNudge
+                            ? 'bg-success/10 text-success hover:bg-success/15'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                        }`}
                       >
                         Mark completed
                       </button>
