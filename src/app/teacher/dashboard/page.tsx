@@ -8,6 +8,7 @@ import Badge from '@/components/ui/Badge';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
+import { normalizeRequestStatus } from '@/lib/request-status';
 
 interface RequestSummary {
   id: number;
@@ -16,21 +17,28 @@ interface RequestSummary {
   status: string;
 }
 
-interface Meeting {
+interface ResourceSummary {
   id: number;
   title: string;
-  counselorName: string;
-  date: string;
-  time: string;
-  status: string;
+  category: string;
 }
+
+interface LetterStats {
+  pending: number;
+  inProgress: number;
+  completed: number;
+  total: number;
+}
+
+const EMPTY_LETTER_STATS: LetterStats = { pending: 0, inProgress: 0, completed: 0, total: 0 };
 
 interface TeacherDashboardCachePayload {
   studentCount: number;
   requests: RequestSummary[];
-  meetings: Meeting[];
+  recentResources: ResourceSummary[];
   resourceCount: number;
   counselors: { name: string; title: string }[];
+  letterStats: LetterStats;
 }
 
 const TEACHER_DASHBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -39,9 +47,10 @@ export default function TeacherDashboardPage() {
   const { user, getSchoolStudents, getSchoolCounselors } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
   const [requests, setRequests] = useState<RequestSummary[]>([]);
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [recentResources, setRecentResources] = useState<ResourceSummary[]>([]);
   const [resourceCount, setResourceCount] = useState(0);
   const [counselors, setCounselors] = useState<{ name: string; title: string }[]>([]);
+  const [letterStats, setLetterStats] = useState<LetterStats>(EMPTY_LETTER_STATS);
   const [loadError, setLoadError] = useState('');
   const [hasWarmCache, setHasWarmCache] = useState(false);
   const [isCacheHydrated, setIsCacheHydrated] = useState(false);
@@ -54,9 +63,10 @@ export default function TeacherDashboardPage() {
   const applySnapshot = useCallback((snapshot: TeacherDashboardCachePayload) => {
     setStudentCount(snapshot.studentCount ?? 0);
     setRequests(snapshot.requests || []);
-    setMeetings(snapshot.meetings || []);
+    setRecentResources(snapshot.recentResources || []);
     setResourceCount(snapshot.resourceCount ?? 0);
     setCounselors(snapshot.counselors || []);
+    setLetterStats(snapshot.letterStats || EMPTY_LETTER_STATS);
   }, []);
 
   useLayoutEffect(() => {
@@ -66,9 +76,10 @@ export default function TeacherDashboardPage() {
     if (!cacheKey) {
       setStudentCount(0);
       setRequests([]);
-      setMeetings([]);
+      setRecentResources([]);
       setResourceCount(0);
       setCounselors([]);
+      setLetterStats(EMPTY_LETTER_STATS);
       setLoadError('');
       setHasWarmCache(false);
       setIsCacheHydrated(true);
@@ -94,9 +105,10 @@ export default function TeacherDashboardPage() {
     writeCachedData<TeacherDashboardCachePayload>(cacheKey, {
       studentCount,
       requests,
-      meetings,
+      recentResources,
       resourceCount,
       counselors,
+      letterStats,
     });
   }, [
     cacheKey,
@@ -105,9 +117,10 @@ export default function TeacherDashboardPage() {
     hasLoadedFromServer,
     studentCount,
     requests,
-    meetings,
+    recentResources,
     resourceCount,
     counselors,
+    letterStats,
   ]);
 
   const loadData = useCallback(async () => {
@@ -127,7 +140,7 @@ export default function TeacherDashboardPage() {
     );
 
     // Load recommendation-letter requests directed at this teacher
-    const [requestsResult, meetingsResult, resourcesResult] = await Promise.all([
+    const [requestsResult, resourcesResult, letterStatusResult] = await Promise.all([
       supabase
         .from('requests')
         .select('id,title,status,teacher_id,student_name,student_id,school_id,created_at')
@@ -137,18 +150,18 @@ export default function TeacherDashboardPage() {
         .order('created_at', { ascending: false })
         .limit(5),
       supabase
-        .from('meetings')
-        .select('*')
+        .from('resources')
+        .select('id,title,category', { count: 'exact' })
         .eq('school_id', user.schoolId)
-        .or(`student_id.eq.${user.id},counselor_id.eq.${user.id}`)
-        .in('status', ['pending', 'confirmed'])
+        .eq('status', 'published')
         .order('created_at', { ascending: false })
         .limit(4),
       supabase
-        .from('resources')
-        .select('id', { count: 'exact' })
+        .from('requests')
+        .select('status')
         .eq('school_id', user.schoolId)
-        .eq('status', 'published'),
+        .eq('teacher_id', user.id)
+        .eq('category', 'recommendation'),
     ]);
 
     if (!requestsResult.error && requestsResult.data) {
@@ -164,27 +177,36 @@ export default function TeacherDashboardPage() {
       setLoadError(requestsResult.error.message || 'Unable to load requests.');
     }
 
-    if (!meetingsResult.error && meetingsResult.data) {
-      setMeetings(
-        meetingsResult.data.map((m) => ({
-          id: m.id,
-          title: m.title,
-          counselorName: m.counselor_name,
-          date: m.date,
-          time: m.time,
-          status: m.status,
+    setResourceCount(resourcesResult.count || 0);
+    if (!resourcesResult.error && resourcesResult.data) {
+      setRecentResources(
+        resourcesResult.data.map((r) => ({
+          id: r.id,
+          title: r.title,
+          category: r.category,
         }))
       );
-    } else if (meetingsResult.error) {
-      setLoadError(meetingsResult.error.message || 'Unable to load meetings.');
+      setLoadError('');
+    } else if (resourcesResult.error) {
+      setLoadError(resourcesResult.error.message || 'Unable to load resources.');
     }
 
-    setResourceCount(resourcesResult.count || 0);
-    if (resourcesResult.error) {
-      setLoadError(resourcesResult.error.message || 'Unable to load resources.');
-    } else {
-      setLoadError('');
+    if (!letterStatusResult.error && letterStatusResult.data) {
+      const counts = letterStatusResult.data.reduce(
+        (acc, row) => {
+          const status = normalizeRequestStatus(row.status);
+          if (status === 'pending') acc.pending += 1;
+          else if (status === 'in_progress') acc.inProgress += 1;
+          else acc.completed += 1; // 'completed' and 'approved' both read as done
+          return acc;
+        },
+        { pending: 0, inProgress: 0, completed: 0 }
+      );
+      setLetterStats({ ...counts, total: letterStatusResult.data.length });
+    } else if (letterStatusResult.error) {
+      setLoadError(letterStatusResult.error.message || 'Unable to load letter status.');
     }
+
     setHasLoadedFromServer(true);
   }, [user?.id, user?.schoolId, getSchoolStudents, getSchoolCounselors]);
 
@@ -200,7 +222,8 @@ export default function TeacherDashboardPage() {
     day: 'numeric',
   });
 
-  const pendingRequests = requests.filter(r => r.status === 'pending' || r.status === 'in_progress');
+  const pendingLetterCount = letterStats.pending + letterStats.inProgress;
+  const completedPct = letterStats.total > 0 ? Math.round((letterStats.completed / letterStats.total) * 100) : 0;
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -239,6 +262,8 @@ export default function TeacherDashboardPage() {
         </div>
       )}
 
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Overview</p>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="School Students"
@@ -252,8 +277,8 @@ export default function TeacherDashboardPage() {
         />
         <StatsCard
           title="Pending Requests"
-          value={pendingRequests.length}
-          subtitle={pendingRequests.length > 0 ? `${pendingRequests.length} need attention` : 'All clear'}
+          value={pendingLetterCount}
+          subtitle={pendingLetterCount > 0 ? `${pendingLetterCount} need attention` : 'All clear'}
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
@@ -262,9 +287,9 @@ export default function TeacherDashboardPage() {
           accentColor="destructive"
         />
         <StatsCard
-          title="Upcoming Meetings"
-          value={meetings.length}
-          subtitle={meetings.length > 0 ? 'Scheduled' : 'None scheduled'}
+          title="School Counselors"
+          value={counselors.length}
+          subtitle={counselors.length > 0 ? 'Available to message' : 'None registered'}
           icon={
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -285,12 +310,14 @@ export default function TeacherDashboardPage() {
         />
       </div>
 
-      {/* Main Content Grid */}
+      {/* Recommendation Letters */}
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Your Letters</p>
+
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Requests */}
         <ContentCard
           title="Recent Requests"
-          description="Requests from your students"
+          description="Recommendation letters students have asked you to write"
           action={
             <Link href="/teacher/requests" className="text-sm text-amber-500 hover:text-amber-600">
               View all
@@ -304,6 +331,7 @@ export default function TeacherDashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
               <p className="text-sm text-muted-foreground">No requests yet</p>
+              <p className="text-xs text-muted-foreground mt-1">When a student asks you for a recommendation letter, it'll show up here.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -328,46 +356,84 @@ export default function TeacherDashboardPage() {
           )}
         </ContentCard>
 
-        {/* Upcoming Meetings */}
+        {/* Letters at a Glance */}
+        <ContentCard title="Letters at a Glance" description="Where things stand overall">
+          {letterStats.total === 0 ? (
+            <div className="text-center py-6">
+              <svg className="w-10 h-10 mx-auto text-muted-foreground mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-muted-foreground">Nothing to track yet</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-warning/5 border border-warning/20">
+                  <span className="text-sm text-foreground">Pending</span>
+                  <span className="text-base font-bold text-warning">{letterStats.pending}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                  <span className="text-sm text-foreground">In Progress</span>
+                  <span className="text-base font-bold text-primary">{letterStats.inProgress}</span>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-success/5 border border-success/20">
+                  <span className="text-sm text-foreground">Completed</span>
+                  <span className="text-base font-bold text-success">{letterStats.completed}</span>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-border">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                  <span>Overall progress</span>
+                  <span>{letterStats.completed}/{letterStats.total}</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full bg-success rounded-full transition-all" style={{ width: `${completedPct}%` }} />
+                </div>
+              </div>
+            </>
+          )}
+        </ContentCard>
+      </div>
+
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Your Network &amp; Resources</p>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Recent Resources */}
         <ContentCard
-          title="Upcoming Meetings"
+          title="Recent Resources"
+          description="Shared by your counselors"
           action={
-            <Link href="/teacher/messages" className="text-sm text-amber-500 hover:text-amber-600">
+            <Link href="/teacher/resources" className="text-sm text-amber-500 hover:text-amber-600">
               View all
             </Link>
           }
         >
-          {meetings.length === 0 ? (
+          {recentResources.length === 0 ? (
             <div className="text-center py-6">
               <svg className="w-10 h-10 mx-auto text-muted-foreground mb-2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
-              <p className="text-sm text-muted-foreground">No upcoming meetings</p>
+              <p className="text-sm text-muted-foreground">No resources published yet</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {meetings.map((meeting) => (
+              {recentResources.map((resource) => (
                 <div
-                  key={meeting.id}
+                  key={resource.id}
                   className="p-3 rounded-lg border bg-amber-500/5 border-amber-500/20"
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-medium text-sm text-foreground">{meeting.title}</span>
-                    <Badge variant={meeting.status === 'confirmed' ? 'success' : 'warning'} size="sm">{meeting.status}</Badge>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-sm text-foreground">{resource.title}</span>
+                    <Badge variant="accent" size="sm">{resource.category}</Badge>
                   </div>
-                  <p className="text-sm text-foreground">with {meeting.counselorName}</p>
-                  <p className="text-xs text-muted-foreground">{meeting.date} at {meeting.time}</p>
                 </div>
               ))}
             </div>
           )}
         </ContentCard>
-      </div>
 
-      {/* Bottom Row */}
-      <div className="grid lg:grid-cols-2 gap-6">
         {/* School Counselors */}
-        <ContentCard title="School Counselors">
+        <ContentCard title="School Counselors" description="Reach out anytime">
           {counselors.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No counselors registered yet.</p>
           ) : (
