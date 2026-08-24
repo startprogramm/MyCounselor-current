@@ -8,10 +8,17 @@ import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-cache';
-import { getRequestStatusLabel, normalizeRequestStatus, type RequestStatus } from '@/lib/request-status';
-import { parseRecommendationDetails, type RecommendationDetails } from '@/lib/recommendation-details';
+import {
+  getRequestStatusLabel,
+  normalizeRequestStatus,
+  type RequestStatus,
+} from '@/lib/request-status';
+import {
+  parseRecommendationDetails,
+  type RecommendationDetails,
+} from '@/lib/recommendation-details';
 import { getDeadlineMeta, DEADLINE_TONE_CLASSES } from '@/lib/deadline';
-import RecommendationBragSheet from './RecommendationBragSheet';
+import RecommendationBragSheet from '@/components/recommendation/RecommendationBragSheet';
 
 interface StudentRequest {
   id: number;
@@ -91,7 +98,10 @@ export default function TeacherRequestsPage() {
       return;
     }
 
-    const cached = readCachedData<TeacherRequestsCachePayload>(cacheKey, TEACHER_REQUESTS_CACHE_TTL_MS);
+    const cached = readCachedData<TeacherRequestsCachePayload>(
+      cacheKey,
+      TEACHER_REQUESTS_CACHE_TTL_MS
+    );
     if (cached.found && cached.data) {
       setRequests(cached.data.requests || []);
       setHasWarmCache(true);
@@ -115,7 +125,9 @@ export default function TeacherRequestsPage() {
 
     const { data, error } = await supabase
       .from('requests')
-      .select('id,title,description,status,category,teacher_id,student_name,student_id,school_id,response,recommendation_details,created_at')
+      .select(
+        'id,title,description,status,category,teacher_id,student_name,student_id,school_id,response,recommendation_details,created_at'
+      )
       .eq('school_id', user.schoolId)
       .eq('teacher_id', user.id)
       .eq('category', 'recommendation')
@@ -144,7 +156,10 @@ export default function TeacherRequestsPage() {
       const { data } = await supabase
         .from('recommendation_letter_documents')
         .select('request_id, status')
-        .in('request_id', requests.map((r) => r.id));
+        .in(
+          'request_id',
+          requests.map((r) => r.id)
+        );
       if (!cancelled && data) {
         setLetterDocStatus(Object.fromEntries(data.map((d) => [d.request_id, d.status])));
       }
@@ -178,7 +193,9 @@ export default function TeacherRequestsPage() {
       .from('requests')
       .update(payload)
       .eq('id', id)
-      .select('id,title,description,status,category,teacher_id,student_name,student_id,school_id,response,recommendation_details,created_at')
+      .select(
+        'id,title,description,status,category,teacher_id,student_name,student_id,school_id,response,recommendation_details,created_at'
+      )
       .single();
 
     if (error || !data) {
@@ -217,11 +234,16 @@ export default function TeacherRequestsPage() {
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case 'pending': return 'warning' as const;
-      case 'in_progress': return 'primary' as const;
-      case 'completed': return 'success' as const;
-      case 'approved': return 'success' as const;
-      default: return 'secondary' as const;
+      case 'pending':
+        return 'warning' as const;
+      case 'in_progress':
+        return 'primary' as const;
+      case 'completed':
+        return 'success' as const;
+      case 'approved':
+        return 'success' as const;
+      default:
+        return 'secondary' as const;
     }
   };
 
@@ -230,7 +252,9 @@ export default function TeacherRequestsPage() {
   const completedCount = requests.filter(isDone).length;
 
   const urgencyRank = (r: StudentRequest) => {
-    const meta = r.recommendationDetails?.deadline ? getDeadlineMeta(r.recommendationDetails.deadline) : null;
+    const meta = r.recommendationDetails?.deadline
+      ? getDeadlineMeta(r.recommendationDetails.deadline)
+      : null;
     if (!meta) return 3;
     if (meta.tone === 'overdue') return 0;
     if (meta.tone === 'soon') return 1;
@@ -238,16 +262,22 @@ export default function TeacherRequestsPage() {
   };
 
   const visibleRequests = (
-    filter === 'needs_attention' ? requests.filter((r) => !isDone(r))
-    : filter === 'completed' ? requests.filter(isDone)
-    : requests
-  ).slice().sort((a, b) => urgencyRank(a) - urgencyRank(b));
+    filter === 'needs_attention'
+      ? requests.filter((r) => !isDone(r))
+      : filter === 'completed'
+        ? requests.filter(isDone)
+        : requests
+  )
+    .slice()
+    .sort((a, b) => urgencyRank(a) - urgencyRank(b));
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Requests</h1>
-        <p className="text-muted-foreground mt-1">Recommendation letters your students have asked you to write</p>
+        <p className="text-muted-foreground mt-1">
+          Recommendation letters your students have asked you to write
+        </p>
       </div>
 
       {loadError && (
@@ -270,11 +300,15 @@ export default function TeacherRequestsPage() {
 
       {requests.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {([
-            { key: 'needs_attention' as const, label: 'Needs Attention', count: needsAttentionCount },
+          {[
+            {
+              key: 'needs_attention' as const,
+              label: 'Needs Attention',
+              count: needsAttentionCount,
+            },
             { key: 'completed' as const, label: 'Completed', count: completedCount },
             { key: 'all' as const, label: 'All', count: requests.length },
-          ]).map((tab) => (
+          ].map((tab) => (
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
@@ -285,9 +319,11 @@ export default function TeacherRequestsPage() {
               }`}
             >
               {tab.label}
-              <span className={`px-2 py-0.5 rounded-full text-xs ${
-                filter === tab.key ? 'bg-white/20' : 'bg-background'
-              }`}>
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs ${
+                  filter === tab.key ? 'bg-white/20' : 'bg-background'
+                }`}
+              >
                 {tab.count}
               </span>
             </button>
@@ -298,8 +334,18 @@ export default function TeacherRequestsPage() {
       <ContentCard title="Requests From Students">
         {requests.length === 0 ? (
           <div className="text-center py-8">
-            <svg className="w-10 h-10 mx-auto text-muted-foreground mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            <svg
+              className="w-10 h-10 mx-auto text-muted-foreground mb-3 opacity-50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
             </svg>
             <p className="font-medium text-foreground">No requests yet</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -308,11 +354,23 @@ export default function TeacherRequestsPage() {
           </div>
         ) : visibleRequests.length === 0 ? (
           <div className="text-center py-8">
-            <svg className="w-10 h-10 mx-auto text-success mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-10 h-10 mx-auto text-success mb-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
-            <p className="font-medium text-foreground">You're all caught up</p>
-            <p className="text-sm text-muted-foreground mt-1">No letters need your attention right now.</p>
+            <p className="font-medium text-foreground">You&apos;re all caught up</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              No letters need your attention right now.
+            </p>
             <Button size="sm" variant="outline" className="mt-3" onClick={() => setFilter('all')}>
               View all requests
             </Button>
@@ -332,11 +390,16 @@ export default function TeacherRequestsPage() {
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-10 h-10 flex-shrink-0 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 font-semibold text-sm">
-                        {req.studentName.split(' ').map((n) => n[0]).join('')}
+                        {req.studentName
+                          .split(' ')
+                          .map((n) => n[0])
+                          .join('')}
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-foreground truncate">{req.studentName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{req.title} · Requested {req.createdAt}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {req.title} · Requested {req.createdAt}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -344,19 +407,33 @@ export default function TeacherRequestsPage() {
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium ${DEADLINE_TONE_CLASSES[deadlineMeta.tone]}`}
                         >
-                          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          <svg
+                            className="w-3.5 h-3.5 flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
                           </svg>
                           Due {deadlineMeta.formatted} · {deadlineMeta.relative}
                         </span>
                       )}
-                      <Badge variant={getStatusVariant(req.status)} size="sm">{getRequestStatusLabel(req.status)}</Badge>
+                      <Badge variant={getStatusVariant(req.status)} size="sm">
+                        {getRequestStatusLabel(req.status)}
+                      </Badge>
                     </div>
                   </div>
 
                   {req.description && (
                     <div className="mt-3">
-                      <p className="text-xs font-medium text-muted-foreground">What it's for, in their words</p>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        What it&apos;s for, in their words
+                      </p>
                       <p className="text-sm text-foreground">{req.description}</p>
                     </div>
                   )}
@@ -364,16 +441,26 @@ export default function TeacherRequestsPage() {
                   {req.recommendationDetails && (
                     <div className="mt-3">
                       <button
-                        onClick={() => setExpandedNotesId(expandedNotesId === req.id ? null : req.id)}
+                        onClick={() =>
+                          setExpandedNotesId(expandedNotesId === req.id ? null : req.id)
+                        }
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 transition-colors"
                       >
                         <svg
                           className={`w-3.5 h-3.5 transition-transform ${expandedNotesId === req.id ? 'rotate-90' : ''}`}
-                          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
                         >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
                         </svg>
-                        {expandedNotesId === req.id ? 'Hide' : 'Read'} what {req.studentName.split(' ')[0]} told you
+                        {expandedNotesId === req.id ? 'Hide' : 'Read'} what{' '}
+                        {req.studentName.split(' ')[0]} told you
                       </button>
                       {expandedNotesId === req.id && (
                         <div className="mt-2">
@@ -386,9 +473,12 @@ export default function TeacherRequestsPage() {
                   {/* Primary action */}
                   <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 flex-wrap">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground">Write this letter on MyCounselor</p>
+                      <p className="text-sm font-medium text-foreground">
+                        Write this letter on MyCounselor
+                      </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Pick an angle, get AI help section by section, and download it when it's ready.
+                        Pick an angle, get AI help section by section, and download it when
+                        it&apos;s ready.
                       </p>
                     </div>
                     <Link href={`/teacher/requests/letter?requestId=${req.id}`}>
@@ -396,24 +486,38 @@ export default function TeacherRequestsPage() {
                         {isFinalized
                           ? 'Letter finalized →'
                           : letterDocStatus[req.id] === 'drafting'
-                          ? 'Continue writing →'
-                          : 'Write this letter →'}
+                            ? 'Continue writing →'
+                            : 'Write this letter →'}
                       </Button>
                     </Link>
                   </div>
 
                   {needsStatusNudge && (
                     <div className="mt-2 flex items-center gap-2 text-xs text-success">
-                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <svg
+                        className="w-3.5 h-3.5 flex-shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
                       </svg>
-                      <span>Letter's done — mark this request completed so it drops off your list.</span>
+                      <span>
+                        Letter&apos;s done — mark this request completed so it drops off your list.
+                      </span>
                     </div>
                   )}
 
                   {req.response && expandedId !== req.id && (
                     <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Your note to the student:</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        Your note to the student:
+                      </p>
                       <p className="text-sm text-foreground line-clamp-2">{req.response}</p>
                     </div>
                   )}
@@ -454,7 +558,9 @@ export default function TeacherRequestsPage() {
                         onClick={() => handleExpand(req)}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
                       >
-                        {req.response ? 'Edit your note to the student' : 'Add a note for the student'}
+                        {req.response
+                          ? 'Edit your note to the student'
+                          : 'Add a note for the student'}
                       </button>
                     )}
                     {req.status === 'pending' && (

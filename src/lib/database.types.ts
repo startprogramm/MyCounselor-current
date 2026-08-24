@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   public: {
@@ -463,7 +457,8 @@ export type Database = {
         Row: {
           id: number;
           request_id: number;
-          teacher_id: string;
+          teacher_id: string | null;
+          counselor_id: string | null;
           student_id: string;
           school_id: string;
           angle: 'academic' | 'leadership' | 'challenge' | 'well_rounded' | null;
@@ -480,7 +475,8 @@ export type Database = {
         Insert: {
           id?: number;
           request_id: number;
-          teacher_id: string;
+          teacher_id?: string | null;
+          counselor_id?: string | null;
           student_id: string;
           school_id: string;
           angle?: 'academic' | 'leadership' | 'challenge' | 'well_rounded' | null;
@@ -497,7 +493,8 @@ export type Database = {
         Update: {
           id?: number;
           request_id?: number;
-          teacher_id?: string;
+          teacher_id?: string | null;
+          counselor_id?: string | null;
           student_id?: string;
           school_id?: string;
           angle?: 'academic' | 'leadership' | 'challenge' | 'well_rounded' | null;

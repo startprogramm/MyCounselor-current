@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -17,7 +18,10 @@ import {
   normalizeRequestStatus,
   type RequestStatus,
 } from '@/lib/request-status';
-import { parseRecommendationDetails, type RecommendationDetails } from '@/lib/recommendation-details';
+import {
+  parseRecommendationDetails,
+  type RecommendationDetails,
+} from '@/lib/recommendation-details';
 import {
   getDocumentTypeLabel,
   parseDocumentRequestDetails,
@@ -134,6 +138,8 @@ export default function CounselorTasksPage() {
   const [saveSuccess, setSaveSuccess] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isDrafting, setIsDrafting] = useState(false);
+  const [draftError, setDraftError] = useState('');
   const [pendingUploadCount, setPendingUploadCount] = useState(0);
   const [hasWarmCache, setHasWarmCache] = useState(false);
   const [isCacheHydrated, setIsCacheHydrated] = useState(false);
@@ -271,7 +277,8 @@ export default function CounselorTasksPage() {
 
     if (updates.status !== undefined) payload.status = updates.status;
     if (updates.response !== undefined) payload.response = updates.response || null;
-    if (updates.documents !== undefined) payload.documents = toRequestDocumentsJson(updates.documents);
+    if (updates.documents !== undefined)
+      payload.documents = toRequestDocumentsJson(updates.documents);
 
     const { data, error } = await supabase
       .from('requests')
@@ -289,9 +296,7 @@ export default function CounselorTasksPage() {
 
     const mappedRequest = mapRequest(data);
     setHasLoadedFromServer(true);
-    setRequests((prev) =>
-      prev.map((request) => (request.id === id ? mappedRequest : request))
-    );
+    setRequests((prev) => prev.map((request) => (request.id === id ? mappedRequest : request)));
 
     return { ok: true };
   };
@@ -299,6 +304,7 @@ export default function CounselorTasksPage() {
   const handleExpand = (request: CounselingRequest) => {
     setSaveError('');
     setUploadError('');
+    setDraftError('');
 
     if (expandedId === request.id) {
       setExpandedId(null);
@@ -308,6 +314,28 @@ export default function CounselorTasksPage() {
       setExpandedId(request.id);
       setResponseText(request.response || '');
       setPendingDocs(request.documents || []);
+    }
+  };
+
+  const handleDraftWithAI = async (requestId: number) => {
+    setDraftError('');
+    setIsDrafting(true);
+    try {
+      const res = await fetch('/api/ai-request-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        setDraftError(result.error || 'Unable to draft a reply.');
+        return;
+      }
+      setResponseText(result.content || '');
+    } catch {
+      setDraftError('Unable to draft a reply. Check your connection and try again.');
+    } finally {
+      setIsDrafting(false);
     }
   };
 
@@ -405,11 +433,16 @@ export default function CounselorTasksPage() {
 
   const getStatusColor = (status: RequestStatus) => {
     switch (status) {
-      case 'pending': return 'bg-warning/10 text-warning border-warning/20';
-      case 'in_progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'approved': return 'bg-success/10 text-success border-success/20';
-      case 'completed': return 'bg-muted text-muted-foreground border-border';
-      default: return 'bg-muted text-muted-foreground border-border';
+      case 'pending':
+        return 'bg-warning/10 text-warning border-warning/20';
+      case 'in_progress':
+        return 'bg-primary/10 text-primary border-primary/20';
+      case 'approved':
+        return 'bg-success/10 text-success border-success/20';
+      case 'completed':
+        return 'bg-muted text-muted-foreground border-border';
+      default:
+        return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -418,37 +451,67 @@ export default function CounselorTasksPage() {
       case 'college':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+            />
           </svg>
         );
       case 'academic':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+            />
           </svg>
         );
       case 'career':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            />
           </svg>
         );
       case 'personal':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+            />
           </svg>
         );
       case DOCUMENT_REQUEST_CATEGORY:
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2-8H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V9.828a2 2 0 00-.586-1.414l-3.828-3.828A2 2 0 0013.172 4z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 10v6m0 0l-3-3m3 3l3-3m2-8H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V9.828a2 2 0 00-.586-1.414l-3.828-3.828A2 2 0 0013.172 4z"
+            />
           </svg>
         );
       default:
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
         );
     }
@@ -462,21 +525,22 @@ export default function CounselorTasksPage() {
     return 'FILE';
   };
 
-  const filteredRequests = (filter === 'all'
-    ? requests
-    : requests.filter(r => r.status === filter)
-  ).slice().sort((a, b) => {
-    if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
-    return 0;
-  });
+  const filteredRequests = (
+    filter === 'all' ? requests : requests.filter((r) => r.status === filter)
+  )
+    .slice()
+    .sort((a, b) => {
+      if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
+      return 0;
+    });
   const hasAnyRequests = requests.length > 0;
 
   const taskCounts = {
     all: requests.length,
-    pending: requests.filter(r => r.status === 'pending').length,
-    in_progress: requests.filter(r => r.status === 'in_progress').length,
-    approved: requests.filter(r => r.status === 'approved').length,
-    completed: requests.filter(r => r.status === 'completed').length,
+    pending: requests.filter((r) => r.status === 'pending').length,
+    in_progress: requests.filter((r) => r.status === 'in_progress').length,
+    approved: requests.filter((r) => r.status === 'approved').length,
+    completed: requests.filter((r) => r.status === 'completed').length,
   };
 
   return (
@@ -484,22 +548,33 @@ export default function CounselorTasksPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">
-            Tasks
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage student requests and tasks
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Tasks</h1>
+          <p className="text-muted-foreground mt-1">Manage student requests and tasks</p>
         </div>
       </div>
 
       {loadError && (
         <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-          <svg className="w-5 h-5 text-destructive flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z" />
+          <svg
+            className="w-5 h-5 text-destructive flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z"
+            />
           </svg>
           <p className="text-sm text-destructive font-medium">{loadError}</p>
-          <Button size="sm" variant="outline" className="ml-auto" onClick={() => void loadRequests()}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            onClick={() => void loadRequests()}
+          >
             Retry
           </Button>
         </div>
@@ -507,13 +582,31 @@ export default function CounselorTasksPage() {
 
       {saveError && (
         <div className="flex items-center gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-          <svg className="w-5 h-5 text-destructive flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z" />
+          <svg
+            className="w-5 h-5 text-destructive flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-2.5L13.73 4.5c-.77-.83-2.69-.83-3.46 0L3.34 16.5c-.77.83.19 2.5 1.73 2.5z"
+            />
           </svg>
           <p className="text-sm text-destructive font-medium">{saveError}</p>
-          <button onClick={() => setSaveError('')} className="ml-auto text-destructive hover:text-destructive/80">
+          <button
+            onClick={() => setSaveError('')}
+            className="ml-auto text-destructive hover:text-destructive/80"
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -521,13 +614,26 @@ export default function CounselorTasksPage() {
 
       {saveSuccess && (
         <div className="flex items-center gap-3 p-4 bg-success/10 border border-success/20 rounded-lg">
-          <svg className="w-5 h-5 text-success flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg
+            className="w-5 h-5 text-success flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
           <p className="text-sm text-success font-medium">{saveSuccess}</p>
-          <button onClick={() => setSaveSuccess('')} className="ml-auto text-success hover:text-success/80">
+          <button
+            onClick={() => setSaveSuccess('')}
+            className="ml-auto text-success hover:text-success/80"
+          >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -546,9 +652,11 @@ export default function CounselorTasksPage() {
             }`}
           >
             {status === 'all' ? 'All Tasks' : getRequestStatusLabel(status)}
-            <span className={`px-2 py-0.5 rounded-full text-xs ${
-              filter === status ? 'bg-primary-foreground/20' : 'bg-background'
-            }`}>
+            <span
+              className={`px-2 py-0.5 rounded-full text-xs ${
+                filter === status ? 'bg-primary-foreground/20' : 'bg-background'
+              }`}
+            >
               {taskCounts[status]}
             </span>
           </button>
@@ -567,16 +675,27 @@ export default function CounselorTasksPage() {
           <div
             key={request.id}
             className={`bg-card rounded-xl border p-5 transition-all ${
-              request.status === 'completed' ? 'border-border opacity-60' : 'border-border hover:border-primary/20 hover:shadow-md'
+              request.status === 'completed'
+                ? 'border-border opacity-60'
+                : 'border-border hover:border-primary/20 hover:shadow-md'
             }`}
           >
             <div className="flex items-start gap-4">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                request.status === 'completed' ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
-              }`}>
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  request.status === 'completed'
+                    ? 'bg-success/10 text-success'
+                    : 'bg-primary/10 text-primary'
+                }`}
+              >
                 {request.status === 'completed' ? (
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 ) : (
                   getCategoryIcon(request.category)
@@ -586,7 +705,9 @@ export default function CounselorTasksPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className={`font-semibold ${request.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                      <h3
+                        className={`font-semibold ${request.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}
+                      >
                         {request.title}
                       </h3>
                       {request.isUrgent && (
@@ -600,7 +721,9 @@ export default function CounselorTasksPage() {
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">{request.description}</p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(request.status)}`}>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(request.status)}`}
+                  >
                     {getRequestStatusLabel(request.status)}
                   </span>
                 </div>
@@ -614,59 +737,90 @@ export default function CounselorTasksPage() {
                     <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
                       {request.recommendationDetails.courses && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">How they know you / course(s)</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.courses}</dd>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            How they know you / course(s)
+                          </dt>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.courses}
+                          </dd>
                         </div>
                       )}
                       {request.recommendationDetails.deadline && (
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">Deadline</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.deadline}</dd>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.deadline}
+                          </dd>
                         </div>
                       )}
                       {request.recommendationDetails.reasonForChoosing && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Why they chose you</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.reasonForChoosing}</dd>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Why they chose you
+                          </dt>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.reasonForChoosing}
+                          </dd>
                         </div>
                       )}
                       {request.recommendationDetails.adjectives.length > 0 && (
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">Three words</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.adjectives.join(', ')}</dd>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.adjectives.join(', ')}
+                          </dd>
                         </div>
                       )}
                       {request.recommendationDetails.proudProject && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Proud project</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.proudProject}</dd>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Proud project
+                          </dt>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.proudProject}
+                          </dd>
                         </div>
                       )}
                       {request.recommendationDetails.favoriteLesson && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Favorite lesson / conversation</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.favoriteLesson}</dd>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Favorite lesson / conversation
+                          </dt>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.favoriteLesson}
+                          </dd>
                         </div>
                       )}
                       {request.recommendationDetails.attributes.length > 0 && (
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">
-                            Qualities to highlight: {request.recommendationDetails.attributes.join(', ')}
+                            Qualities to highlight:{' '}
+                            {request.recommendationDetails.attributes.join(', ')}
                           </dt>
-                          <dd className="text-foreground">{request.recommendationDetails.attributeStory}</dd>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.attributeStory}
+                          </dd>
                         </div>
                       )}
                       {request.recommendationDetails.somethingTheyDontKnow && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">They might not know</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.somethingTheyDontKnow}</dd>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            They might not know
+                          </dt>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.somethingTheyDontKnow}
+                          </dd>
                         </div>
                       )}
-                      {(request.recommendationDetails.targetColleges || request.recommendationDetails.intendedMajor) && (
+                      {(request.recommendationDetails.targetColleges ||
+                        request.recommendationDetails.intendedMajor) && (
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">Applying to</dt>
                           <dd className="text-foreground">
-                            {[request.recommendationDetails.targetColleges, request.recommendationDetails.intendedMajor]
+                            {[
+                              request.recommendationDetails.targetColleges,
+                              request.recommendationDetails.intendedMajor,
+                            ]
                               .filter(Boolean)
                               .join(' · ')}
                           </dd>
@@ -674,8 +828,12 @@ export default function CounselorTasksPage() {
                       )}
                       {request.recommendationDetails.additionalInfo && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
-                          <dd className="text-foreground">{request.recommendationDetails.additionalInfo}</dd>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Additional info
+                          </dt>
+                          <dd className="text-foreground">
+                            {request.recommendationDetails.additionalInfo}
+                          </dd>
                         </div>
                       )}
                     </dl>
@@ -683,41 +841,52 @@ export default function CounselorTasksPage() {
                 )}
 
                 {/* Document/transcript request details the student shared */}
-                {request.category === DOCUMENT_REQUEST_CATEGORY && request.documentRequestDetails && (
-                  <details className="mt-3 group">
-                    <summary className="text-xs font-medium text-primary cursor-pointer select-none">
-                      View request details
-                    </summary>
-                    <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
-                      {request.documentRequestDetails.documentType && (
-                        <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Document</dt>
-                          <dd className="text-foreground">
-                            {getDocumentTypeLabel(request.documentRequestDetails.documentType)}
-                          </dd>
-                        </div>
-                      )}
-                      {request.documentRequestDetails.destination && (
-                        <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Destination</dt>
-                          <dd className="text-foreground">{request.documentRequestDetails.destination}</dd>
-                        </div>
-                      )}
-                      {request.documentRequestDetails.deadline && (
-                        <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Needed by</dt>
-                          <dd className="text-foreground">{request.documentRequestDetails.deadline}</dd>
-                        </div>
-                      )}
-                      {request.documentRequestDetails.additionalInfo && (
-                        <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Additional info</dt>
-                          <dd className="text-foreground">{request.documentRequestDetails.additionalInfo}</dd>
-                        </div>
-                      )}
-                    </dl>
-                  </details>
-                )}
+                {request.category === DOCUMENT_REQUEST_CATEGORY &&
+                  request.documentRequestDetails && (
+                    <details className="mt-3 group">
+                      <summary className="text-xs font-medium text-primary cursor-pointer select-none">
+                        View request details
+                      </summary>
+                      <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
+                        {request.documentRequestDetails.documentType && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Document</dt>
+                            <dd className="text-foreground">
+                              {getDocumentTypeLabel(request.documentRequestDetails.documentType)}
+                            </dd>
+                          </div>
+                        )}
+                        {request.documentRequestDetails.destination && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">
+                              Destination
+                            </dt>
+                            <dd className="text-foreground">
+                              {request.documentRequestDetails.destination}
+                            </dd>
+                          </div>
+                        )}
+                        {request.documentRequestDetails.deadline && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">Needed by</dt>
+                            <dd className="text-foreground">
+                              {request.documentRequestDetails.deadline}
+                            </dd>
+                          </div>
+                        )}
+                        {request.documentRequestDetails.additionalInfo && (
+                          <div>
+                            <dt className="text-xs font-medium text-muted-foreground">
+                              Additional info
+                            </dt>
+                            <dd className="text-foreground">
+                              {request.documentRequestDetails.additionalInfo}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                    </details>
+                  )}
 
                 {/* Academic support details the student shared */}
                 {request.category === ACADEMIC_CATEGORY && request.academicSupportDetails && (
@@ -728,7 +897,9 @@ export default function CounselorTasksPage() {
                     <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
                       {request.academicSupportDetails.helpType && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Kind of help</dt>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Kind of help
+                          </dt>
                           <dd className="text-foreground">
                             {getAcademicHelpTypeLabel(request.academicSupportDetails.helpType)}
                           </dd>
@@ -736,8 +907,12 @@ export default function CounselorTasksPage() {
                       )}
                       {request.academicSupportDetails.subject && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Subject / course</dt>
-                          <dd className="text-foreground">{request.academicSupportDetails.subject}</dd>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Subject / course
+                          </dt>
+                          <dd className="text-foreground">
+                            {request.academicSupportDetails.subject}
+                          </dd>
                         </div>
                       )}
                     </dl>
@@ -753,7 +928,9 @@ export default function CounselorTasksPage() {
                     <dl className="mt-2 space-y-2 p-3 bg-muted/20 border border-border rounded-lg text-sm">
                       {request.collegePlanningDetails.helpType && (
                         <div>
-                          <dt className="text-xs font-medium text-muted-foreground">Kind of help</dt>
+                          <dt className="text-xs font-medium text-muted-foreground">
+                            Kind of help
+                          </dt>
                           <dd className="text-foreground">
                             {getCollegeHelpTypeLabel(request.collegePlanningDetails.helpType)}
                           </dd>
@@ -762,7 +939,9 @@ export default function CounselorTasksPage() {
                       {request.collegePlanningDetails.colleges && (
                         <div>
                           <dt className="text-xs font-medium text-muted-foreground">Colleges</dt>
-                          <dd className="text-foreground">{request.collegePlanningDetails.colleges}</dd>
+                          <dd className="text-foreground">
+                            {request.collegePlanningDetails.colleges}
+                          </dd>
                         </div>
                       )}
                     </dl>
@@ -776,7 +955,8 @@ export default function CounselorTasksPage() {
                     <p className="text-sm text-foreground line-clamp-2">{request.response}</p>
                     {request.documents && request.documents.length > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {request.documents.length} document{request.documents.length > 1 ? 's' : ''} attached
+                        {request.documents.length} document{request.documents.length > 1 ? 's' : ''}{' '}
+                        attached
                       </p>
                     )}
                   </div>
@@ -787,12 +967,28 @@ export default function CounselorTasksPage() {
                   <div className="mt-4 space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
                     {request.category === DOCUMENT_REQUEST_CATEGORY && (
                       <p className="text-xs text-muted-foreground">
-                        Attach the document below to fulfill this request — the student will be able to download it.
+                        Attach the document below to fulfill this request — the student will be able
+                        to download it.
                       </p>
                     )}
-                    <label className="block text-sm font-medium text-foreground">
-                      Write your response
-                    </label>
+                    <div className="flex items-center justify-between gap-3">
+                      <label className="block text-sm font-medium text-foreground">
+                        Write your response
+                      </label>
+                      {request.category !== RECOMMENDATION_CATEGORY && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDraftWithAI(request.id)}
+                          isLoading={isDrafting}
+                          disabled={isDrafting || isSaving}
+                        >
+                          Draft with AI
+                        </Button>
+                      )}
+                    </div>
+                    {draftError && <p className="text-sm text-destructive">{draftError}</p>}
                     <textarea
                       value={responseText}
                       onChange={(e) => setResponseText(e.target.value)}
@@ -801,9 +997,7 @@ export default function CounselorTasksPage() {
                       className="w-full px-4 py-3 rounded-lg border border-input bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y text-sm"
                     />
 
-                    {uploadError && (
-                      <p className="text-sm text-destructive">{uploadError}</p>
-                    )}
+                    {uploadError && <p className="text-sm text-destructive">{uploadError}</p>}
 
                     {pendingUploadCount > 0 && (
                       <p className="text-sm text-muted-foreground">
@@ -824,7 +1018,9 @@ export default function CounselorTasksPage() {
                               {getFileIcon(doc.type)}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {doc.name}
+                              </p>
                               <p className="text-xs text-muted-foreground">{doc.uploadedAt}</p>
                             </div>
                             <button
@@ -832,8 +1028,18 @@ export default function CounselorTasksPage() {
                               className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
                               disabled={pendingUploadCount > 0}
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
                               </svg>
                             </button>
                           </div>
@@ -859,8 +1065,18 @@ export default function CounselorTasksPage() {
                           onClick={() => fileInputRef.current?.click()}
                           disabled={pendingUploadCount > 0 || isSaving}
                         >
-                          <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                            />
                           </svg>
                           Attach File
                         </Button>
@@ -885,11 +1101,24 @@ export default function CounselorTasksPage() {
                           type="button"
                           size="sm"
                           onClick={() => handleSaveResponse(request.id)}
-                          disabled={(!responseText.trim() && pendingDocs.length === 0) || pendingUploadCount > 0}
+                          disabled={
+                            (!responseText.trim() && pendingDocs.length === 0) ||
+                            pendingUploadCount > 0
+                          }
                           isLoading={isSaving}
                         >
-                          <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          <svg
+                            className="w-4 h-4 mr-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                            />
                           </svg>
                           Save Response
                         </Button>
@@ -901,44 +1130,110 @@ export default function CounselorTasksPage() {
                 <div className="flex items-center justify-between mt-4">
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                        />
                       </svg>
                       {request.category}
                     </span>
                     <span className="flex items-center gap-1">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
                       </svg>
                       {request.createdAt}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    {request.status !== 'completed' && expandedId !== request.id && (
+                    {request.status !== 'completed' &&
+                      request.category === RECOMMENDATION_CATEGORY && (
+                        <Link href={`/counselor/tasks/letter?requestId=${request.id}`}>
+                          <Button size="sm" variant="outline">
+                            <svg
+                              className="w-4 h-4 mr-1"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                            Write this letter
+                          </Button>
+                        </Link>
+                      )}
+                    {request.status !== 'completed' &&
+                      request.category !== RECOMMENDATION_CATEGORY &&
+                      expandedId !== request.id && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleExpand(request)}
+                          disabled={isSaving}
+                        >
+                          <svg
+                            className="w-4 h-4 mr-1"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                          {request.response ? 'Edit Response' : 'Respond'}
+                        </Button>
+                      )}
+                    {request.status === 'pending' && (
                       <Button
                         size="sm"
-                        variant="outline"
-                        onClick={() => handleExpand(request)}
+                        onClick={() => handleStatusChange(request.id, 'in_progress')}
                         disabled={isSaving}
                       >
-                        <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        {request.response ? 'Edit Response' : 'Respond'}
-                      </Button>
-                    )}
-                    {request.status === 'pending' && (
-                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'in_progress')} disabled={isSaving}>
                         Start
                       </Button>
                     )}
                     {request.status === 'in_progress' && (
-                      <Button size="sm" onClick={() => handleStatusChange(request.id, 'approved')} disabled={isSaving}>
+                      <Button
+                        size="sm"
+                        onClick={() => handleStatusChange(request.id, 'approved')}
+                        disabled={isSaving}
+                      >
                         Approve
                       </Button>
                     )}
                     {request.status === 'approved' && (
-                      <Button size="sm" variant="outline" onClick={() => handleStatusChange(request.id, 'completed')} disabled={isSaving}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleStatusChange(request.id, 'completed')}
+                        disabled={isSaving}
+                      >
                         Complete
                       </Button>
                     )}
@@ -958,7 +1253,12 @@ export default function CounselorTasksPage() {
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+            />
           </svg>
           {filter === 'all' ? (
             <>
@@ -992,4 +1292,3 @@ export default function CounselorTasksPage() {
     </div>
   );
 }
-

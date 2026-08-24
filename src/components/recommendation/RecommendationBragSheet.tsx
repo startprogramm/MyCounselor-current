@@ -16,11 +16,15 @@ export default function RecommendationBragSheet({ details }: RecommendationBragS
 
       {(details.courses || details.reasonForChoosing) && (
         <div className="p-3 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">Context</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+            Context
+          </p>
           {details.courses && (
             <div>
               <p className="text-xs font-medium text-foreground">Course(s) taken with you</p>
-              <p className="text-[11px] text-muted-foreground">So you can recall which class and when</p>
+              <p className="text-[11px] text-muted-foreground">
+                So you can recall which class and when
+              </p>
               <p className="text-foreground mt-0.5">{details.courses}</p>
             </div>
           )}
@@ -44,29 +48,39 @@ export default function RecommendationBragSheet({ details }: RecommendationBragS
           </p>
           {details.adjectives.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-foreground">How they'd describe themselves</p>
+              <p className="text-xs font-medium text-foreground">
+                How they&apos;d describe themselves
+              </p>
               <p className="text-foreground mt-0.5">{details.adjectives.join(', ')}</p>
             </div>
           )}
           {details.proudProject && (
             <div>
-              <p className="text-xs font-medium text-foreground">A project or piece of work they're proud of</p>
+              <p className="text-xs font-medium text-foreground">
+                A project or piece of work they&apos;re proud of
+              </p>
               <p className="text-[11px] text-muted-foreground">A concrete example you can cite</p>
               <p className="text-foreground mt-0.5">{details.proudProject}</p>
             </div>
           )}
           {details.favoriteLesson && (
             <div>
-              <p className="text-xs font-medium text-foreground">A lesson or moment in your class they enjoyed</p>
+              <p className="text-xs font-medium text-foreground">
+                A lesson or moment in your class they enjoyed
+              </p>
               <p className="text-foreground mt-0.5">{details.favoriteLesson}</p>
             </div>
           )}
           {details.attributes.length > 0 && (
             <div>
-              <p className="text-xs font-medium text-foreground mb-1.5">Qualities they'd like you to highlight</p>
+              <p className="text-xs font-medium text-foreground mb-1.5">
+                Qualities they&apos;d like you to highlight
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {details.attributes.map((attribute) => (
-                  <Badge key={attribute} variant="secondary" size="sm">{attribute}</Badge>
+                  <Badge key={attribute} variant="secondary" size="sm">
+                    {attribute}
+                  </Badge>
                 ))}
               </div>
               {details.attributeStory && (
@@ -79,7 +93,9 @@ export default function RecommendationBragSheet({ details }: RecommendationBragS
           )}
           {details.somethingTheyDontKnow && (
             <div>
-              <p className="text-xs font-medium text-foreground">Something they think you might not know</p>
+              <p className="text-xs font-medium text-foreground">
+                Something they think you might not know
+              </p>
               <p className="text-[11px] text-muted-foreground">A personal detail to add color</p>
               <p className="text-foreground mt-0.5">{details.somethingTheyDontKnow}</p>
             </div>
@@ -89,11 +105,15 @@ export default function RecommendationBragSheet({ details }: RecommendationBragS
 
       {(details.targetColleges || details.intendedMajor || details.additionalInfo) && (
         <div className="p-3 space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">Where this is going</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+            Where this is going
+          </p>
           {(details.targetColleges || details.intendedMajor) && (
             <div>
               <p className="text-xs font-medium text-foreground">Applying to</p>
-              <p className="text-[11px] text-muted-foreground">Tailor examples toward these, if relevant</p>
+              <p className="text-[11px] text-muted-foreground">
+                Tailor examples toward these, if relevant
+              </p>
               <p className="text-foreground mt-0.5">
                 {[details.targetColleges, details.intendedMajor].filter(Boolean).join(' · ')}
               </p>

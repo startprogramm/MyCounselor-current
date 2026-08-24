@@ -3,24 +3,21 @@
 // Google Docs, and Pages all open it fine and it stays fully editable.
 
 function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export interface RecommendationLetterDocParams {
   studentName: string;
-  teacherName: string;
-  teacherSubject?: string;
+  authorName: string;
+  authorSubject?: string;
   schoolName?: string;
   bodyText: string;
 }
 
 export function downloadRecommendationLetterDoc({
   studentName,
-  teacherName,
-  teacherSubject,
+  authorName,
+  authorSubject,
   schoolName,
   bodyText,
 }: RecommendationLetterDocParams) {
@@ -37,7 +34,10 @@ export function downloadRecommendationLetterDoc({
     .map((p) => `<p style="margin:0 0 12pt 0;">${escapeHtml(p).replace(/\n/g, '<br/>')}</p>`)
     .join('\n');
 
-  const signatureLine = [teacherName, teacherSubject, schoolName].filter(Boolean).map(escapeHtml).join('<br/>');
+  const signatureLine = [authorName, authorSubject, schoolName]
+    .filter((value): value is string => Boolean(value))
+    .map(escapeHtml)
+    .join('<br/>');
 
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Recommendation Letter</title></head>
