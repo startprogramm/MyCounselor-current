@@ -79,6 +79,20 @@ const parentNavItems: SidebarItem[] = [
       </svg>
     ),
   },
+  {
+    label: 'Surveys',
+    href: '/parent/surveys',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export default function ParentLayout({ children }: { children: React.ReactNode }) {
@@ -88,6 +102,7 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
 
   const isFullyApproved = user?.studentConfirmed === true && user?.approved === true;
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [pendingSurveys, setPendingSurveys] = useState(0);
   const shouldPauseBadgePolling = pathname.startsWith('/parent/messages');
 
   useEffect(() => {
@@ -157,14 +172,29 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
     setUnreadMessages(totalUnread);
   }, [user?.id, user?.schoolId]);
 
+  const computePendingSurveys = useCallback(async () => {
+    if (!user?.id || !user?.schoolId) return;
+
+    const [{ data: surveyRows }, { data: surveyReceiptRows }] = await Promise.all([
+      supabase.from('surveys').select('id').eq('school_id', user.schoolId).eq('status', 'published'),
+      supabase.from('survey_receipts').select('survey_id').eq('respondent_id', user.id),
+    ]);
+    const respondedSurveyIds = new Set((surveyReceiptRows || []).map((row) => row.survey_id));
+    setPendingSurveys((surveyRows || []).filter((row) => !respondedSurveyIds.has(row.id)).length);
+  }, [user?.id, user?.schoolId]);
+
   useEffect(() => {
     if (!user?.id || !isFullyApproved) return;
 
     void computeUnreadMessages();
+    void computePendingSurveys();
     if (shouldPauseBadgePolling) return;
 
-    return startVisibilityAwarePolling(() => computeUnreadMessages(), 20000);
-  }, [user?.id, isFullyApproved, computeUnreadMessages, shouldPauseBadgePolling]);
+    return startVisibilityAwarePolling(() => {
+      void computeUnreadMessages();
+      void computePendingSurveys();
+    }, 20000);
+  }, [user?.id, isFullyApproved, computeUnreadMessages, computePendingSurveys, shouldPauseBadgePolling]);
 
   if (isLoading) {
     return (
@@ -182,11 +212,11 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
   }
 
   const visibleNavItems = isFullyApproved
-    ? parentNavItems.map((item) =>
-        item.href === '/parent/messages'
-          ? { ...item, badge: unreadMessages || undefined }
-          : item
-      )
+    ? parentNavItems.map((item) => {
+        if (item.href === '/parent/messages') return { ...item, badge: unreadMessages || undefined };
+        if (item.href === '/parent/surveys') return { ...item, badge: pendingSurveys || undefined };
+        return item;
+      })
     : parentNavItems.filter(item => item.href === '/parent/dashboard');
 
   return (

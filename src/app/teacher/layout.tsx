@@ -80,6 +80,20 @@ const teacherNavItems: SidebarItem[] = [
     ),
   },
   {
+    label: 'Surveys',
+    href: '/teacher/surveys',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+    ),
+  },
+  {
     label: 'Reports',
     href: '/teacher/reports',
     icon: (
@@ -101,6 +115,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [pendingSurveys, setPendingSurveys] = useState(0);
   const shouldPauseMessagesPolling = pathname.startsWith('/teacher/messages');
   const shouldPauseRequestsPolling = pathname.startsWith('/teacher/requests');
 
@@ -178,6 +193,17 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     if (!error) setPendingRequests(count || 0);
   }, [user?.id, user?.schoolId]);
 
+  const computePendingSurveys = useCallback(async () => {
+    if (!user?.id || !user?.schoolId) return;
+
+    const [{ data: surveyRows }, { data: surveyReceiptRows }] = await Promise.all([
+      supabase.from('surveys').select('id').eq('school_id', user.schoolId).eq('status', 'published'),
+      supabase.from('survey_receipts').select('survey_id').eq('respondent_id', user.id),
+    ]);
+    const respondedSurveyIds = new Set((surveyReceiptRows || []).map((row) => row.survey_id));
+    setPendingSurveys((surveyRows || []).filter((row) => !respondedSurveyIds.has(row.id)).length);
+  }, [user?.id, user?.schoolId]);
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -195,6 +221,13 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
     return startVisibilityAwarePolling(() => computePendingRequests(), 20000);
   }, [user?.id, computePendingRequests, shouldPauseRequestsPolling]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    void computePendingSurveys();
+    return startVisibilityAwarePolling(() => computePendingSurveys(), 20000);
+  }, [user?.id, computePendingSurveys]);
 
   if (isLoading) {
     return (
@@ -214,6 +247,7 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
   const visibleNavItems = teacherNavItems.map((item) => {
     if (item.href === '/teacher/messages') return { ...item, badge: unreadMessages || undefined };
     if (item.href === '/teacher/requests') return { ...item, badge: pendingRequests || undefined };
+    if (item.href === '/teacher/surveys') return { ...item, badge: pendingSurveys || undefined };
     return item;
   });
 

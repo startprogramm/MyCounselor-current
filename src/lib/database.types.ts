@@ -336,6 +336,99 @@ export type Database = {
         };
         Relationships: [];
       };
+      surveys: {
+        Row: {
+          id: number;
+          counselor_id: string;
+          school_id: string;
+          title: string;
+          description: string;
+          questions: Json;
+          target_roles: string[];
+          target_grades: string[] | null;
+          anonymous: boolean;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          counselor_id: string;
+          school_id: string;
+          title: string;
+          description?: string;
+          questions?: Json;
+          target_roles?: string[];
+          target_grades?: string[] | null;
+          anonymous?: boolean;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          counselor_id?: string;
+          school_id?: string;
+          title?: string;
+          description?: string;
+          questions?: Json;
+          target_roles?: string[];
+          target_grades?: string[] | null;
+          anonymous?: boolean;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      survey_responses: {
+        Row: {
+          id: number;
+          survey_id: number;
+          respondent_id: string | null;
+          respondent_role: string;
+          answers: Json;
+          submitted_at: string;
+        };
+        Insert: {
+          id?: number;
+          survey_id: number;
+          respondent_id?: string | null;
+          respondent_role: string;
+          answers?: Json;
+          submitted_at?: string;
+        };
+        Update: {
+          id?: number;
+          survey_id?: number;
+          respondent_id?: string | null;
+          respondent_role?: string;
+          answers?: Json;
+          submitted_at?: string;
+        };
+        Relationships: [];
+      };
+      survey_receipts: {
+        Row: {
+          id: number;
+          survey_id: number;
+          respondent_id: string;
+          responded_at: string;
+        };
+        Insert: {
+          id?: number;
+          survey_id: number;
+          respondent_id: string;
+          responded_at?: string;
+        };
+        Update: {
+          id?: number;
+          survey_id?: number;
+          respondent_id?: string;
+          responded_at?: string;
+        };
+        Relationships: [];
+      };
       student_academic_profiles: {
         Row: {
           id: string;

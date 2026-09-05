@@ -80,6 +80,20 @@ const studentNavItems: SidebarItem[] = [
     ),
   },
   {
+    label: 'Surveys',
+    href: '/student/surveys',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
+      </svg>
+    ),
+  },
+  {
     label: 'AI Tools',
     href: '/student/tools',
     icon: (
@@ -187,6 +201,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
       if (totalUnread > 0) counts['/student/messages'] = totalUnread;
     }
+
+    const [{ data: surveyRows }, { data: surveyReceiptRows }] = await Promise.all([
+      supabase.from('surveys').select('id').eq('school_id', user.schoolId).eq('status', 'published'),
+      supabase.from('survey_receipts').select('survey_id').eq('respondent_id', user.id),
+    ]);
+    const respondedSurveyIds = new Set((surveyReceiptRows || []).map((row) => row.survey_id));
+    const pendingSurveys = (surveyRows || []).filter((row) => !respondedSurveyIds.has(row.id)).length;
+    if (pendingSurveys > 0) counts['/student/surveys'] = pendingSurveys;
 
     setBadgeCounts(counts);
   }, [user, isApproved]);
