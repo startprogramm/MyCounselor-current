@@ -429,6 +429,45 @@ export type Database = {
         };
         Relationships: [];
       };
+      career_assessment_results: {
+        Row: {
+          id: number;
+          student_id: string;
+          school_id: string;
+          assessment_type: string;
+          grade_level: string | null;
+          answers: Json;
+          scores: Json;
+          headline: string;
+          completed_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          student_id: string;
+          school_id: string;
+          assessment_type: string;
+          grade_level?: string | null;
+          answers?: Json;
+          scores?: Json;
+          headline?: string;
+          completed_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          student_id?: string;
+          school_id?: string;
+          assessment_type?: string;
+          grade_level?: string | null;
+          answers?: Json;
+          scores?: Json;
+          headline?: string;
+          completed_at?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       student_academic_profiles: {
         Row: {
           id: string;

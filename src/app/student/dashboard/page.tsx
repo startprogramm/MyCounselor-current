@@ -17,6 +17,7 @@ import {
   normalizeRequestStatus,
   type RequestStatus,
 } from '@/lib/request-status';
+import { gradeToAssessmentType, ASSESSMENT_META } from '@/lib/career-assessment';
 
 interface CounselingRequest {
   id: number;
@@ -72,6 +73,7 @@ interface StudentDashboardCachePayload {
   teachers: User[];
   parents: User[];
   pendingParents: PendingParent[];
+  careerAssessmentCompleted: boolean;
 }
 
 const STUDENT_DASHBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
@@ -188,6 +190,7 @@ export default function StudentDashboardPage() {
   const [teachers, setTeachers] = useState<User[]>([]);
   const [parents, setParents] = useState<User[]>([]);
   const [pendingParents, setPendingParents] = useState<PendingParent[]>([]);
+  const [careerAssessmentCompleted, setCareerAssessmentCompleted] = useState(false);
   const [hasWarmCache, setHasWarmCache] = useState(false);
   const [isCacheHydrated, setIsCacheHydrated] = useState(false);
   const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
@@ -213,6 +216,7 @@ export default function StudentDashboardPage() {
     setTeachers(snapshot.teachers || []);
     setParents(snapshot.parents || []);
     setPendingParents(snapshot.pendingParents || []);
+    setCareerAssessmentCompleted(snapshot.careerAssessmentCompleted || false);
   }, []);
 
   useLayoutEffect(() => {
@@ -229,6 +233,7 @@ export default function StudentDashboardPage() {
       setTeachers([]);
       setParents([]);
       setPendingParents([]);
+      setCareerAssessmentCompleted(false);
       setHasWarmCache(false);
       setIsCacheHydrated(true);
       return;
@@ -264,6 +269,7 @@ export default function StudentDashboardPage() {
       teachers,
       parents,
       pendingParents,
+      careerAssessmentCompleted,
     });
   }, [
     cacheKey,
@@ -279,6 +285,7 @@ export default function StudentDashboardPage() {
     teachers,
     parents,
     pendingParents,
+    careerAssessmentCompleted,
   ]);
 
   const loadDashboardData = useCallback(async () => {
@@ -296,7 +303,18 @@ export default function StudentDashboardPage() {
           .order('created_at', { ascending: false })
           .limit(4);
 
-      const [requestsResult, meetingsResult, goalsResult, supportUsersResult, resourcesResult] =
+      const careerAssessmentType = gradeToAssessmentType(user.gradeLevel);
+      const fetchCareerAssessment = async () =>
+        careerAssessmentType
+          ? supabase
+              .from('career_assessment_results')
+              .select('id')
+              .eq('student_id', user.id)
+              .eq('assessment_type', careerAssessmentType)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null });
+
+      const [requestsResult, meetingsResult, goalsResult, supportUsersResult, resourcesResult, careerAssessmentResult] =
         await Promise.all([
         supabase
           .from('requests')
@@ -319,9 +337,12 @@ export default function StudentDashboardPage() {
           .eq('school_id', user.schoolId)
           .in('role', ['counselor', 'teacher', 'parent']),
         fetchResources(),
+        fetchCareerAssessment(),
       ]);
 
       if (dashboardLoadIdRef.current !== requestId) return;
+
+      setCareerAssessmentCompleted(!!careerAssessmentResult.data);
 
       if (!resourcesResult.error && resourcesResult.data) {
         let mappedGuidance = resourcesResult.data.map((row) => ({
@@ -498,7 +519,7 @@ export default function StudentDashboardPage() {
         }
       }
       setHasLoadedFromServer(true);
-  }, [user?.approved, user?.firstName, user?.id, user?.lastName, user?.schoolId]);
+  }, [user?.approved, user?.firstName, user?.id, user?.lastName, user?.schoolId, user?.gradeLevel]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -786,6 +807,52 @@ export default function StudentDashboardPage() {
           </Link>
         ))}
       </div>
+
+      {/* Career Assessment banner */}
+      {(() => {
+        const careerAssessmentType = gradeToAssessmentType(user?.gradeLevel);
+        if (!careerAssessmentType) return null;
+        const meta = ASSESSMENT_META[careerAssessmentType];
+        return (
+          <Card className="p-0 overflow-hidden border-0" hover>
+            <div className="relative bg-gradient-to-r from-violet-600 to-indigo-600 p-6 sm:p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-6">
+                <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-lg sm:text-xl font-bold text-white font-heading">{meta.title}</h2>
+                    {!careerAssessmentCompleted && (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-white text-violet-700">
+                        Yangi!
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-white/85 text-sm mt-1">
+                    {careerAssessmentCompleted
+                      ? "Siz bu testni topshirdingiz. Natijalaringizni ko'ring yoki qayta topshiring."
+                      : `${meta.subtitle} — kelajakdagi kasb tanlovingizga yordam beradigan qisqa test.`}
+                  </p>
+                </div>
+                <Link href="/student/career-assessment" className="flex-shrink-0">
+                  <Button className="bg-white text-violet-700 hover:bg-white/90" size="lg">
+                    {careerAssessmentCompleted ? "Natijalarni ko'rish" : 'Testni boshlash'}
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        );
+      })()}
 
       {/* Profile Puzzle */}
       <ProfilePuzzle />
