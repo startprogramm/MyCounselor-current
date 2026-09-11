@@ -313,28 +313,57 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
   const handleDeleteMessage = async (messageId: number) => {
     if (!selectedChat) return;
 
+    // Save original messages for rollback
+    const originalMessages = selectedChat.messages;
+
+    // Optimistic update
     setCounselorChats((prev) =>
       prev.map((c) =>
         c.counselor.id === selectedChat.counselor.id
           ? {
               ...c,
-              messages: c.messages.map((m) => (m.id === messageId ? { ...m, isDeleted: true } : m)),
+              messages: c.messages.map((m) =>
+                m.id === messageId ? { ...m, isDeleted: true } : m
+              ),
             }
           : c
       )
     );
+    setSendError(null);
 
+    // Try soft-delete first (requires migration)
     const deletePayload: Database['public']['Tables']['messages']['Update'] = { is_deleted: true };
-    const { error } = await supabase
+    const { error: softError } = await supabase
       .from('messages')
       .update(deletePayload)
       .eq('id', messageId);
 
-    if (error) {
-      setSendError('Failed to delete message.');
+    if (!softError) {
+      await loadChats();
+      return;
     }
-    await loadChats();
+
+    // Fallback: hard DELETE for messages created before the migration was applied
+    const { error: hardError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId);
+
+    if (hardError) {
+      // Both failed — revert optimistic update
+      setCounselorChats((prev) =>
+        prev.map((c) =>
+          c.counselor.id === selectedChat.counselor.id
+            ? { ...c, messages: originalMessages }
+            : c
+        )
+      );
+      setSendError('Failed to delete message. Please try again.');
+    } else {
+      await loadChats();
+    }
   };
+
 
   const handleSelect = (id: string) => {
     setSelectedCounselorId(id);

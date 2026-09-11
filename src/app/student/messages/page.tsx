@@ -493,10 +493,12 @@ function StudentMessagesPageInner() {
 
     if (editingMessage) {
       const updatedContent = text.trim();
+      const originalContent = editingMessage.content;
       setEditingMessage(null);
       setNewMessage('');
       setSendError(null);
 
+      // Optimistic update
       setConversations((previous) =>
         previous.map((conversation) => {
           if (conversation.id === selectedConversation.id) {
@@ -522,11 +524,26 @@ function StudentMessagesPageInner() {
         .eq('id', editingMessage.id);
 
       if (error) {
-        setSendError('Failed to save message edit.');
+        // Revert optimistic edit if DB update fails
+        setConversations((previous) =>
+          previous.map((conversation) => {
+            if (conversation.id === selectedConversation.id) {
+              return {
+                ...conversation,
+                messages: conversation.messages.map((m) =>
+                  m.id === editingMessage.id ? { ...m, content: originalContent, isEdited: false } : m
+                ),
+              };
+            }
+            return conversation;
+          })
+        );
+        setSendError('Failed to save edit. Please try again.');
       }
       await loadConversations({ silent: true });
       return;
     }
+
 
     const optimisticId = Date.now();
     const nowIso = new Date().toISOString();
@@ -586,29 +603,62 @@ function StudentMessagesPageInner() {
   const handleDeleteMessage = async (messageId: number) => {
     if (!selectedConversation) return;
 
+    // Save original messages for potential rollback
+    const originalMessages = conversations.find(
+      (c) => c.id === selectedConversation.id
+    )?.messages ?? [];
+
+    // Optimistic update
     setConversations((previous) =>
       previous.map((conversation) => {
         if (conversation.id === selectedConversation.id) {
           return {
             ...conversation,
-            messages: conversation.messages.map((m) => (m.id === messageId ? { ...m, isDeleted: true } : m)),
+            messages: conversation.messages.map((m) =>
+              m.id === messageId ? { ...m, isDeleted: true } : m
+            ),
           };
         }
         return conversation;
       })
     );
+    setSendError(null);
 
+    // First try soft-delete (requires migration to be applied)
     const deletePayload: Database['public']['Tables']['messages']['Update'] = { is_deleted: true };
-    const { error } = await supabase
+    const { error: softError } = await supabase
       .from('messages')
       .update(deletePayload)
       .eq('id', messageId);
 
-    if (error) {
-      setSendError('Failed to delete message.');
+    if (!softError) {
+      await loadConversations({ silent: true });
+      return;
     }
-    await loadConversations({ silent: true });
+
+    // Soft-delete failed — likely because migration hasn't been applied yet.
+    // Fall back to a hard (physical) DELETE so old messages can still be removed.
+    const { error: hardError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId);
+
+    if (hardError) {
+      // Both failed — revert the optimistic update
+      setConversations((previous) =>
+        previous.map((conversation) => {
+          if (conversation.id === selectedConversation.id) {
+            return { ...conversation, messages: originalMessages };
+          }
+          return conversation;
+        })
+      );
+      setSendError('Failed to delete message. Please try again.');
+    } else {
+      await loadConversations({ silent: true });
+    }
   };
+
 
   const handleSelectConversation = (conversationId: number) => {
     setSelectedConvId(conversationId);

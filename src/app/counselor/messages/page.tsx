@@ -721,30 +721,58 @@ export default function CounselorMessagesPage() {
   const handleDeleteMessage = async (messageId: number) => {
     if (!selectedChat) return;
 
-    const softDeleteMessage = (prev: ContactChat[]) =>
+    // Save original messages for rollback
+    const originalMessages = selectedChat.messages;
+
+    const applyDelete = (prev: ContactChat[]) =>
       prev.map((c) =>
         c.contact.id === selectedChat.contact.id
           ? {
               ...c,
-              messages: c.messages.map((m) => (m.id === messageId ? { ...m, isDeleted: true } : m)),
+              messages: c.messages.map((m) =>
+                m.id === messageId ? { ...m, isDeleted: true } : m
+              ),
             }
           : c
       );
 
-    if (activeTab === 'students') setStudentChats(softDeleteMessage);
-    else if (activeTab === 'teachers') setTeacherChats(softDeleteMessage);
-    else setParentChats(softDeleteMessage);
+    const revert = (prev: ContactChat[]) =>
+      prev.map((c) =>
+        c.contact.id === selectedChat.contact.id
+          ? { ...c, messages: originalMessages }
+          : c
+      );
 
+    // Optimistic update
+    if (activeTab === 'students') setStudentChats(applyDelete);
+    else if (activeTab === 'teachers') setTeacherChats(applyDelete);
+    else setParentChats(applyDelete);
+    setSendError(null);
+
+    // Try soft-delete first (requires migration)
     const deletePayload: Database['public']['Tables']['messages']['Update'] = { is_deleted: true };
-    const { error } = await supabase
+    const { error: softError } = await supabase
       .from('messages')
       .update(deletePayload)
       .eq('id', messageId);
 
-    if (error) {
-      setSendError('Failed to delete message.');
+    if (!softError) return;
+
+    // Fallback: hard DELETE for messages before migration was applied
+    const { error: hardError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId);
+
+    if (hardError) {
+      // Both failed — revert optimistic update
+      if (activeTab === 'students') setStudentChats(revert);
+      else if (activeTab === 'teachers') setTeacherChats(revert);
+      else setParentChats(revert);
+      setSendError('Failed to delete message. Please try again.');
     }
   };
+
 
   const handleSelectContact = (contactId: string) => {
     if (activeTab === 'students') setSelectedStudentId(contactId);
