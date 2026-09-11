@@ -10,6 +10,7 @@ import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-
 import { isSameCalendarDay } from '@/lib/chat-date';
 import ChatDateDivider from '@/components/messaging/ChatDateDivider';
 import MessageComposer from '@/components/messaging/MessageComposer';
+import ChatMessageBubble, { ChatMessageItemData, MessageAttachment } from '@/components/messaging/ChatMessageBubble';
 
 interface Message {
   id: number;
@@ -17,6 +18,9 @@ interface Message {
   content: string;
   timestamp: string;
   createdAt: string;
+  attachments?: MessageAttachment[];
+  isEdited?: boolean;
+  isDeleted?: boolean;
 }
 
 interface MessageRow {
@@ -25,6 +29,9 @@ interface MessageRow {
   sender_role: string;
   content: string;
   created_at: string;
+  attachments?: MessageAttachment[];
+  is_edited?: boolean;
+  is_deleted?: boolean;
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -83,62 +90,56 @@ function mapProfileToUser(profile: ProfileRow): User {
   };
 }
 
-// ─── Tab config ───────────────────────────────────────────────────────────────
 const TABS: { key: TabType; label: string; role: 'student' | 'teacher' | 'parent' }[] = [
   { key: 'students', label: 'Students', role: 'student' },
   { key: 'teachers', label: 'Teachers', role: 'teacher' },
-  { key: 'parents',  label: 'Parents',  role: 'parent'  },
+  { key: 'parents', label: 'Parents', role: 'parent' },
 ];
 
 export default function CounselorMessagesPage() {
   const { user } = useAuth();
 
-  // ─── Tab state ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<TabType>('students');
 
-  // ─── Per-tab chat lists ─────────────────────────────────────────────────────
   const [studentChats, setStudentChats] = useState<ContactChat[]>([]);
   const [teacherChats, setTeacherChats] = useState<ContactChat[]>([]);
-  const [parentChats,  setParentChats]  = useState<ContactChat[]>([]);
+  const [parentChats, setParentChats] = useState<ContactChat[]>([]);
 
-  // ─── Per-tab selected contact ───────────────────────────────────────────────
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
-  const [selectedParentId,  setSelectedParentId]  = useState<string | null>(null);
+  const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
 
-  // ─── Loading / error ────────────────────────────────────────────────────────
+  const [isLoadingStudents, setIsLoadingStudents] = useState(true);
+  const [hasLoadedStudents, setHasLoadedStudents] = useState(false);
+  const [isLoadingTeachers, setIsLoadingTeachers] = useState(false);
+  const [isLoadingParents, setIsLoadingParents] = useState(false);
+
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [isLoadingChats, setIsLoadingChats] = useState(true);
-  const [hasLoadedChats, setHasLoadedChats] = useState(false);
-
-  // ─── Misc ───────────────────────────────────────────────────────────────────
   const [newMessage, setNewMessage] = useState('');
+  const [editingMessage, setEditingMessage] = useState<{ id: number; content: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
+
   const loadRequestIdRef = useRef(0);
+  const selectedStudentIdRef = useRef<string | null>(null);
   const studentChatsRef = useRef<ContactChat[]>([]);
   const emptyChatsStreakRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const cacheKey = useMemo(
-    () => (user?.id ? makeUserCacheKey('counselor-messages-v2', user.id, user.schoolId) : null),
+    () => (user?.id ? makeUserCacheKey('counselor-messages', user.id, user.schoolId) : null),
     [user?.id, user?.schoolId]
   );
 
-  // ─── Derived active-tab helpers ─────────────────────────────────────────────
-  const activeChats = useMemo(() => {
-    if (activeTab === 'students') return studentChats;
-    if (activeTab === 'teachers') return teacherChats;
-    return parentChats;
-  }, [activeTab, studentChats, teacherChats, parentChats]);
+  useEffect(() => {
+    selectedStudentIdRef.current = selectedStudentId;
+  }, [selectedStudentId]);
 
-  const activeSelectedId =
-    activeTab === 'students' ? selectedStudentId :
-    activeTab === 'teachers' ? selectedTeacherId :
-    selectedParentId;
+  useEffect(() => {
+    studentChatsRef.current = studentChats;
+  }, [studentChats]);
 
-  // ─── Cache hydration ────────────────────────────────────────────────────────
   useLayoutEffect(() => {
     if (!cacheKey) {
       setStudentChats([]);
@@ -147,8 +148,8 @@ export default function CounselorMessagesPage() {
       setSelectedStudentId(null);
       setSelectedTeacherId(null);
       setSelectedParentId(null);
-      setIsLoadingChats(true);
-      setHasLoadedChats(false);
+      setIsLoadingStudents(true);
+      setHasLoadedStudents(false);
       return;
     }
 
@@ -158,56 +159,103 @@ export default function CounselorMessagesPage() {
     setSelectedStudentId(null);
     setSelectedTeacherId(null);
     setSelectedParentId(null);
-    setIsLoadingChats(true);
-    setHasLoadedChats(false);
+    setIsLoadingStudents(true);
+    setHasLoadedStudents(false);
 
     const cached = readCachedData<CounselorMessagesCachePayload>(
       cacheKey,
       COUNSELOR_MESSAGES_CACHE_TTL_MS
     );
+
     if (!cached.found || !cached.data) return;
 
-    const { studentChats: sc = [], teacherChats: tc = [], parentChats: pc = [],
-            selectedStudentId: sid = null, selectedTeacherId: tid = null, selectedParentId: pid = null } =
-      cached.data;
+    const cStudents = cached.data.studentChats || [];
+    const cTeachers = cached.data.teacherChats || [];
+    const cParents = cached.data.parentChats || [];
 
-    setStudentChats(sc);
-    setTeacherChats(tc);
-    setParentChats(pc);
-    setSelectedStudentId(sid && sc.some(c => c.contact.id === sid) ? sid : sc[0]?.contact.id || null);
-    setSelectedTeacherId(tid && tc.some(c => c.contact.id === tid) ? tid : tc[0]?.contact.id || null);
-    setSelectedParentId(pid  && pc.some(c => c.contact.id === pid)  ? pid  : pc[0]?.contact.id  || null);
-    setIsLoadingChats(false);
-    setHasLoadedChats(true);
+    setStudentChats(cStudents);
+    setTeacherChats(cTeachers);
+    setParentChats(cParents);
+
+    const sId = cached.data.selectedStudentId;
+    const tId = cached.data.selectedTeacherId;
+    const pId = cached.data.selectedParentId;
+
+    setSelectedStudentId(sId && cStudents.some((c) => c.contact.id === sId) ? sId : cStudents[0]?.contact.id || null);
+    setSelectedTeacherId(tId && cTeachers.some((c) => c.contact.id === tId) ? tId : cTeachers[0]?.contact.id || null);
+    setSelectedParentId(pId && cParents.some((c) => c.contact.id === pId) ? pId : cParents[0]?.contact.id || null);
+
+    setIsLoadingStudents(false);
+    setHasLoadedStudents(true);
   }, [cacheKey]);
 
   useEffect(() => {
-    studentChatsRef.current = studentChats;
-  }, [studentChats]);
+    if (!cacheKey || !hasLoadedStudents) return;
 
-  // ─── Persist to cache when data changes ─────────────────────────────────────
-  useEffect(() => {
-    if (!cacheKey || !hasLoadedChats) return;
     writeCachedData<CounselorMessagesCachePayload>(cacheKey, {
-      studentChats, teacherChats, parentChats,
-      selectedStudentId, selectedTeacherId, selectedParentId,
+      studentChats,
+      teacherChats,
+      parentChats,
+      selectedStudentId,
+      selectedTeacherId,
+      selectedParentId,
     });
-  }, [cacheKey, studentChats, teacherChats, parentChats,
-      selectedStudentId, selectedTeacherId, selectedParentId, hasLoadedChats]);
+  }, [
+    cacheKey,
+    studentChats,
+    teacherChats,
+    parentChats,
+    selectedStudentId,
+    selectedTeacherId,
+    selectedParentId,
+    hasLoadedStudents,
+  ]);
 
-  // ─── Mark conversation as read ───────────────────────────────────────────────
+  const activeChats = useMemo(() => {
+    if (activeTab === 'students') return studentChats;
+    if (activeTab === 'teachers') return teacherChats;
+    return parentChats;
+  }, [activeTab, studentChats, teacherChats, parentChats]);
+
+  const selectedContactId = useMemo(() => {
+    if (activeTab === 'students') return selectedStudentId;
+    if (activeTab === 'teachers') return selectedTeacherId;
+    return selectedParentId;
+  }, [activeTab, selectedStudentId, selectedTeacherId, selectedParentId]);
+
+  const selectedChat = useMemo(() => {
+    if (!selectedContactId) return null;
+    return activeChats.find((c) => c.contact.id === selectedContactId) || null;
+  }, [activeChats, selectedContactId]);
+
+  const filteredChats = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return activeChats;
+    return activeChats.filter((c) => {
+      const fullName = `${c.contact.firstName} ${c.contact.lastName}`.toLowerCase();
+      const email = c.contact.email.toLowerCase();
+      const lastMsg = c.lastMessage.toLowerCase();
+      return fullName.includes(q) || email.includes(q) || lastMsg.includes(q);
+    });
+  }, [activeChats, searchQuery]);
+
   const markConversationAsRead = useCallback(
     async (conversationKey: string, tab: TabType) => {
-      if (!user?.id) return;
+      if (!conversationKey || !user?.id) return;
       const now = new Date().toISOString();
       const { error } = await supabase.from('message_reads').upsert(
-        { conversation_key: conversationKey, reader_id: user.id, last_read_at: now, updated_at: now },
+        {
+          conversation_key: conversationKey,
+          reader_id: user.id,
+          last_read_at: now,
+          updated_at: now,
+        },
         { onConflict: 'conversation_key,reader_id' }
       );
       if (error) return;
 
-      const clearUnread = (chats: ContactChat[]) =>
-        chats.map(c => c.conversationKey === conversationKey ? { ...c, unread: 0 } : c);
+      const clearUnread = (prev: ContactChat[]) =>
+        prev.map((c) => (c.conversationKey === conversationKey ? { ...c, unread: 0 } : c));
 
       if (tab === 'students') setStudentChats(clearUnread);
       else if (tab === 'teachers') setTeacherChats(clearUnread);
@@ -216,298 +264,419 @@ export default function CounselorMessagesPage() {
     [user?.id]
   );
 
-  // ─── Generic chat loader ─────────────────────────────────────────────────────
-  const loadContactChats = useCallback(async (
-    role: 'student' | 'teacher' | 'parent',
-    setChats: React.Dispatch<React.SetStateAction<ContactChat[]>>,
-    setSelectedId: React.Dispatch<React.SetStateAction<string | null>>,
-    options?: { silent?: boolean }
-  ) => {
-    if (!user?.schoolId || !user?.id) return;
+  const loadContactChats = useCallback(
+    async (
+      contactRole: 'teacher' | 'parent',
+      setChats: React.Dispatch<React.SetStateAction<ContactChat[]>>,
+      setSelectedId: React.Dispatch<React.SetStateAction<string | null>>
+    ) => {
+      if (!user?.id || !user?.schoolId) return;
 
-    const [{ data: contactRows, error: contactsError }, ] = await Promise.all([
-      supabase.from('profiles').select('*').eq('school_id', user.schoolId).eq('role', role),
-    ]);
+      const { data: contactRows } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .eq('role', contactRole)
+        .eq('approved', true);
 
-    if (contactsError) return;
+      const contacts = (contactRows || []).map(mapProfileToUser);
+      if (contacts.length === 0) {
+        setChats([]);
+        setSelectedId(null);
+        return;
+      }
 
-    const contacts = (contactRows || []).map(mapProfileToUser);
-    if (contacts.length === 0) {
-      setChats([]);
-      return;
-    }
+      const keys = contacts.map((c) => buildConversationKey(c.id, user.id));
 
-    const keys = contacts.map(c => buildConversationKey(c.id, user.id));
+      const [{ data: messageRows }, { data: readRows }] = await Promise.all([
+        supabase.from('messages').select('*').in('conversation_key', keys).order('created_at', { ascending: true }),
+        supabase.from('message_reads').select('conversation_key,last_read_at').eq('reader_id', user.id).in('conversation_key', keys),
+      ]);
 
-    const [{ data: messageRows }, { data: readRows }] = await Promise.all([
-      supabase.from('messages').select('*').in('conversation_key', keys).order('created_at', { ascending: true }),
-      supabase.from('message_reads').select('conversation_key,last_read_at').eq('reader_id', user.id).in('conversation_key', keys),
-    ]);
+      const grouped = new Map<string, MessageRow[]>();
+      (messageRows || []).forEach((row) => {
+        const bucket = grouped.get(row.conversation_key) || [];
+        bucket.push(row as unknown as MessageRow);
+        grouped.set(row.conversation_key, bucket);
+      });
 
-    const grouped = new Map<string, MessageRow[]>();
-    (messageRows || []).forEach(row => {
-      const bucket = grouped.get(row.conversation_key) || [];
-      bucket.push(row as MessageRow);
-      grouped.set(row.conversation_key, bucket);
-    });
+      const readMap = new Map<string, string>();
+      (readRows || []).forEach((row) => readMap.set(row.conversation_key, row.last_read_at));
 
-    const readByConversation = new Map<string, string>();
-    (readRows || []).forEach(row => {
-      readByConversation.set(row.conversation_key, row.last_read_at);
-    });
+      const chats: ContactChat[] = contacts.map((contact) => {
+        const conversationKey = buildConversationKey(contact.id, user.id);
+        const rows = grouped.get(conversationKey) || [];
+        const lastReadAt = readMap.get(conversationKey);
+        const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
 
-    const chats: ContactChat[] = contacts.map(contact => {
-      const conversationKey = buildConversationKey(contact.id, user.id);
-      const rows = grouped.get(conversationKey) || [];
-      const lastReadAt = readByConversation.get(conversationKey);
-      const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
+        const messages: Message[] = rows.map((row) => ({
+          id: row.id,
+          sender: row.sender_role === 'counselor' ? 'counselor' : 'contact',
+          content: row.content,
+          timestamp: formatMessageTime(row.created_at),
+          createdAt: row.created_at,
+          attachments: (row.attachments as unknown as MessageAttachment[]) || [],
+          isEdited: Boolean(row.is_edited),
+          isDeleted: Boolean(row.is_deleted),
+        }));
 
-      const messages: Message[] = rows.map(row => ({
-        id: (row as MessageRow).id,
-        sender: (row as MessageRow).sender_role === 'counselor' ? 'counselor' : 'contact',
-        content: (row as MessageRow).content,
-        timestamp: formatMessageTime((row as MessageRow).created_at),
-        createdAt: (row as MessageRow).created_at,
-      }));
+        const activeMessages = messages.filter((m) => !m.isDeleted);
+        const lastMessage = activeMessages[activeMessages.length - 1] || messages[messages.length - 1];
+        const unread = rows.filter(
+          (row) =>
+            row.sender_role !== 'counselor' &&
+            (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
+        ).length;
 
-      const lastMessage = messages[messages.length - 1];
-      const unread = rows.filter(row =>
-        (row as MessageRow).sender_role !== 'counselor' &&
-        (lastReadMs === 0 || new Date((row as MessageRow).created_at).getTime() > lastReadMs)
-      ).length;
+        let lastText = 'No messages yet';
+        if (lastMessage) {
+          if (lastMessage.isDeleted) {
+            lastText = 'This message was deleted';
+          } else if (lastMessage.content) {
+            lastText = lastMessage.content;
+          } else if (lastMessage.attachments?.length) {
+            lastText = '[Attachment]';
+          }
+        }
 
-      return {
-        contact,
-        conversationKey,
-        messages,
-        unread,
-        lastMessage: lastMessage?.content || 'No messages yet',
-        timestamp: lastMessage?.timestamp || '',
-      };
-    });
+        return {
+          contact,
+          conversationKey,
+          messages,
+          unread,
+          lastMessage: lastText,
+          timestamp: lastMessage?.timestamp || '',
+        };
+      });
 
-    chats.sort((a, b) => {
-      const aHas = a.messages.length > 0;
-      const bHas = b.messages.length > 0;
-      if (aHas && !bHas) return -1;
-      if (!aHas && bHas) return 1;
-      if (aHas && bHas) return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
-      return a.contact.firstName.localeCompare(b.contact.firstName);
-    });
+      chats.sort((a, b) => {
+        const aHas = a.messages.length > 0;
+        const bHas = b.messages.length > 0;
+        if (aHas && !bHas) return -1;
+        if (!aHas && bHas) return 1;
+        if (aHas && bHas) return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
+        return a.contact.firstName.localeCompare(b.contact.firstName);
+      });
 
-    setChats(chats);
-    setSelectedId(prev => (prev && chats.some(c => c.contact.id === prev)) ? prev : chats[0]?.contact.id || null);
-  }, [user?.id, user?.schoolId]);
+      setChats(chats);
+      setSelectedId((prev) => (prev && chats.some((c) => c.contact.id === prev) ? prev : chats[0]?.contact.id || null));
+    },
+    [user?.id, user?.schoolId]
+  );
 
-  // ─── Student-specific loader (keeps the existing robust fallback logic) ──────
   const shouldPreserveStudentChats = useCallback(() => {
     if (studentChatsRef.current.length === 0) return false;
     emptyChatsStreakRef.current += 1;
     return emptyChatsStreakRef.current < 2;
   }, []);
 
-  const loadStudentChats = useCallback(async (options?: { silent?: boolean }) => {
-    const requestId = loadRequestIdRef.current + 1;
-    loadRequestIdRef.current = requestId;
+  const loadStudentChats = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const requestId = loadRequestIdRef.current + 1;
+      loadRequestIdRef.current = requestId;
 
-    if (!options?.silent) setIsLoadingChats(true);
+      const silent = options?.silent === true;
+      if (!silent) setIsLoadingStudents(true);
 
-    const finish = () => {
-      if (loadRequestIdRef.current !== requestId) return;
-      setIsLoadingChats(false);
-      setHasLoadedChats(true);
-    };
-
-    if (!user?.schoolId || !user?.id) {
-      if (loadRequestIdRef.current === requestId) {
-        setStudentChats([]);
-        setSelectedStudentId(null);
-        setLoadError(null);
-      }
-      finish();
-      return;
-    }
-
-    const { data: studentRows, error: studentsError } = await supabase
-      .from('profiles').select('*').eq('school_id', user.schoolId).eq('role', 'student');
-
-    if (studentsError) {
-      if (loadRequestIdRef.current === requestId)
-        setLoadError('Unable to load students right now. Please refresh and try again.');
-      finish();
-      return;
-    }
-
-    let schoolStudents = (studentRows || []).map(mapProfileToUser);
-    let messageRows: MessageRow[] = [];
-
-    if (schoolStudents.length === 0) {
-      const { data: fallbackMessages, error: fallbackError } = await supabase
-        .from('messages').select('*').ilike('conversation_key', `%${user.id}%`).order('created_at', { ascending: true });
-
-      if (fallbackError || !fallbackMessages || fallbackMessages.length === 0) {
-        if (shouldPreserveStudentChats()) { finish(); return; }
-        if (loadRequestIdRef.current === requestId) { setStudentChats([]); setLoadError(null); }
-        finish();
-        return;
-      }
-
-      const fallbackIds = Array.from(new Set(
-        fallbackMessages.map(r => r.conversation_key.split('__')).flat().filter(id => id !== user.id)
-      ));
-
-      if (fallbackIds.length === 0) {
-        if (shouldPreserveStudentChats()) { finish(); return; }
-        if (loadRequestIdRef.current === requestId) { setStudentChats([]); setLoadError(null); }
-        finish();
-        return;
-      }
-
-      const { data: fallbackStudents, error: fallbackStudentsError } = await supabase
-        .from('profiles').select('*').eq('role', 'student').in('id', fallbackIds);
-
-      if (fallbackStudentsError || !fallbackStudents || fallbackStudents.length === 0) {
-        if (loadRequestIdRef.current === requestId)
-          setStudentChats([]);
-        finish();
-        return;
-      }
-
-      schoolStudents = fallbackStudents.map(mapProfileToUser);
-      messageRows = fallbackMessages as MessageRow[];
-    }
-
-    emptyChatsStreakRef.current = 0;
-    const keys = schoolStudents.map(s => buildConversationKey(s.id, user.id));
-
-    let hasMessageError = false;
-    if (messageRows.length === 0) {
-      const { data: liveMessages, error } = await supabase
-        .from('messages').select('*').in('conversation_key', keys).order('created_at', { ascending: true });
-      messageRows = (liveMessages || []) as MessageRow[];
-      hasMessageError = Boolean(error);
-    }
-
-    const { data: readRows } = await supabase
-      .from('message_reads').select('conversation_key,last_read_at').eq('reader_id', user.id).in('conversation_key', keys);
-
-    if (hasMessageError) {
-      if (loadRequestIdRef.current === requestId)
-        setLoadError('Unable to load chat messages right now. Please try again.');
-      finish();
-      return;
-    }
-
-    const grouped = new Map<string, MessageRow[]>();
-    messageRows.forEach(row => {
-      const bucket = grouped.get(row.conversation_key) || [];
-      bucket.push(row);
-      grouped.set(row.conversation_key, bucket);
-    });
-
-    const readByConversation = new Map<string, string>();
-    (readRows || []).forEach(row => readByConversation.set(row.conversation_key, row.last_read_at));
-
-    const chats: ContactChat[] = schoolStudents.map(student => {
-      const conversationKey = buildConversationKey(student.id, user.id);
-      const rows = grouped.get(conversationKey) || [];
-      const lastReadAt = readByConversation.get(conversationKey);
-      const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
-
-      const messages: Message[] = rows.map(row => ({
-        id: row.id,
-        sender: row.sender_role === 'counselor' ? 'counselor' : 'contact',
-        content: row.content,
-        timestamp: formatMessageTime(row.created_at),
-        createdAt: row.created_at,
-      }));
-
-      const lastMessage = messages[messages.length - 1];
-      const unread = rows.filter(row =>
-        row.sender_role === 'student' &&
-        (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
-      ).length;
-
-      return {
-        contact: student,
-        conversationKey,
-        messages,
-        unread,
-        lastMessage: lastMessage?.content || 'No messages yet',
-        timestamp: lastMessage?.timestamp || '',
+      const finishLoad = () => {
+        if (loadRequestIdRef.current !== requestId) return;
+        setIsLoadingStudents(false);
+        setHasLoadedStudents(true);
       };
-    });
 
-    chats.sort((a, b) => {
-      const aHas = a.messages.length > 0, bHas = b.messages.length > 0;
-      if (aHas && !bHas) return -1;
-      if (!aHas && bHas) return 1;
-      if (aHas && bHas) return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
-      return a.contact.firstName.localeCompare(b.contact.firstName);
-    });
+      if (!user?.schoolId || !user?.id) {
+        if (loadRequestIdRef.current === requestId) {
+          setStudentChats([]);
+          setSelectedStudentId(null);
+          setLoadError(null);
+        }
+        finishLoad();
+        return;
+      }
 
-    if (loadRequestIdRef.current === requestId) {
-      setStudentChats(chats);
-      setLoadError(null);
-      setSelectedStudentId(prev =>
-        (prev && chats.some(c => c.contact.id === prev)) ? prev : chats[0]?.contact.id || null
-      );
-    }
-    finish();
-  }, [user, shouldPreserveStudentChats]);
+      let students: User[] = [];
+      let prefetchedMessageRows: MessageRow[] | null = null;
 
-  // ─── Initial load ────────────────────────────────────────────────────────────
+      const { data: studentRows, error: studentsError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('school_id', user.schoolId)
+        .eq('role', 'student')
+        .eq('approved', true);
+
+      if (studentsError) {
+        if (loadRequestIdRef.current === requestId) {
+          setLoadError('Unable to load student list.');
+        }
+        finishLoad();
+        return;
+      }
+
+      students = (studentRows || []).map(mapProfileToUser);
+
+      if (students.length === 0) {
+        const { data: fallbackRows, error: fallbackRowsError } = await supabase
+          .from('messages')
+          .select('*')
+          .ilike('conversation_key', `%${user.id}%`)
+          .order('created_at', { ascending: true });
+
+        if (!fallbackRowsError && fallbackRows && fallbackRows.length > 0) {
+          const fallbackStudentIds = Array.from(
+            new Set(
+              fallbackRows
+                .map((row) => row.conversation_key.split('__'))
+                .flat()
+                .filter((id) => id !== user.id)
+            )
+          );
+
+          if (fallbackStudentIds.length > 0) {
+            const { data: fallbackStudentRows, error: fallbackStudentsError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('school_id', user.schoolId)
+              .eq('role', 'student')
+              .eq('approved', true)
+              .in('id', fallbackStudentIds);
+
+            if (!fallbackStudentsError && fallbackStudentRows && fallbackStudentRows.length > 0) {
+              students = fallbackStudentRows.map(mapProfileToUser);
+              prefetchedMessageRows = fallbackRows as unknown as MessageRow[];
+            }
+          }
+        }
+      }
+
+      if (students.length === 0) {
+        if (shouldPreserveStudentChats()) {
+          if (loadRequestIdRef.current === requestId) setLoadError(null);
+          finishLoad();
+          return;
+        }
+
+        if (loadRequestIdRef.current === requestId) {
+          setStudentChats([]);
+          setSelectedStudentId(null);
+          setLoadError(null);
+        }
+        finishLoad();
+        return;
+      }
+
+      emptyChatsStreakRef.current = 0;
+
+      const keys = students.map((s) => buildConversationKey(s.id, user.id));
+
+      let messageRows = prefetchedMessageRows;
+      let messageError: string | null = null;
+
+      if (!messageRows) {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .in('conversation_key', keys)
+          .order('created_at', { ascending: true });
+
+        messageRows = (data || []) as unknown as MessageRow[];
+        if (error) messageError = error.message || 'Unable to load messages.';
+      }
+
+      const { data: readRows } = await supabase
+        .from('message_reads')
+        .select('conversation_key,last_read_at')
+        .eq('reader_id', user.id)
+        .in('conversation_key', keys);
+
+      if (messageError) {
+        if (loadRequestIdRef.current === requestId) setLoadError(messageError);
+        finishLoad();
+        return;
+      }
+
+      const readByConversation = new Map<string, string>();
+      (readRows || []).forEach((row) => readByConversation.set(row.conversation_key, row.last_read_at));
+
+      const grouped = new Map<string, MessageRow[]>();
+      (messageRows || []).forEach((row) => {
+        const bucket = grouped.get(row.conversation_key) || [];
+        bucket.push(row);
+        grouped.set(row.conversation_key, bucket);
+      });
+
+      const chats: ContactChat[] = students.map((student) => {
+        const conversationKey = buildConversationKey(student.id, user.id);
+        const rows = grouped.get(conversationKey) || [];
+        const lastReadAt = readByConversation.get(conversationKey);
+        const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
+
+        const messages: Message[] = rows.map((row) => ({
+          id: row.id,
+          sender: row.sender_role === 'counselor' ? 'counselor' : 'contact',
+          content: row.content,
+          timestamp: formatMessageTime(row.created_at),
+          createdAt: row.created_at,
+          attachments: (row.attachments as unknown as MessageAttachment[]) || [],
+          isEdited: Boolean(row.is_edited),
+          isDeleted: Boolean(row.is_deleted),
+        }));
+
+        const activeMessages = messages.filter((m) => !m.isDeleted);
+        const lastMessage = activeMessages[activeMessages.length - 1] || messages[messages.length - 1];
+        const unread = rows.filter(
+          (row) =>
+            row.sender_role !== 'counselor' &&
+            (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
+        ).length;
+
+        let lastText = 'No messages yet';
+        if (lastMessage) {
+          if (lastMessage.isDeleted) {
+            lastText = 'This message was deleted';
+          } else if (lastMessage.content) {
+            lastText = lastMessage.content;
+          } else if (lastMessage.attachments?.length) {
+            lastText = '[Attachment]';
+          }
+        }
+
+        return {
+          contact: student,
+          conversationKey,
+          messages,
+          unread,
+          lastMessage: lastText,
+          timestamp: lastMessage?.timestamp || '',
+        };
+      });
+
+      chats.sort((a, b) => {
+        const aHas = a.messages.length > 0;
+        const bHas = b.messages.length > 0;
+        if (aHas && !bHas) return -1;
+        if (!aHas && bHas) return 1;
+        if (aHas && bHas) return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
+        return a.contact.firstName.localeCompare(b.contact.firstName);
+      });
+
+      if (loadRequestIdRef.current === requestId) {
+        setLoadError(null);
+        setStudentChats(chats);
+        const nextSel = chats.some((c) => c.contact.id === selectedStudentIdRef.current)
+          ? selectedStudentIdRef.current
+          : chats[0]?.contact.id || null;
+        setSelectedStudentId(nextSel);
+      }
+
+      finishLoad();
+    },
+    [user, shouldPreserveStudentChats]
+  );
+
   useEffect(() => {
     loadStudentChats();
-    loadContactChats('teacher', setTeacherChats, setSelectedTeacherId);
-    loadContactChats('parent',  setParentChats,  setSelectedParentId);
-  }, [loadStudentChats, loadContactChats]);
+  }, [loadStudentChats]);
 
-  // ─── Polling (all tabs) ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) return;
     return startVisibilityAwarePolling(() => {
       void loadStudentChats({ silent: true });
-      void loadContactChats('teacher', setTeacherChats, setSelectedTeacherId, { silent: true });
-      void loadContactChats('parent',  setParentChats,  setSelectedParentId,  { silent: true });
+      if (teacherChats.length > 0) loadContactChats('teacher', setTeacherChats, setSelectedTeacherId);
+      if (parentChats.length > 0) loadContactChats('parent', setParentChats, setSelectedParentId);
     }, 12000);
-  }, [user?.id, loadStudentChats, loadContactChats]);
+  }, [user?.id, loadStudentChats, teacherChats.length, parentChats.length, loadContactChats]);
 
-  // ─── Auto-mark as read when opening a chat ───────────────────────────────────
-  const selectedChat = activeChats.find(c => c.contact.id === activeSelectedId);
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    setShowMobileList(true);
+    setSearchQuery('');
+    setSendError(null);
+    setEditingMessage(null);
+    setNewMessage('');
+
+    if (tab === 'teachers' && teacherChats.length === 0 && !isLoadingTeachers) {
+      setIsLoadingTeachers(true);
+      loadContactChats('teacher', setTeacherChats, setSelectedTeacherId).finally(() =>
+        setIsLoadingTeachers(false)
+      );
+    } else if (tab === 'parents' && parentChats.length === 0 && !isLoadingParents) {
+      setIsLoadingParents(true);
+      loadContactChats('parent', setParentChats, setSelectedParentId).finally(() =>
+        setIsLoadingParents(false)
+      );
+    }
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedContactId, activeChats]);
 
   useEffect(() => {
     if (!selectedChat || selectedChat.unread === 0) return;
     void markConversationAsRead(selectedChat.conversationKey, activeTab);
-  }, [selectedChat?.conversationKey, selectedChat?.unread, markConversationAsRead, activeTab]);
+  }, [selectedChat?.conversationKey, selectedChat?.unread, activeTab, markConversationAsRead]);
 
-  // ─── Search filter ───────────────────────────────────────────────────────────
-  const filteredChats = activeChats.filter(chat => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return true;
-    const fullName = `${chat.contact.firstName} ${chat.contact.lastName}`.toLowerCase();
-    return fullName.includes(query) || chat.lastMessage.toLowerCase().includes(query);
-  });
+  const handleSendMessage = async (text: string, attachments: MessageAttachment[]) => {
+    if ((!text.trim() && attachments.length === 0) || !selectedChat || !user) return;
 
-  // ─── Send message ────────────────────────────────────────────────────────────
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || !user) return;
+    if (editingMessage) {
+      const updatedContent = text.trim();
+      setEditingMessage(null);
+      setNewMessage('');
+      setSendError(null);
 
-    const messageToSend = newMessage.trim();
+      const updateMessage = (prev: ContactChat[]) =>
+        prev.map((c) =>
+          c.contact.id === selectedChat.contact.id
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === editingMessage.id ? { ...m, content: updatedContent, isEdited: true } : m
+                ),
+              }
+            : c
+        );
+
+      if (activeTab === 'students') setStudentChats(updateMessage);
+      else if (activeTab === 'teachers') setTeacherChats(updateMessage);
+      else setParentChats(updateMessage);
+
+      const editPayload: Database['public']['Tables']['messages']['Update'] = {
+        content: updatedContent,
+        is_edited: true,
+        edited_at: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from('messages')
+        .update(editPayload)
+        .eq('id', editingMessage.id);
+
+      if (error) {
+        setSendError('Failed to save message edit.');
+      }
+      return;
+    }
+
     const optimisticId = Date.now();
     const nowIso = new Date().toISOString();
     const optimistic: Message = {
       id: optimisticId,
       sender: 'counselor',
-      content: messageToSend,
+      content: text,
       timestamp: formatMessageTime(nowIso),
       createdAt: nowIso,
+      attachments,
     };
 
     const appendMessage = (prev: ContactChat[]) =>
-      prev.map(c =>
+      prev.map((c) =>
         c.contact.id === selectedChat.contact.id
-          ? { ...c, messages: [...c.messages, optimistic], lastMessage: messageToSend, timestamp: optimistic.timestamp }
+          ? {
+              ...c,
+              messages: [...c.messages, optimistic],
+              lastMessage: text || (attachments.length ? '[Attachment]' : ''),
+              timestamp: optimistic.timestamp,
+            }
           : c
       );
 
@@ -522,14 +691,15 @@ export default function CounselorMessagesPage() {
       conversation_key: selectedChat.conversationKey,
       sender_role: 'counselor',
       sender_id: user.id,
-      content: messageToSend,
+      content: text,
+      attachments: attachments as unknown as Database['public']['Tables']['messages']['Insert']['attachments'],
     });
 
     if (error) {
       const removeMessage = (prev: ContactChat[]) =>
-        prev.map(c =>
+        prev.map((c) =>
           c.contact.id === selectedChat.contact.id
-            ? { ...c, messages: c.messages.filter(m => m.id !== optimisticId) }
+            ? { ...c, messages: c.messages.filter((m) => m.id !== optimisticId) }
             : c
         );
 
@@ -537,52 +707,79 @@ export default function CounselorMessagesPage() {
       else if (activeTab === 'teachers') setTeacherChats(removeMessage);
       else setParentChats(removeMessage);
 
-      setNewMessage(messageToSend);
+      setNewMessage(text);
       setSendError('Message failed to send. Please try again.');
       return;
     }
-
-    // Reload the active tab
-    if (activeTab === 'students') await loadStudentChats();
-    else if (activeTab === 'teachers') await loadContactChats('teacher', setTeacherChats, setSelectedTeacherId);
-    else await loadContactChats('parent', setParentChats, setSelectedParentId);
   };
 
-  // ─── Select contact ──────────────────────────────────────────────────────────
+  const handleStartEdit = (msg: ChatMessageItemData) => {
+    setEditingMessage({ id: msg.id, content: msg.content });
+    setNewMessage(msg.content);
+  };
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!selectedChat) return;
+
+    const softDeleteMessage = (prev: ContactChat[]) =>
+      prev.map((c) =>
+        c.contact.id === selectedChat.contact.id
+          ? {
+              ...c,
+              messages: c.messages.map((m) => (m.id === messageId ? { ...m, isDeleted: true } : m)),
+            }
+          : c
+      );
+
+    if (activeTab === 'students') setStudentChats(softDeleteMessage);
+    else if (activeTab === 'teachers') setTeacherChats(softDeleteMessage);
+    else setParentChats(softDeleteMessage);
+
+    const deletePayload: Database['public']['Tables']['messages']['Update'] = { is_deleted: true };
+    const { error } = await supabase
+      .from('messages')
+      .update(deletePayload)
+      .eq('id', messageId);
+
+    if (error) {
+      setSendError('Failed to delete message.');
+    }
+  };
+
   const handleSelectContact = (contactId: string) => {
     if (activeTab === 'students') setSelectedStudentId(contactId);
     else if (activeTab === 'teachers') setSelectedTeacherId(contactId);
     else setSelectedParentId(contactId);
 
     setShowMobileList(false);
+    setEditingMessage(null);
+    setNewMessage('');
     setSendError(null);
 
-    const chat = activeChats.find(c => c.contact.id === contactId);
+    const chat = activeChats.find((c) => c.contact.id === contactId);
     if (chat?.unread) void markConversationAsRead(chat.conversationKey, activeTab);
 
     const clearUnread = (prev: ContactChat[]) =>
-      prev.map(c => c.contact.id === contactId ? { ...c, unread: 0 } : c);
+      prev.map((c) => (c.contact.id === contactId ? { ...c, unread: 0 } : c));
 
     if (activeTab === 'students') setStudentChats(clearUnread);
     else if (activeTab === 'teachers') setTeacherChats(clearUnread);
     else setParentChats(clearUnread);
   };
 
-  // ─── Unread totals ───────────────────────────────────────────────────────────
   const unreadStudents = studentChats.reduce((s, c) => s + c.unread, 0);
   const unreadTeachers = teacherChats.reduce((s, c) => s + c.unread, 0);
-  const unreadParents  = parentChats.reduce((s, c)  => s + c.unread, 0);
+  const unreadParents = parentChats.reduce((s, c) => s + c.unread, 0);
   const totalUnread = unreadStudents + unreadTeachers + unreadParents;
 
-  // ─── Contact subtitle (shown under name in chat header) ─────────────────────
   const contactSubtitle = (contact: User) => {
     if (contact.role === 'student') return `Grade ${contact.gradeLevel || 'N/A'} | ${contact.email}`;
     if (contact.role === 'teacher') return `${contact.subject || contact.department || 'Teacher'} | ${contact.email}`;
-    if (contact.role === 'parent') return `Parent${contact.relationship ? ` (${contact.relationship})` : ''} | ${contact.email}`;
+    if (contact.role === 'parent')
+      return `Parent${contact.relationship ? ` (${contact.relationship})` : ''} | ${contact.email}`;
     return contact.email;
   };
 
-  // ─── Contact sub-label in list (shown under name) ────────────────────────────
   const contactListSublabel = (contact: User) => {
     if (contact.role === 'student') return `Grade ${contact.gradeLevel || 'N/A'}`;
     if (contact.role === 'teacher') return contact.subject || contact.department || 'Teacher';
@@ -590,24 +787,25 @@ export default function CounselorMessagesPage() {
     return '';
   };
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  const isLoadingTab =
+    (activeTab === 'students' && isLoadingStudents && !hasLoadedStudents) ||
+    (activeTab === 'teachers' && isLoadingTeachers) ||
+    (activeTab === 'parents' && isLoadingParents);
+
   return (
     <div className="h-dvh min-h-0 flex flex-col overflow-hidden">
-      {/* Page header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground font-heading">Messages</h1>
           <p className="text-muted-foreground mt-1">
-            Conversations with students, teachers, and parents
+            Direct communication with students, teachers, and parents at your school
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          {totalUnread > 0 && (
-            <div className="px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-sm text-primary font-medium">
-              {totalUnread} unread
-            </div>
-          )}
-        </div>
+        {totalUnread > 0 && (
+          <div className="px-3 py-2 rounded-lg border border-primary/20 bg-primary/5 text-sm text-primary font-medium">
+            {totalUnread} total unread
+          </div>
+        )}
       </div>
 
       {loadError && (
@@ -623,133 +821,193 @@ export default function CounselorMessagesPage() {
         </div>
       )}
 
-      {isLoadingChats && !hasLoadedChats ? (
+      {/* Role Tabs */}
+      <div className="flex border-b border-border mb-4 gap-1">
+        {TABS.map((tab) => {
+          const count =
+            tab.key === 'students'
+              ? studentChats.length
+              : tab.key === 'teachers'
+              ? teacherChats.length
+              : parentChats.length;
+          const unread =
+            tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
+
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => handleTabChange(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                activeTab === tab.key
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              <span>{tab.label}</span>
+              {count > 0 && (
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-xs ${
+                    unread > 0 ? 'bg-primary text-primary-foreground font-bold' : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {unread > 0 ? unread : count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {isLoadingTab ? (
+        <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
+          <div className="text-center py-12">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="font-medium text-foreground">Loading {activeTab}...</p>
+          </div>
+        </div>
+      ) : activeChats.length === 0 ? (
         <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
           <div className="text-center py-12 px-4">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="font-medium text-foreground text-lg">Loading conversations...</p>
+            <svg
+              className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              />
+            </svg>
+            <p className="font-medium text-foreground text-lg">No {activeTab} found</p>
+            <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
+              No approved {activeTab} have joined your school yet.
+            </p>
           </div>
         </div>
       ) : (
         <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-hidden flex">
-
-          {/* ─── Sidebar (list panel) ─── */}
+          {/* Sidebar */}
           <div
-            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 min-h-0 bg-background ${
-              showMobileList ? 'block md:flex md:flex-col' : 'hidden md:flex md:flex-col'
+            className={`w-full md:w-[22rem] border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background/30 ${
+              showMobileList ? 'block' : 'hidden md:block'
             }`}
           >
-            <div className="sticky top-0 z-20 bg-background">
-              {/* Tab switcher */}
-              <div className="flex border-b border-border flex-shrink-0 bg-background">
-                {TABS.map(tab => {
-                  const unread = tab.key === 'students' ? unreadStudents : tab.key === 'teachers' ? unreadTeachers : unreadParents;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      onClick={() => { setActiveTab(tab.key); setSearchQuery(''); setShowMobileList(true); setSendError(null); }}
-                      className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
-                        activeTab === tab.key
-                          ? 'border-primary text-primary bg-primary/5'
-                          : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                      }`}
-                    >
-                      {tab.label}
-                      {unread > 0 && (
-                        <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
-                          {unread}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+            <div className="p-4 border-b border-border space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold text-foreground text-sm capitalize">{activeTab}</h2>
+                <span className="text-xs text-muted-foreground">{filteredChats.length}</span>
               </div>
-
-              {/* Search */}
-              <div className="p-3 border-b border-border flex-shrink-0 bg-background">
-                <div className="relative">
-                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    placeholder={`Search ${activeTab}...`}
-                    className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              <div className="relative">
+                <svg
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                   />
-                </div>
+                </svg>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={`Search ${activeTab}...`}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {filteredChats.length === 0 ? (
-                <div className="p-5 text-sm text-muted-foreground text-center mt-4">
-                  {activeChats.length === 0 ? `No ${activeTab} yet` : 'No matches found'}
-                </div>
-              ) : (
-                filteredChats.map(chat => (
-                  <button
-                    key={chat.contact.id}
-                    onClick={() => handleSelectContact(chat.contact.id)}
-                    className={`w-full p-2.5 text-left border-b border-border/60 transition-all duration-200 ${
-                      activeSelectedId === chat.contact.id
-                        ? 'bg-primary/12 border-l-[3px] border-l-primary'
-                        : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="w-10 h-10 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                        {chat.contact.profileImage ? (
-                          <img src={chat.contact.profileImage} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-sm font-semibold text-primary">
-                            {chat.contact.firstName[0]}{chat.contact.lastName[0]}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-foreground truncate text-sm">
-                            {chat.contact.firstName} {chat.contact.lastName}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground whitespace-nowrap">{chat.timestamp || '--'}</span>
-                        </div>
-                        <p className={`text-[11px] truncate mt-1 ${chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                          {contactListSublabel(chat.contact)} · {chat.lastMessage}
-                        </p>
-                      </div>
-                      {chat.unread > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center flex-shrink-0">
-                          {chat.unread}
+              {filteredChats.length === 0 && (
+                <div className="p-5 text-sm text-muted-foreground">No matching contacts.</div>
+              )}
+              {filteredChats.map((chat) => (
+                <button
+                  key={chat.contact.id}
+                  onClick={() => handleSelectContact(chat.contact.id)}
+                  className={`w-full p-3.5 text-left border-b border-border/60 transition-all duration-200 ${
+                    selectedContactId === chat.contact.id
+                      ? 'bg-primary/12 border-l-[3px] border-l-primary shadow-[inset_0_1px_0_rgba(59,130,246,0.08)]'
+                      : 'hover:bg-muted/60 border-l-[3px] border-l-transparent'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {chat.contact.profileImage ? (
+                        <img src={chat.contact.profileImage} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-sm font-semibold text-primary">
+                          {chat.contact.firstName[0]}
+                          {chat.contact.lastName[0]}
                         </span>
                       )}
                     </div>
-                  </button>
-                ))
-              )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-semibold text-foreground truncate">
+                          {chat.contact.firstName} {chat.contact.lastName}
+                        </span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {chat.timestamp || '--'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {contactListSublabel(chat.contact)}
+                      </p>
+                      <p
+                        className={`text-sm truncate mt-1 ${
+                          chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {chat.lastMessage}
+                      </p>
+                    </div>
+                    {chat.unread > 0 && (
+                      <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                        {chat.unread}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* ─── Chat area ─── */}
-          <div className={`flex-1 min-h-0 flex flex-col bg-background/10 ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
+          {/* Chat area */}
+          <div
+            className={`flex-1 min-h-0 flex flex-col bg-background/10 ${
+              showMobileList ? 'hidden md:flex' : 'flex'
+            }`}
+          >
             {selectedChat ? (
               <>
-                {/* Chat header */}
                 <div className="p-4 border-b border-border bg-card/90 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <button type="button" className="md:hidden p-2 -ml-2 hover:bg-muted rounded-lg" onClick={() => setShowMobileList(true)}>
+                    <button
+                      type="button"
+                      className="md:hidden p-2 -ml-2 hover:bg-muted rounded-lg"
+                      onClick={() => setShowMobileList(true)}
+                    >
                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
+
                     <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                       {selectedChat.contact.profileImage ? (
                         <img src={selectedChat.contact.profileImage} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-sm font-semibold text-primary">
-                          {selectedChat.contact.firstName[0]}{selectedChat.contact.lastName[0]}
+                          {selectedChat.contact.firstName[0]}
+                          {selectedChat.contact.lastName[0]}
                         </span>
                       )}
                     </div>
@@ -762,32 +1020,46 @@ export default function CounselorMessagesPage() {
                       </p>
                     </div>
                   </div>
+
                   {activeTab === 'students' && (
                     <Link
-                      href="/counselor/students"
-                      className="hidden sm:inline-flex px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      href={`/counselor/guidance?studentId=${selectedChat.contact.id}`}
+                      className="hidden sm:inline-flex px-3 py-2 rounded-lg border border-border text-xs font-medium text-foreground hover:bg-muted transition-colors"
                     >
-                      View Profile
+                      View Academic Profile
                     </Link>
                   )}
                 </div>
 
-                {/* Messages */}
                 <div className="relative flex-1 min-h-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.08),transparent_45%)]">
-                  <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]" />
-                  <div className="relative flex-1 min-h-0 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-3">
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]"
+                  />
+                  <div className="relative h-full overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-3">
                     {selectedChat.messages.length === 0 && (
                       <div className="h-full flex items-center justify-center">
                         <div className="text-center text-muted-foreground">
-                          <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                          <svg
+                            className="w-12 h-12 mx-auto mb-3 opacity-50"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                            />
                           </svg>
                           <p className="font-medium">No messages yet</p>
-                          <p className="text-sm mt-1">Start the conversation with {selectedChat.contact.firstName}</p>
+                          <p className="text-sm mt-1">
+                            Send a message to {selectedChat.contact.firstName} to start chatting
+                          </p>
                         </div>
                       </div>
                     )}
-
                     {selectedChat.messages.map((message, index) => {
                       const isMine = message.sender === 'counselor';
                       const previousMessage = selectedChat.messages[index - 1];
@@ -795,32 +1067,27 @@ export default function CounselorMessagesPage() {
                         !previousMessage || !isSameCalendarDay(previousMessage.createdAt, message.createdAt);
                       return (
                         <React.Fragment key={message.id}>
-                        {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
-                        <div className={`flex items-end gap-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                          {!isMine && (
-                            <div className="w-8 h-8 rounded-full border border-border bg-card overflow-hidden flex items-center justify-center mb-1 flex-shrink-0 shadow-sm">
-                              {selectedChat.contact.profileImage ? (
-                                <img src={selectedChat.contact.profileImage} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-xs font-semibold text-primary">
-                                  {selectedChat.contact.firstName[0]}{selectedChat.contact.lastName[0]}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          <div className="max-w-[84%] sm:max-w-[70%]">
-                            <div className={`rounded-2xl px-4 py-2.5 border ${
-                              isMine
-                                ? 'bg-sky-500 text-white border-sky-600/40 rounded-br-md shadow-[0_8px_18px_-10px_rgba(14,165,233,0.9)]'
-                                : 'bg-card/95 text-foreground border-border rounded-bl-md shadow-sm backdrop-blur-[1px]'
-                            }`}>
-                              <p className="text-sm leading-6 whitespace-pre-wrap break-words">{message.content}</p>
-                            </div>
-                            <p className={`text-[11px] text-muted-foreground mt-1.5 ${isMine ? 'text-right' : 'text-left'}`}>
-                              {isMine ? 'You' : selectedChat.contact.firstName} | {message.timestamp}
-                            </p>
-                          </div>
-                        </div>
+                          {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
+                          <ChatMessageBubble
+                            message={{
+                              id: message.id,
+                              senderRole: 'counselor',
+                              isOwnMessage: isMine,
+                              content: message.content,
+                              timestamp: message.timestamp,
+                              createdAt: message.createdAt,
+                              attachments: message.attachments,
+                              isEdited: message.isEdited,
+                              isDeleted: message.isDeleted,
+                              senderName: isMine ? 'You' : selectedChat.contact.firstName,
+                              senderAvatar: isMine ? undefined : selectedChat.contact.profileImage,
+                              senderInitials: isMine
+                                ? undefined
+                                : `${selectedChat.contact.firstName[0]}${selectedChat.contact.lastName[0]}`,
+                            }}
+                            onEdit={handleStartEdit}
+                            onDelete={handleDeleteMessage}
+                          />
                         </React.Fragment>
                       );
                     })}
@@ -828,29 +1095,22 @@ export default function CounselorMessagesPage() {
                   </div>
                 </div>
 
-                {/* Message input */}
                 <MessageComposer
                   value={newMessage}
                   onChange={setNewMessage}
                   onSend={handleSendMessage}
                   placeholder={`Message ${selectedChat.contact.firstName}...`}
                   error={sendError}
-                  footer={
-                    <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
-                      Keep communication professional and supportive.
-                    </p>
-                  }
+                  editingMessage={editingMessage}
+                  onCancelEdit={() => {
+                    setEditingMessage(null);
+                    setNewMessage('');
+                  }}
                 />
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center text-muted-foreground">
-                  <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  <p className="font-medium">Select a conversation</p>
-                  <p className="text-sm mt-1">Pick someone from the list to start chatting</p>
-                </div>
+                <p className="text-muted-foreground text-sm">Select a contact to start chatting</p>
               </div>
             )}
           </div>

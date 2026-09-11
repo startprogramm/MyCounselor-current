@@ -11,6 +11,7 @@ import { makeUserCacheKey, readCachedData, writeCachedData } from '@/lib/client-
 import { isSameCalendarDay } from '@/lib/chat-date';
 import ChatDateDivider from '@/components/messaging/ChatDateDivider';
 import MessageComposer from '@/components/messaging/MessageComposer';
+import ChatMessageBubble, { ChatMessageItemData, MessageAttachment } from '@/components/messaging/ChatMessageBubble';
 
 interface Message {
   id: number;
@@ -18,6 +19,9 @@ interface Message {
   content: string;
   timestamp: string;
   createdAt: string;
+  attachments?: MessageAttachment[];
+  isEdited?: boolean;
+  isDeleted?: boolean;
 }
 
 interface MessageRow {
@@ -26,6 +30,9 @@ interface MessageRow {
   sender_role: string;
   content: string;
   created_at: string;
+  attachments?: MessageAttachment[];
+  is_edited?: boolean;
+  is_deleted?: boolean;
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -91,9 +98,13 @@ function buildConversationsFromCounselors(
       content: row.content,
       timestamp: formatMessageTime(row.created_at),
       createdAt: row.created_at,
+      attachments: (row.attachments as unknown as MessageAttachment[]) || [],
+      isEdited: Boolean(row.is_edited),
+      isDeleted: Boolean(row.is_deleted),
     }));
 
-    const lastMessage = mappedMessages[mappedMessages.length - 1];
+    const activeMessages = mappedMessages.filter((m) => !m.isDeleted);
+    const lastMessage = activeMessages[activeMessages.length - 1] || mappedMessages[mappedMessages.length - 1];
     const unread = groupedRows.filter(
       (row) =>
         row.sender_role === 'counselor' &&
@@ -102,6 +113,17 @@ function buildConversationsFromCounselors(
 
     const name = `${c.firstName} ${c.lastName}`;
     const initials = `${c.firstName[0]}${c.lastName[0]}`.toUpperCase();
+
+    let lastText = 'Start a conversation';
+    if (lastMessage) {
+      if (lastMessage.isDeleted) {
+        lastText = 'This message was deleted';
+      } else if (lastMessage.content) {
+        lastText = lastMessage.content;
+      } else if (lastMessage.attachments?.length) {
+        lastText = '[Attachment]';
+      }
+    }
 
     return {
       id: index + 1,
@@ -112,7 +134,7 @@ function buildConversationsFromCounselors(
       avatarImage: c.profileImage,
       counselorTitle: c.title || 'School Counselor',
       department: c.department || 'General',
-      lastMessage: lastMessage?.content || 'Start a conversation',
+      lastMessage: lastText,
       timestamp: lastMessage?.timestamp || '',
       unread,
       messages: mappedMessages,
@@ -161,6 +183,7 @@ function StudentMessagesPageInner() {
   const [hasLoadedConversations, setHasLoadedConversations] = useState(false);
   const [selectedConvId, setSelectedConvId] = useState<number>(0);
   const [newMessage, setNewMessage] = useState('');
+  const [editingMessage, setEditingMessage] = useState<{ id: number; content: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
   const loadRequestIdRef = useRef(0);
@@ -229,8 +252,6 @@ function StudentMessagesPageInner() {
     });
   }, [cacheKey, conversations, selectedConvId, hasLoadedConversations]);
 
-  // Deep link from a request (e.g. "Reply in Messages") — select the right
-  // counselor's conversation and pre-fill a draft, once conversations exist.
   useEffect(() => {
     if (appliedDeepLinkRef.current || conversations.length === 0) return;
 
@@ -363,7 +384,7 @@ function StudentMessagesPageInner() {
 
             if (!fallbackCounselorsError && fallbackCounselorRows && fallbackCounselorRows.length > 0) {
               counselors = fallbackCounselorRows.map(mapProfileToUser);
-              prefetchedMessageRows = fallbackRows as MessageRow[];
+              prefetchedMessageRows = fallbackRows as unknown as MessageRow[];
             }
           }
         }
@@ -401,7 +422,7 @@ function StudentMessagesPageInner() {
           .in('conversation_key', keys)
           .order('created_at', { ascending: true });
 
-        messageRows = (data || []) as MessageRow[];
+        messageRows = (data || []) as unknown as MessageRow[];
         if (error) {
           messageError = error.message || 'Unable to load messages right now. Please try again.';
         }
@@ -467,19 +488,56 @@ function StudentMessagesPageInner() {
     void markConversationAsRead(selectedConversation.conversationKey);
   }, [selectedConversation?.conversationKey, selectedConversation?.unread, markConversationAsRead]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || !user) return;
+  const handleSendMessage = async (text: string, attachments: MessageAttachment[]) => {
+    if ((!text.trim() && attachments.length === 0) || !selectedConversation || !user) return;
 
-    const messageToSend = newMessage.trim();
+    if (editingMessage) {
+      const updatedContent = text.trim();
+      setEditingMessage(null);
+      setNewMessage('');
+      setSendError(null);
+
+      setConversations((previous) =>
+        previous.map((conversation) => {
+          if (conversation.id === selectedConversation.id) {
+            return {
+              ...conversation,
+              messages: conversation.messages.map((m) =>
+                m.id === editingMessage.id ? { ...m, content: updatedContent, isEdited: true } : m
+              ),
+            };
+          }
+          return conversation;
+        })
+      );
+
+      const editPayload: Database['public']['Tables']['messages']['Update'] = {
+        content: updatedContent,
+        is_edited: true,
+        edited_at: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from('messages')
+        .update(editPayload)
+        .eq('id', editingMessage.id);
+
+      if (error) {
+        setSendError('Failed to save message edit.');
+      }
+      await loadConversations({ silent: true });
+      return;
+    }
+
     const optimisticId = Date.now();
     const nowIso = new Date().toISOString();
 
     const optimisticMessage: Message = {
       id: optimisticId,
       sender: 'student',
-      content: messageToSend,
+      content: text,
       timestamp: formatMessageTime(nowIso),
       createdAt: nowIso,
+      attachments,
     };
 
     setConversations((previous) =>
@@ -488,7 +546,7 @@ function StudentMessagesPageInner() {
           return {
             ...conversation,
             messages: [...conversation.messages, optimisticMessage],
-            lastMessage: optimisticMessage.content,
+            lastMessage: text || (attachments.length ? '[Attachment]' : ''),
             timestamp: optimisticMessage.timestamp,
           };
         }
@@ -503,7 +561,8 @@ function StudentMessagesPageInner() {
       conversation_key: selectedConversation.conversationKey,
       sender_role: 'student',
       sender_id: user.id,
-      content: messageToSend,
+      content: text,
+      attachments: attachments as unknown as Database['public']['Tables']['messages']['Insert']['attachments'],
     });
 
     if (error) {
@@ -514,14 +573,48 @@ function StudentMessagesPageInner() {
             : conversation
         )
       );
-      setNewMessage(messageToSend);
+      setNewMessage(text);
       setSendError('Message failed to send. Please try again.');
     }
+  };
+
+  const handleStartEdit = (msg: ChatMessageItemData) => {
+    setEditingMessage({ id: msg.id, content: msg.content });
+    setNewMessage(msg.content);
+  };
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!selectedConversation) return;
+
+    setConversations((previous) =>
+      previous.map((conversation) => {
+        if (conversation.id === selectedConversation.id) {
+          return {
+            ...conversation,
+            messages: conversation.messages.map((m) => (m.id === messageId ? { ...m, isDeleted: true } : m)),
+          };
+        }
+        return conversation;
+      })
+    );
+
+    const deletePayload: Database['public']['Tables']['messages']['Update'] = { is_deleted: true };
+    const { error } = await supabase
+      .from('messages')
+      .update(deletePayload)
+      .eq('id', messageId);
+
+    if (error) {
+      setSendError('Failed to delete message.');
+    }
+    await loadConversations({ silent: true });
   };
 
   const handleSelectConversation = (conversationId: number) => {
     setSelectedConvId(conversationId);
     setShowMobileList(false);
+    setEditingMessage(null);
+    setNewMessage('');
     setSendError(null);
 
     const openedConversation = conversations.find((conversation) => conversation.id === conversationId);
@@ -797,47 +890,25 @@ function StudentMessagesPageInner() {
                         !previousMessage || !isSameCalendarDay(previousMessage.createdAt, message.createdAt);
                       return (
                         <React.Fragment key={message.id}>
-                        {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
-                        <div
-                          className={`flex items-end gap-2.5 ${isStudentMessage ? 'justify-end' : 'justify-start'}`}
-                        >
-                          {!isStudentMessage && (
-                            <div className="w-8 h-8 rounded-full border border-border bg-card overflow-hidden flex items-center justify-center mb-1 flex-shrink-0 shadow-sm">
-                              {selectedConversation.avatarImage ? (
-                                <img
-                                  src={selectedConversation.avatarImage}
-                                  alt={selectedConversation.counselor}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-xs font-semibold text-primary">
-                                  {selectedConversation.avatar}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          <div className="max-w-[84%] sm:max-w-[70%]">
-                            <div
-                              className={`rounded-2xl px-4 py-2.5 border ${
-                                isStudentMessage
-                                  ? 'bg-sky-500 text-white border-sky-600/40 rounded-br-md shadow-[0_8px_18px_-10px_rgba(14,165,233,0.9)]'
-                                  : 'bg-card/95 text-foreground border-border rounded-bl-md shadow-sm backdrop-blur-[1px]'
-                              }`}
-                            >
-                              <p className="text-sm leading-6 whitespace-pre-wrap break-words">
-                                {message.content}
-                              </p>
-                            </div>
-                            <p
-                              className={`text-[11px] text-muted-foreground mt-1.5 ${
-                                isStudentMessage ? 'text-right' : 'text-left'
-                              }`}
-                            >
-                              {isStudentMessage ? 'You' : 'Counselor'} | {message.timestamp}
-                            </p>
-                          </div>
-                        </div>
+                          {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
+                          <ChatMessageBubble
+                            message={{
+                              id: message.id,
+                              senderRole: 'student',
+                              isOwnMessage: isStudentMessage,
+                              content: message.content,
+                              timestamp: message.timestamp,
+                              createdAt: message.createdAt,
+                              attachments: message.attachments,
+                              isEdited: message.isEdited,
+                              isDeleted: message.isDeleted,
+                              senderName: isStudentMessage ? 'You' : selectedConversation.counselor,
+                              senderAvatar: isStudentMessage ? undefined : selectedConversation.avatarImage,
+                              senderInitials: isStudentMessage ? undefined : selectedConversation.avatar,
+                            }}
+                            onEdit={handleStartEdit}
+                            onDelete={handleDeleteMessage}
+                          />
                         </React.Fragment>
                       );
                     })}
@@ -851,6 +922,11 @@ function StudentMessagesPageInner() {
                   onSend={handleSendMessage}
                   placeholder="Write a message..."
                   error={sendError}
+                  editingMessage={editingMessage}
+                  onCancelEdit={() => {
+                    setEditingMessage(null);
+                    setNewMessage('');
+                  }}
                   footer={
                     <p className="text-[11px] text-muted-foreground mt-2.5 px-1">
                       Your chat is private and only visible to approved counselors at your school.

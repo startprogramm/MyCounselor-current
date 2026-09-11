@@ -8,6 +8,7 @@ import { startVisibilityAwarePolling } from '@/lib/polling';
 import { isSameCalendarDay } from '@/lib/chat-date';
 import ChatDateDivider from '@/components/messaging/ChatDateDivider';
 import MessageComposer from '@/components/messaging/MessageComposer';
+import ChatMessageBubble, { ChatMessageItemData, MessageAttachment } from '@/components/messaging/ChatMessageBubble';
 
 interface Message {
   id: number;
@@ -15,6 +16,9 @@ interface Message {
   content: string;
   timestamp: string;
   createdAt: string;
+  attachments?: MessageAttachment[];
+  isEdited?: boolean;
+  isDeleted?: boolean;
 }
 
 interface MessageRow {
@@ -23,6 +27,9 @@ interface MessageRow {
   sender_role: string;
   content: string;
   created_at: string;
+  attachments?: MessageAttachment[];
+  is_edited?: boolean;
+  is_deleted?: boolean;
 }
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -42,7 +49,9 @@ function buildConversationKey(idA: string, idB: string) {
 
 function formatMessageTime(value: string) {
   return new Date(value).toLocaleTimeString('en-US', {
-    hour: 'numeric', minute: '2-digit', hour12: true,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   });
 }
 
@@ -80,6 +89,7 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
+  const [editingMessage, setEditingMessage] = useState<{ id: number; content: string } | null>(null);
   const [showMobileList, setShowMobileList] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fetchIdRef = useRef(0);
@@ -89,7 +99,10 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
     const fetchId = ++fetchIdRef.current;
 
     const { data: counselorRows, error } = await supabase
-      .from('profiles').select('*').eq('school_id', user.schoolId).eq('role', 'counselor');
+      .from('profiles')
+      .select('*')
+      .eq('school_id', user.schoolId)
+      .eq('role', 'counselor');
 
     if (error || fetchIdRef.current !== fetchId) {
       setLoadError('Unable to load counselors.');
@@ -98,9 +111,13 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
     }
 
     const counselors = (counselorRows || []).map(mapProfileToUser);
-    if (counselors.length === 0) { setCounselorChats([]); setIsLoading(false); return; }
+    if (counselors.length === 0) {
+      setCounselorChats([]);
+      setIsLoading(false);
+      return;
+    }
 
-    const keys = counselors.map(c => buildConversationKey(c.id, user.id));
+    const keys = counselors.map((c) => buildConversationKey(c.id, user.id));
 
     const [{ data: messageRows }, { data: readRows }] = await Promise.all([
       supabase.from('messages').select('*').in('conversation_key', keys).order('created_at', { ascending: true }),
@@ -110,55 +127,69 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
     if (fetchIdRef.current !== fetchId) return;
 
     const grouped = new Map<string, MessageRow[]>();
-    (messageRows || []).forEach(row => {
+    (messageRows || []).forEach((row) => {
       const bucket = grouped.get(row.conversation_key) || [];
-      bucket.push(row as MessageRow);
+      bucket.push(row as unknown as MessageRow);
       grouped.set(row.conversation_key, bucket);
     });
 
     const readMap = new Map<string, string>();
-    (readRows || []).forEach(row => readMap.set(row.conversation_key, row.last_read_at));
+    (readRows || []).forEach((row) => readMap.set(row.conversation_key, row.last_read_at));
 
-    const chats: CounselorChat[] = counselors.map(counselor => {
+    const chats: CounselorChat[] = counselors.map((counselor) => {
       const conversationKey = buildConversationKey(counselor.id, user.id);
       const rows = grouped.get(conversationKey) || [];
       const lastReadMs = readMap.has(conversationKey) ? new Date(readMap.get(conversationKey)!).getTime() : 0;
 
-      const messages: Message[] = rows.map(row => ({
-        id: (row as MessageRow).id,
-        sender: (row as MessageRow).sender_role === role ? 'me' : 'counselor',
-        content: (row as MessageRow).content,
-        timestamp: formatMessageTime((row as MessageRow).created_at),
-        createdAt: (row as MessageRow).created_at,
+      const messages: Message[] = rows.map((row) => ({
+        id: row.id,
+        sender: row.sender_role === role ? 'me' : 'counselor',
+        content: row.content,
+        timestamp: formatMessageTime(row.created_at),
+        createdAt: row.created_at,
+        attachments: (row.attachments as unknown as MessageAttachment[]) || [],
+        isEdited: Boolean(row.is_edited),
+        isDeleted: Boolean(row.is_deleted),
       }));
 
-      const lastMessage = messages[messages.length - 1];
-      const unread = rows.filter(row =>
-        (row as MessageRow).sender_role === 'counselor' &&
-        (lastReadMs === 0 || new Date((row as MessageRow).created_at).getTime() > lastReadMs)
+      const activeMessages = messages.filter((m) => !m.isDeleted);
+      const lastMessage = activeMessages[activeMessages.length - 1] || messages[messages.length - 1];
+      const unread = rows.filter(
+        (row) =>
+          row.sender_role === 'counselor' &&
+          (lastReadMs === 0 || new Date(row.created_at).getTime() > lastReadMs)
       ).length;
 
-      return { counselor, conversationKey, messages, unread,
-        lastMessage: lastMessage?.content || 'No messages yet',
-        timestamp: lastMessage?.timestamp || '' };
+      return {
+        counselor,
+        conversationKey,
+        messages,
+        unread,
+        lastMessage: lastMessage?.isDeleted ? 'This message was deleted' : lastMessage?.content || (lastMessage?.attachments?.length ? '[Attachment]' : 'No messages yet'),
+        timestamp: lastMessage?.timestamp || '',
+      };
     });
 
     chats.sort((a, b) => {
-      const aHas = a.messages.length > 0, bHas = b.messages.length > 0;
-      if (aHas && !bHas) return -1; if (!aHas && bHas) return 1;
+      const aHas = a.messages.length > 0,
+        bHas = b.messages.length > 0;
+      if (aHas && !bHas) return -1;
+      if (!aHas && bHas) return 1;
       if (aHas && bHas) return b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id;
       return a.counselor.firstName.localeCompare(b.counselor.firstName);
     });
 
     setCounselorChats(chats);
-    setSelectedCounselorId(prev =>
-      (prev && chats.some(c => c.counselor.id === prev)) ? prev : chats[0]?.counselor.id || null
+    setSelectedCounselorId((prev) =>
+      prev && chats.some((c) => c.counselor.id === prev) ? prev : chats[0]?.counselor.id || null
     );
     setLoadError(null);
     setIsLoading(false);
   }, [user?.id, user?.schoolId, role]);
 
-  useEffect(() => { loadChats(); }, [loadChats]);
+  useEffect(() => {
+    loadChats();
+  }, [loadChats]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -169,7 +200,7 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedCounselorId, counselorChats]);
 
-  const selectedChat = counselorChats.find(c => c.counselor.id === selectedCounselorId);
+  const selectedChat = counselorChats.find((c) => c.counselor.id === selectedCounselorId);
 
   useEffect(() => {
     if (!selectedChat || selectedChat.unread === 0 || !user?.id) return;
@@ -178,23 +209,75 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
       { conversation_key: selectedChat.conversationKey, reader_id: user.id, last_read_at: now, updated_at: now },
       { onConflict: 'conversation_key,reader_id' }
     );
-    setCounselorChats(prev => prev.map(c =>
-      c.counselor.id === selectedCounselorId ? { ...c, unread: 0 } : c
-    ));
+    setCounselorChats((prev) =>
+      prev.map((c) => (c.counselor.id === selectedCounselorId ? { ...c, unread: 0 } : c))
+    );
   }, [selectedChat?.conversationKey, selectedChat?.unread, user?.id, selectedCounselorId]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || !user) return;
-    const text = newMessage.trim();
+  const handleSendMessage = async (text: string, attachments: MessageAttachment[]) => {
+    if ((!text.trim() && attachments.length === 0) || !selectedChat || !user) return;
+
+    if (editingMessage) {
+      // Editing existing message
+      const updatedContent = text.trim();
+      setEditingMessage(null);
+      setNewMessage('');
+      setSendError(null);
+
+      setCounselorChats((prev) =>
+        prev.map((c) =>
+          c.counselor.id === selectedChat.counselor.id
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === editingMessage.id ? { ...m, content: updatedContent, isEdited: true } : m
+                ),
+              }
+            : c
+        )
+      );
+
+      const editPayload: Database['public']['Tables']['messages']['Update'] = {
+        content: updatedContent,
+        is_edited: true,
+        edited_at: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from('messages')
+        .update(editPayload)
+        .eq('id', editingMessage.id);
+
+      if (error) {
+        setSendError('Failed to save message edit.');
+      }
+      await loadChats();
+      return;
+    }
+
+    // New message creation
     const optimisticId = Date.now();
     const nowIso = new Date().toISOString();
-    const optimistic: Message = { id: optimisticId, sender: 'me', content: text, timestamp: formatMessageTime(nowIso), createdAt: nowIso };
+    const optimistic: Message = {
+      id: optimisticId,
+      sender: 'me',
+      content: text,
+      timestamp: formatMessageTime(nowIso),
+      createdAt: nowIso,
+      attachments,
+    };
 
-    setCounselorChats(prev => prev.map(c =>
-      c.counselor.id === selectedChat.counselor.id
-        ? { ...c, messages: [...c.messages, optimistic], lastMessage: text, timestamp: optimistic.timestamp }
-        : c
-    ));
+    setCounselorChats((prev) =>
+      prev.map((c) =>
+        c.counselor.id === selectedChat.counselor.id
+          ? {
+              ...c,
+              messages: [...c.messages, optimistic],
+              lastMessage: text || (attachments.length ? '[Attachment]' : ''),
+              timestamp: optimistic.timestamp,
+            }
+          : c
+      )
+    );
     setNewMessage('');
     setSendError(null);
 
@@ -203,14 +286,17 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
       sender_role: role,
       sender_id: user.id,
       content: text,
+      attachments: attachments as unknown as Database['public']['Tables']['messages']['Insert']['attachments'],
     });
 
     if (error) {
-      setCounselorChats(prev => prev.map(c =>
-        c.counselor.id === selectedChat.counselor.id
-          ? { ...c, messages: c.messages.filter(m => m.id !== optimisticId) }
-          : c
-      ));
+      setCounselorChats((prev) =>
+        prev.map((c) =>
+          c.counselor.id === selectedChat.counselor.id
+            ? { ...c, messages: c.messages.filter((m) => m.id !== optimisticId) }
+            : c
+        )
+      );
       setNewMessage(text);
       setSendError('Message failed to send. Please try again.');
       return;
@@ -219,16 +305,48 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
     await loadChats();
   };
 
+  const handleStartEdit = (msg: ChatMessageItemData) => {
+    setEditingMessage({ id: msg.id, content: msg.content });
+    setNewMessage(msg.content);
+  };
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!selectedChat) return;
+
+    setCounselorChats((prev) =>
+      prev.map((c) =>
+        c.counselor.id === selectedChat.counselor.id
+          ? {
+              ...c,
+              messages: c.messages.map((m) => (m.id === messageId ? { ...m, isDeleted: true } : m)),
+            }
+          : c
+      )
+    );
+
+    const deletePayload: Database['public']['Tables']['messages']['Update'] = { is_deleted: true };
+    const { error } = await supabase
+      .from('messages')
+      .update(deletePayload)
+      .eq('id', messageId);
+
+    if (error) {
+      setSendError('Failed to delete message.');
+    }
+    await loadChats();
+  };
+
   const handleSelect = (id: string) => {
     setSelectedCounselorId(id);
     setShowMobileList(false);
+    setEditingMessage(null);
+    setNewMessage('');
     setSendError(null);
-    setCounselorChats(prev => prev.map(c => c.counselor.id === id ? { ...c, unread: 0 } : c));
+    setCounselorChats((prev) => prev.map((c) => (c.counselor.id === id ? { ...c, unread: 0 } : c)));
   };
 
   const totalUnread = counselorChats.reduce((s, c) => s + c.unread, 0);
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="h-dvh min-h-0 flex flex-col overflow-hidden">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
@@ -246,7 +364,13 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
       {loadError && (
         <div className="mb-4 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground flex items-center justify-between gap-3">
           <span>{loadError}</span>
-          <button type="button" onClick={() => void loadChats()} className="px-3 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors">Retry</button>
+          <button
+            type="button"
+            onClick={() => void loadChats()}
+            className="px-3 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -260,25 +384,44 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
       ) : counselorChats.length === 0 ? (
         <div className="flex-1 bg-card rounded-xl border border-border flex items-center justify-center">
           <div className="text-center py-12 px-4">
-            <svg className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            <svg
+              className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              />
             </svg>
             <p className="font-medium text-foreground text-lg">No counselors found</p>
-            <p className="text-sm text-muted-foreground mt-2">No school counselors have been added to your school yet.</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              No school counselors have been added to your school yet.
+            </p>
           </div>
         </div>
       ) : (
         <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-hidden flex">
-
           {/* Sidebar */}
-          <div className={`w-full md:w-72 border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background/30 ${showMobileList ? 'block' : 'hidden md:block'}`}>
+          <div
+            className={`w-full md:w-72 border-r border-border flex-shrink-0 flex flex-col min-h-0 bg-background/30 ${
+              showMobileList ? 'block' : 'hidden md:block'
+            }`}
+          >
             <div className="p-4 border-b border-border">
               <h2 className="font-semibold text-foreground text-sm">School Counselors</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">{counselorChats.length} counselor{counselorChats.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {counselorChats.length} counselor{counselorChats.length !== 1 ? 's' : ''}
+              </p>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto">
-              {counselorChats.map(chat => (
-                <button key={chat.counselor.id} onClick={() => handleSelect(chat.counselor.id)}
+              {counselorChats.map((chat) => (
+                <button
+                  key={chat.counselor.id}
+                  onClick={() => handleSelect(chat.counselor.id)}
                   className={`w-full p-3.5 text-left border-b border-border/60 transition-all duration-200 ${
                     selectedCounselorId === chat.counselor.id
                       ? 'bg-primary/12 border-l-[3px] border-l-primary'
@@ -287,18 +430,30 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                      {chat.counselor.profileImage
-                        ? <img src={chat.counselor.profileImage} alt="" className="w-full h-full object-cover" />
-                        : <span className="text-sm font-semibold text-primary">{chat.counselor.firstName[0]}{chat.counselor.lastName[0]}</span>
-                      }
+                      {chat.counselor.profileImage ? (
+                        <img src={chat.counselor.profileImage} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-sm font-semibold text-primary">
+                          {chat.counselor.firstName[0]}
+                          {chat.counselor.lastName[0]}
+                        </span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-foreground truncate">{chat.counselor.firstName} {chat.counselor.lastName}</span>
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">{chat.timestamp || '--'}</span>
+                        <span className="font-semibold text-foreground truncate">
+                          {chat.counselor.firstName} {chat.counselor.lastName}
+                        </span>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {chat.timestamp || '--'}
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">School Counselor</p>
-                      <p className={`text-sm truncate mt-1 ${chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                      <p
+                        className={`text-sm truncate mt-1 ${
+                          chat.unread > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'
+                        }`}
+                      >
                         {chat.lastMessage}
                       </p>
                     </div>
@@ -314,38 +469,69 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
           </div>
 
           {/* Chat area */}
-          <div className={`flex-1 min-h-0 flex flex-col bg-background/10 ${showMobileList ? 'hidden md:flex' : 'flex'}`}>
+          <div
+            className={`flex-1 min-h-0 flex flex-col bg-background/10 ${
+              showMobileList ? 'hidden md:flex' : 'flex'
+            }`}
+          >
             {selectedChat ? (
               <>
                 <div className="p-4 border-b border-border bg-card/90 flex items-center gap-3">
-                  <button type="button" className="md:hidden p-2 -ml-2 hover:bg-muted rounded-lg" onClick={() => setShowMobileList(true)}>
+                  <button
+                    type="button"
+                    className="md:hidden p-2 -ml-2 hover:bg-muted rounded-lg"
+                    onClick={() => setShowMobileList(true)}
+                  >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
                   <div className="w-11 h-11 rounded-full border border-border bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                    {selectedChat.counselor.profileImage
-                      ? <img src={selectedChat.counselor.profileImage} alt="" className="w-full h-full object-cover" />
-                      : <span className="text-sm font-semibold text-primary">{selectedChat.counselor.firstName[0]}{selectedChat.counselor.lastName[0]}</span>
-                    }
+                    {selectedChat.counselor.profileImage ? (
+                      <img src={selectedChat.counselor.profileImage} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-semibold text-primary">
+                        {selectedChat.counselor.firstName[0]}
+                        {selectedChat.counselor.lastName[0]}
+                      </span>
+                    )}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground truncate">{selectedChat.counselor.firstName} {selectedChat.counselor.lastName}</h3>
-                    <p className="text-xs text-muted-foreground">School Counselor | {selectedChat.counselor.email}</p>
+                    <h3 className="font-semibold text-foreground truncate">
+                      {selectedChat.counselor.firstName} {selectedChat.counselor.lastName}
+                    </h3>
+                    <p className="text-xs text-muted-foreground truncate">
+                      School Counselor | {selectedChat.counselor.email}
+                    </p>
                   </div>
                 </div>
 
                 <div className="relative flex-1 min-h-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.10),transparent_42%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.08),transparent_45%)]">
-                  <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]" />
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(148,163,184,0.04)_0%,transparent_42%,rgba(14,165,233,0.04)_100%)]"
+                  />
                   <div className="relative h-full overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 space-y-3">
                     {selectedChat.messages.length === 0 && (
                       <div className="h-full flex items-center justify-center">
                         <div className="text-center text-muted-foreground">
-                          <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                          <svg
+                            className="w-12 h-12 mx-auto mb-3 opacity-50"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                            />
                           </svg>
                           <p className="font-medium">No messages yet</p>
-                          <p className="text-sm mt-1">Send a message to {selectedChat.counselor.firstName} to get started</p>
+                          <p className="text-sm mt-1">
+                            Send a message to {selectedChat.counselor.firstName} to get started
+                          </p>
                         </div>
                       </div>
                     )}
@@ -356,29 +542,27 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
                         !previousMessage || !isSameCalendarDay(previousMessage.createdAt, message.createdAt);
                       return (
                         <React.Fragment key={message.id}>
-                        {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
-                        <div className={`flex items-end gap-2.5 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                          {!isMine && (
-                            <div className="w-8 h-8 rounded-full border border-border bg-card overflow-hidden flex items-center justify-center mb-1 flex-shrink-0 shadow-sm">
-                              {selectedChat.counselor.profileImage
-                                ? <img src={selectedChat.counselor.profileImage} alt="" className="w-full h-full object-cover" />
-                                : <span className="text-xs font-semibold text-primary">{selectedChat.counselor.firstName[0]}{selectedChat.counselor.lastName[0]}</span>
-                              }
-                            </div>
-                          )}
-                          <div className="max-w-[84%] sm:max-w-[70%]">
-                            <div className={`rounded-2xl px-4 py-2.5 border ${
-                              isMine
-                                ? 'bg-sky-500 text-white border-sky-600/40 rounded-br-md shadow-[0_8px_18px_-10px_rgba(14,165,233,0.9)]'
-                                : 'bg-card/95 text-foreground border-border rounded-bl-md shadow-sm'
-                            }`}>
-                              <p className="text-sm leading-6 whitespace-pre-wrap break-words">{message.content}</p>
-                            </div>
-                            <p className={`text-[11px] text-muted-foreground mt-1.5 ${isMine ? 'text-right' : 'text-left'}`}>
-                              {isMine ? 'You' : selectedChat.counselor.firstName} | {message.timestamp}
-                            </p>
-                          </div>
-                        </div>
+                          {showDateDivider && <ChatDateDivider iso={message.createdAt} />}
+                          <ChatMessageBubble
+                            message={{
+                              id: message.id,
+                              senderRole: role,
+                              isOwnMessage: isMine,
+                              content: message.content,
+                              timestamp: message.timestamp,
+                              createdAt: message.createdAt,
+                              attachments: message.attachments,
+                              isEdited: message.isEdited,
+                              isDeleted: message.isDeleted,
+                              senderName: isMine ? 'You' : selectedChat.counselor.firstName,
+                              senderAvatar: isMine ? undefined : selectedChat.counselor.profileImage,
+                              senderInitials: isMine
+                                ? undefined
+                                : `${selectedChat.counselor.firstName[0]}${selectedChat.counselor.lastName[0]}`,
+                            }}
+                            onEdit={handleStartEdit}
+                            onDelete={handleDeleteMessage}
+                          />
                         </React.Fragment>
                       );
                     })}
@@ -392,6 +576,11 @@ export default function CounselorConversationPage({ role, subtitle }: CounselorC
                   onSend={handleSendMessage}
                   placeholder={`Message ${selectedChat.counselor.firstName}...`}
                   error={sendError}
+                  editingMessage={editingMessage}
+                  onCancelEdit={() => {
+                    setEditingMessage(null);
+                    setNewMessage('');
+                  }}
                 />
               </>
             ) : (

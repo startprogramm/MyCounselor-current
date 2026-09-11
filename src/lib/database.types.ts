@@ -217,6 +217,10 @@ export type Database = {
           sender_role: string;
           sender_id: string;
           content: string;
+          attachments: Json | null;
+          is_edited: boolean;
+          edited_at: string | null;
+          is_deleted: boolean;
           created_at: string;
         };
         Insert: {
@@ -225,6 +229,10 @@ export type Database = {
           sender_role: string;
           sender_id: string;
           content: string;
+          attachments?: Json | null;
+          is_edited?: boolean;
+          edited_at?: string | null;
+          is_deleted?: boolean;
           created_at?: string;
         };
         Update: {
@@ -233,6 +241,10 @@ export type Database = {
           sender_role?: string;
           sender_id?: string;
           content?: string;
+          attachments?: Json | null;
+          is_edited?: boolean;
+          edited_at?: string | null;
+          is_deleted?: boolean;
           created_at?: string;
         };
         Relationships: [];
